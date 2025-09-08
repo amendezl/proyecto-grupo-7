@@ -1,0 +1,197 @@
+/* ESTILOS GENERALES */
+
+* {
+    box-sizing: border-box;
+}
+
+.page-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #37527a;
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+.head-container {
+    margin-bottom: 0.5rem;
+}
+
+/* CONTENEDOR DE INFO (CONTADOR + BUSCADOR) */
+.info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.total-counter {
+    color: #7f8c8d;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+
+/* BARRA DE BÚSQUEDA */
+.search-container {
+    flex: 1;
+    min-width: 250px;
+    max-width: 400px;
+}
+
+.filtro-group {
+    position: relative;
+    width: 100%;
+}
+
+.filtro-group i {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #05b5af;
+    z-index: 2;
+}
+
+.input-filtro {
+    width: 100%;
+    padding: 0.7rem 1rem 0.7rem 2.8rem;
+    border: 2px solid #05b5af;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.input-filtro:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(5, 181, 175, 0.2);
+    border-color: #048a85;
+}
+
+/* TARJETAS DE IMPLEMENTOS */
+.cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.implemento-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.implemento-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+}
+
+.implemento-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #05b5af;
+    top: 0;
+}
+
+.card-header {
+    padding: 1.3rem 1.2rem 0.8rem;
+    position: relative;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.total-count {
+    margin-top: 0.3rem;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+.card-body {
+    padding: 0.8rem 1.2rem 1.2rem;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    padding: 0.5rem 0;
+    font-size: 0.95rem;
+}
+
+.status-item:last-child {
+    margin-bottom: 0;
+}
+
+.status-item i {
+    margin-right: 12px;
+    width: 20px;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+/* COLORES ICONOS */
+.disponible-icon {
+    color: #27ae60;
+}
+
+.reparacion-icon {
+    color: #f39c12;
+}
+
+.fuera-servicio-icon {
+    color: #e74c3c;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .page-title {
+        font-size: 1.8rem;
+        align-self: flex-start;
+    }
+    
+    .info {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-container {
+        max-width: 100%;
+    }
+    
+    .cards-container {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+    
+    .input-filtro {
+        padding: 0.6rem 0.8rem 0.6rem 2.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-title {
+        font-size: 1.5rem;
+        align-self: flex-start;
+        text-align: left;
+    }
+    
+    .cards-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .status-item {
+        font-size: 0.9rem;
+    }
+}

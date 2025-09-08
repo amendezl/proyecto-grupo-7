@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel de Administración{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reportes.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+
+    <!-- Descargar Reporte -->
+    <div class="Formulario reporte">
+        <h1>Descargar Reporte</h1>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="descargar">
+            <label for="fecha">Selecciona una fecha:</label>
+            <input type="date" id="fecha" name="fecha" required>
+            <button type="submit">Descargar Excel</button>
+        </form>
+
+        <div id="loading-reporte" class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Generando preview del reporte...
+        </div>
+
+        <div id="preview-reporte" class="preview-table" style="display:none;">
+            <h1>Vista previa del reporte</h1>
+            <table id="tabla-reporte">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Paciente</th>
+                        <th>Médico</th>
+                        <th>Box</th>
+                        <th>Hora Inicio</th>
+                        <th>Hora Fin</th>
+                        <th>Tipo de cita</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for consulta in consultas_preview %}
+                    <tr>
+                        <td data-label="ID">{{ consulta.idconsulta }}</td>
+                        <td data-label="Paciente">{{ consulta.rutpaciente.nombrepaciente }} {{
+                            consulta.rutpaciente.apellidopaciente }}</td>
+                        <td data-label="Médico">{{ consulta.rutmedico.nombremedico }} {{
+                            consulta.rutmedico.apellidomedico }}</td>
+                        <td data-label="Box">Box {{ consulta.idbox.numerobox }}</td>
+                        <td data-label="Hora Inicio">{{ consulta.horainicio|time:'H:i' }}</td>
+                        <td data-label="Hora Fin">{{ consulta.horafin|time:'H:i' }}</td>
+                        <td data-label="Tipo de cita">{{ consulta.idtipocita.tipocita }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align:center; font-style:italic; color:gray;">
+                            No hay datos para esta fecha.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Importar Horario -->
+    <div class="Formulario importar">
+        <h1>Importar Horario</h1>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="importar">
+            <label for="archivo">Selecciona un archivo Excel o CSV:</label>
+            <input type="file" id="archivo" name="archivo" accept=".xlsx,.csv" required>
+            <button type="submit">Importar Horario</button>
+        </form>
+
+        <div id="loading-importar" class="loading-indicator">
+            <div class="loading-spinner"></div>
+            Procesando archivo para importar...
+        </div>
+
+        <div id="preview-importar" class="preview-table" style="display:none;">
+            <h1>Vista previa del archivo a importar</h1>
+            <table id="tabla-importar">
+                <thead>
+                    <tr>
+                        {% for col in columnas_importar %}
+                        <th>{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas_importar %}
+                    <tr>
+                        {% for val,col in fila.items %}
+                        <td data-label="{{ col }}">{{ val }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ columnas_importar|length }}"
+                            style="text-align:center; font-style:italic; color:gray;">
+                            No hay datos para mostrar.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mostrar mensajes -->
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const messages = document.querySelectorAll(".messages li");
+        messages.forEach((msg) => {
+            setTimeout(() => {
+                msg.style.animation = "fadeOut 0.5s forwards";
+                setTimeout(() => msg.remove(), 500);
+            }, 5000);
+        });
+
+        // Obtener referencias a los elementos necesarios
+        const formReporte = document.querySelector('.Formulario.reporte form');
+        const inputFecha = document.getElementById('fecha');
+        const previewReporte = document.getElementById('preview-reporte');
+        const tablaReporte = document.getElementById('tabla-reporte');
+        const loadingReporte = document.getElementById('loading-reporte');
+
+        const formImportar = document.querySelector('.Formulario.importar form');
+        const inputArchivo = document.getElementById('archivo');
+        const previewImportar = document.getElementById('preview-importar');
+        const tablaImportar = document.getElementById('tabla-importar');
+        const loadingImportar = document.getElementById('loading-importar');
+
+        // Evento para generar preview del reporte
+        inputFecha.addEventListener('change', function (e) {
+            const fecha = e.target.value;
+            if (fecha) {
+                // Mostrar indicador de carga
+                loadingReporte.style.display = 'block';
+                previewReporte.style.display = 'none';
+
+                fetch(`/ajax/reporte_preview/?fecha=${fecha}`)
+                    .then(res => {
+                        if (!res.ok) {
+                            throw new Error('Error en la respuesta del servidor');
+                        }
+                        return res.json();
+                    })
+                    .then(data => {
+                        // Limpiar tabla
+                        const thead = tablaReporte.querySelector('thead');
+                        const tbody = tablaReporte.querySelector('tbody');
+
+                        thead.innerHTML = '';
+                        tbody.innerHTML = '';
+
+                        // Crear encabezado
+                        const trHead = document.createElement('tr');
+                        data.columns.forEach(col => {
+                            const th = document.createElement('th');
+                            th.textContent = col;
+                            trHead.appendChild(th);
+                        });
+                        thead.appendChild(trHead);
+
+                        // Crear filas
+                        data.rows.forEach(row => {
+                            const tr = document.createElement('tr');
+                            row.forEach((cell, index) => {
+                                const td = document.createElement('td');
+                                td.textContent = cell;
+                                // Asignar data-label basado en las columnas
+                                td.setAttribute('data-label', data.columns[index]);
+                                tr.appendChild(td);
+                            });
+                            tbody.appendChild(tr);
+                        });
+
+                        previewReporte.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Mostrar mensaje de error en la tabla
+                        const tbody = tablaReporte.querySelector('tbody');
+                        tbody.innerHTML = `
+                    <tr>
+                        <td colspan="${data ? data.columns.length : 7}" style="text-align:center; font-style:italic; color:gray;">
+                            Error al cargar los datos. Por favor intente nuevamente.
+                        </td>
+                    </tr>
+                `;
+                        previewReporte.style.display = 'block';
+                    })
+                    .finally(() => {
+                        loadingReporte.style.display = 'none';
+                    });
+            }
+        });
+
+        // Evento para preview de importación
+        inputArchivo.addEventListener('change', function () {
+            const file = inputArchivo.files[0];
+            if (file) {
+                // Mostrar indicador de carga
+                loadingImportar.style.display = 'block';
+                previewImportar.style.display = 'none';
+
+                const formData = new FormData();
+                formData.append('archivo', file);
+
+                fetch('/ajax/importar_preview/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                })
+                    .then(res => {
+                        if (!res.ok) {
+                            throw new Error('Error en la respuesta del servidor');
+                        }
+                        return res.json();
+                    })
+                    .then(data => {
+                        // Limpiar tabla
+                        const thead = tablaImportar.querySelector('thead');
+                        const tbody = tablaImportar.querySelector('tbody');
+
+                        thead.innerHTML = '';
+                        tbody.innerHTML = '';
+
+                        // Encabezado
+                        const trHead = document.createElement('tr');
+                        data.columns.forEach(col => {
+                            const th = document.createElement('th');
+                            th.textContent = col;
+                            trHead.appendChild(th);
+                        });
+                        thead.appendChild(trHead);
+
+                        // Filas
+                        data.rows.forEach(row => {
+                            const tr = document.createElement('tr');
+                            row.forEach((cell, index) => {
+                                const td = document.createElement('td');
+                                td.textContent = cell;
+                                // Asignar data-label basado en las columnas
+                                td.setAttribute('data-label', data.columns[index]);
+                                tr.appendChild(td);
+                            });
+                            tbody.appendChild(tr);
+                        });
+
+                        previewImportar.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Mostrar mensaje de error en la tabla
+                        const tbody = tablaImportar.querySelector('tbody');
+                        tbody.innerHTML = `
+                    <tr>
+                        <td colspan="1" style="text-align:center; font-style:italic; color:gray;">
+                            Error al procesar el archivo. Asegúrese de que el formato es correcto.
+                        </td>
+                    </tr>
+                `;
+                        previewImportar.style.display = 'block';
+                    })
+                    .finally(() => {
+                        loadingImportar.style.display = 'none';
+                    });
+            }
+        });
+    });
+</script>
+{% endblock %}

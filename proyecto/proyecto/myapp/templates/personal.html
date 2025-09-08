@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Personal Médico{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/personal.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <div class="titulo-content">
+        <h1>Personal Médico</h1>
+        
+        <div class="filtros-container">
+            <div class="form-busqueda">
+                <input type="text" 
+                       id="input-busqueda"
+                       placeholder="Buscar por nombre o apellido..."
+                       autocomplete="off">
+                <button type="button" id="btn-buscar">
+                    <i class='bx bx-search'></i>
+                </button>
+            </div>
+            
+            <form method="get" class="form-filtro">
+                <select name="especialidad" id="select-especialidad">
+                    <option value="">Todas las especialidades</option>
+                    {% for esp in especialidades %}
+                    <option value="{{ esp.idespecialidad }}"
+                            {% if especialidad_actual == esp.idespecialidad %}selected{% endif %}>
+                        {{ esp.nombreespecialidad }} ({{ esp.medico_set.count }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <div class="medicos-container">
+        {% for medico in medicos %}
+        <div class="medico-card" data-especialidad="{{ medico.idespecialidad.idespecialidad|default:'' }}">
+            <div class="medico-avatar">
+                <img src="{% static 'images/avatares/'|add:medico.nombremedico|lower|add:'_'|add:medico.apellidomedico|lower|add:'.jpg' %}" 
+                     onerror="this.onerror=null; this.src='{% static 'images/avatar_default.jpg' %}'"
+                     alt="Foto de {{ medico.nombremedico }} {{ medico.apellidomedico }}">
+            </div>
+            <div class="medico-info">
+                <h3>Dr. {{ medico.nombremedico }} {{ medico.apellidomedico }}</h3>
+                {% if medico.idespecialidad %}
+                <p class="especialidad">{{ medico.idespecialidad.nombreespecialidad }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="no-resultados">
+            <p>No hay médicos registrados</p>
+        </div>
+        {% endfor %}
+        
+        <div class="no-resultados" id="no-resultados-busqueda" style="display: none;">
+            <p id="mensaje-no-resultados"></p>
+            <a href="#" id="btn-reset">Mostrar todos</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputBusqueda = document.getElementById('input-busqueda');
+    const btnBuscar = document.getElementById('btn-buscar');
+    const selectEspecialidad = document.getElementById('select-especialidad');
+    const btnReset = document.getElementById('btn-reset');
+    const noResultsMsg = document.getElementById('no-resultados-busqueda');
+    const mensajeNoResults = document.getElementById('mensaje-no-resultados');
+    
+    function filtrarMedicos() {
+        const termino = inputBusqueda.value.toLowerCase().trim();
+        const especialidad = selectEspecialidad.value;
+        let resultadosVisibles = 0;
+        
+        document.querySelectorAll('.medico-card').forEach(card => {
+            const nombreCompleto = card.querySelector('h3').textContent.toLowerCase();
+            const cardEspecialidad = card.getAttribute('data-especialidad');
+            
+            const coincideBusqueda = termino === '' || nombreCompleto.includes(termino);
+            const coincideEspecialidad = especialidad === '' || cardEspecialidad === especialidad;
+            
+            if (coincideBusqueda && coincideEspecialidad) {
+                card.style.display = 'block';
+                resultadosVisibles++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        if (resultadosVisibles === 0) {
+            let mensaje = 'No se encontraron médicos';
+            if (termino !== '' || especialidad !== '') {
+                mensaje += ' con los filtros aplicados';
+                if (termino !== '') {
+                    mensaje += ` que coincidan con "${termino}"`;
+                }
+                if (especialidad !== '') {
+                    const especialidadNombre = selectEspecialidad.options[selectEspecialidad.selectedIndex].text.split(' (')[0];
+                    mensaje += ` en ${especialidadNombre}`;
+                }
+            }
+            
+            mensajeNoResults.textContent = mensaje;
+            noResultsMsg.style.display = 'block';
+        } else {
+            noResultsMsg.style.display = 'none';
+        }
+    }
+    
+    inputBusqueda.addEventListener('input', function() {
+        filtrarMedicos();
+    });
+    
+    btnBuscar.addEventListener('click', filtrarMedicos);
+    
+    selectEspecialidad.addEventListener('change', function() {
+        filtrarMedicos();
+    });
+    
+    btnReset.addEventListener('click', function(e) {
+        e.preventDefault();
+        inputBusqueda.value = '';
+        selectEspecialidad.value = '';
+        filtrarMedicos();
+    });
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('busqueda') || urlParams.has('especialidad')) {
+        if (urlParams.has('busqueda')) {
+            inputBusqueda.value = urlParams.get('busqueda');
+        }
+        if (urlParams.has('especialidad')) {
+            selectEspecialidad.value = urlParams.get('especialidad');
+        }
+        filtrarMedicos();
+    }
+});
+</script>
+{% endblock %}

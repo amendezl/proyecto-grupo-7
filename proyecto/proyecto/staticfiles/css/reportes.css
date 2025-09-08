@@ -1,0 +1,113 @@
+.main-content {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 25px;
+}
+
+.Formulario {
+    background: white;
+    border: 2px solid #05b5af;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+}
+
+.Formulario:hover {
+    transform: translateY(-3px);
+}
+
+.Formulario h1 {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #37527a;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.Formulario label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #37527a;
+}
+
+.Formulario input[type="date"],
+.Formulario input[type="file"],
+.Formulario input[type="text"],
+.Formulario select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #05b5af;
+    border-radius: 6px;
+    font-family: inherit;
+    margin-bottom: 15px;
+    transition: border-color 0.3s;
+}
+
+.Formulario input:focus,
+.Formulario select:focus {
+    border-color: #048a86;
+    outline: none;
+}
+
+.Formulario button {
+    background-color: white;
+    color: #05b5af;
+    border: 2px solid #05b5af;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    width: 100%;
+}
+
+.Formulario button:hover {
+    background-color: #05b5af;
+    color: white;
+}
+
+/* Mensajes */
+.messages {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+}
+
+.messages li {
+    padding: 12px 15px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.messages li.success {
+    background-color: #d1f7f6;
+    color: #048a86;
+    border: 1px solid #05b5af;
+}
+
+.messages li.error {
+    background-color: #fdd;
+    color: #b71c1c;
+    border: 1px solid #f44336;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-content {
+        grid-template-columns: 1fr;
+        padding: 15px;
+    }
+
+    .Formulario {
+        padding: 20px;
+    }
+
+    .Formulario h1 {
+        font-size: 1.3rem;
+    }
+}

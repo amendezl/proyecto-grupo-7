@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Dashboard{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+  <h1 class="dashboard-header">Dashboard</h1>
+
+  <div class="dashboard-cards">
+    <div class="card uso">
+      <div class="card-content">
+        BOXES EN USO <br>
+        <span>{{ en_uso }}</span>
+      </div>
+    </div>
+    <div class="card disponibles">
+      <div class="card-content">
+        BOXES DISPONIBLES <br>
+        <span>{{ disponibles }}</span>
+      </div>
+    </div>
+    <div class="card mantencion">
+      <div class="card-content">
+        BOXES EN MANTENCIÓN <br>
+        <span>{{ en_mantencion }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-graphics">
+    <div class="chart-container" style="max-width: 400px;">
+      <h4>Porcentaje de Ocupación de Boxes - Hoy</h4>
+      <canvas id="ocupacionChart"></canvas>
+      <p style="text-align:center; font-weight:bold;">
+        Porcentaje de Boxes Disponibles: {{ porcentajes.disponibles }}%
+      </p>
+    </div>
+
+    <div class="chart-container">
+      <h4>Especialidades más demandadas - Hoy</h4>
+      <canvas id="especialidadesChart"></canvas>
+    </div>
+  </div>
+
+  <div class="dashboard-graphics">
+    <div class="chart-container">
+      <h4>Disponibilidad de Boxes - Hoy</h4>
+      <canvas id="disponibilidadChart"></canvas>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const ctx1 = document.getElementById('ocupacionChart').getContext('2d');
+  new Chart(ctx1, {
+    type: 'doughnut',
+    data: {
+      labels: [
+        "En uso: {{ en_uso }} ({{ porcentajes.en_uso }}%)",
+        "Disponibles: {{ disponibles }} ({{ porcentajes.disponibles }}%)",
+        "En mantención: {{ en_mantencion }} ({{ porcentajes.en_mantencion }}%)"
+      ],
+      datasets: [{
+        label: 'Distribución de Boxes',
+        data: [
+          {{ en_uso }}, 
+          {{ disponibles }}, 
+          {{ en_mantencion }}
+        ],
+        backgroundColor: [
+          '#05b5af',
+          'rgba(158, 158, 158, 0.8)',
+          'rgba(255, 193, 7, 0.8)'
+        ],
+        borderColor: [
+          'rgba(0, 188, 212, 1)',
+          'rgba(158, 158, 158, 1)',
+          'rgba(255, 193, 7, 1)'
+        ],
+        borderWidth: 2,
+        hoverOffset: 10,
+        hoverBackgroundColor: [
+          'rgba(0, 188, 212, 1)',
+          'rgba(158, 158, 158, 1)',
+          'rgba(255, 193, 7, 1)'
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '70%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: {
+              size: 12,
+              family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+            },
+            padding: 20,
+            usePointStyle: true,
+            pointStyle: 'circle'
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          titleFont: { size: 14 },
+          bodyFont: { size: 12 },
+          padding: 12,
+          cornerRadius: 8,
+          displayColors: true,
+          callbacks: {
+            label: function(context) {
+              return context.label + ': ' + context.raw;
+            }
+          }
+        }
+      },
+      animation: {
+        animateScale: true,
+        animateRotate: true
+      }
+    }
+  });
+
+  // Gráfico de línea (disponibilidad)
+  const ctx2 = document.getElementById('disponibilidadChart').getContext('2d');
+  new Chart(ctx2, {
+    type: 'line',
+    data: {
+        labels: {{ horas|safe }},
+        datasets: [{
+            label: 'Boxes disponibles por hora',
+            data: {{ ocupados_por_hora|safe }},
+            fill: true,
+            backgroundColor: 'rgba(0, 188, 212, 0.1)',
+            borderColor: '#05b5af',
+            borderWidth: 3,
+            tension: 0.3,
+            pointBackgroundColor: '#05b5af',
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#05b5af',
+            pointHoverBorderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: Math.max(...{{ ocupados_por_hora|safe }}) + 1,
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)',
+                    drawBorder: false
+                },
+                ticks: {
+                    font: {
+                        family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                    }
+                }
+            },
+            x: {
+                grid: {
+                    display: false,
+                    drawBorder: false
+                },
+                ticks: {
+                    font: {
+                        family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    font: {
+                        size: 12,
+                        family: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+                    },
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                titleFont: { size: 14 },
+                bodyFont: { size: 12 },
+                padding: 12,
+                cornerRadius: 8,
+                displayColors: false,
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ' + context.raw;
+                    }
+                }
+            }
+        },
+        interaction: {
+            intersect: false,
+            mode: 'index'
+        },
+        elements: {
+            line: {
+                cubicInterpolationMode: 'monotone'
+            }
+        }
+    }
+  });
+
+  const ctx3 = document.getElementById('especialidadesChart').getContext('2d');
+  new Chart(ctx3, {
+    type: 'bar',
+    data: {
+        labels: {{ labels_especialidades|safe }},
+        datasets: [{
+            label: 'Número de consultas',
+            data: {{ data_especialidades|safe }},
+            backgroundColor: [
+                '#05b5af',
+                '#05b5af',
+                '#05b5af',
+                '#05b5af',
+                '#05b5af'
+            ],
+            borderColor: [
+                'rgba(0, 188, 212, 1)',
+                'rgba(0, 188, 212, 1)',
+                'rgba(0, 188, 212, 1)',
+                'rgba(0, 188, 212, 1)',
+                'rgba(0, 188, 212, 1)'
+            ],
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return 'Consultas: ' + context.raw;
+                    }
+                }
+            }
+        }
+    }
+  });
+
+  // Si existe el elemento fecha-select, agrega el listener
+  const fechaSelect = document.getElementById('fecha-select');
+  if (fechaSelect) {
+    fechaSelect.addEventListener('change', function() {
+      this.form.submit();
+    });
+  }
+</script>
+{% endblock %}

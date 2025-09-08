@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Panel de Administración{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/panel_admin.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <img src="{% static 'images/hospital_fondo.jpg' %}" alt="Hospital" class="hero-image">
+    <div class="hero-content">
+        <h1 class="hero-title">Bienvenido, <br><span style="font-weight: 600;">{{ request.user.get_full_name|default:request.user.username }}</span></h1>
+        <p class="hero-subtitle">Panel de control administrativo del Hospital</p>
+    </div>
+</div>
+
+<h2 class="dashboard-title">Módulos de Administración</h2>
+
+<div class="cards-container">
+    <a href="{% url 'agenda' %}" class="dashboard-card">
+        <div class="card-icon">
+            <i class='bx bx-calendar'></i>
+        </div>
+        <h3 class="card-title">Agenda</h3>
+        <p class="card-description">Agenda de horarios médicos y citas no médicas</p>
+    </a>
+    
+    <a href="{% url 'dashboard' %}" class="dashboard-card">
+        <div class="card-icon">
+            <i class='bx bx-bar-chart-alt'></i>
+        </div>
+        <h3 class="card-title">Dashboard</h3>
+        <p class="card-description">Estadísticas de boxes</p>
+    </a>
+    
+    <a href="{% url 'boxes' %}" class="dashboard-card">
+        <div class="card-icon">
+            <i class='bx bx-clinic'></i>
+        </div>
+        <h3 class="card-title">Boxes</h3>
+        <p class="card-description">Administración y ocupación de boxes</p>
+    </a>
+    
+    <a href="{% url 'personal' %}" class="dashboard-card">
+        <div class="card-icon">
+            <i class='bx bx-group'></i>
+        </div>
+        <h3 class="card-title">Personal</h3>
+        <p class="card-description">Gestión de médicos, enfermeras y staff</p>
+    </a>
+    
+    <a href="{% url 'implementos' %}" class="dashboard-card">
+        <div class="card-icon">
+            <i class='bx bx-first-aid'></i>
+        </div>
+        <h3 class="card-title">Implementos</h3>
+        <p class="card-description">Control de equipos médicos e inventario</p>
+    </a>
+    
+    <a href="{% url 'reportes' %}" class="dashboard-card">
+        <div class="card-icon">
+            <i class='bx bx-file'></i>
+        </div>
+        <h3 class="card-title">Reportes</h3>
+        <p class="card-description">Generación de informes y documentos</p>
+    </a>
+</div>
+{% endblock %}

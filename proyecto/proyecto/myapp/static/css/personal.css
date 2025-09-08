@@ -1,0 +1,257 @@
+.container{
+    display: flex;
+    justify-content: space-between;
+}
+
+/* VISUALIZACIONES EPICAS DE DOCTORES */
+
+.titulo-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 1.5rem 0;
+    padding: 0 1rem;
+    gap: 1rem;
+}
+
+.titulo-content h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #37527a;
+    margin-bottom: 2rem;
+}
+
+.filtros-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin: 20px 0;
+    align-items: center;
+    width: 100%;
+}
+
+.form-busqueda {
+    flex: 1;
+    min-width: 250px;
+    display: flex;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    overflow: hidden;
+    border: 2px solid #05b5af;
+    transition: border-color 0.3s;
+    font-family: inherit;
+}
+
+.form-busqueda:hover {
+    border-color: #05b5af;
+}
+
+.form-busqueda input {
+    flex: 1;
+    padding: 10px 15px;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 14px;
+}
+
+.form-busqueda button {
+    background: transparent;
+    color: #05b5af;
+    border: none;
+    padding: 0 20px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: color 0.3s;
+}
+
+.form-busqueda button:hover {
+    color: #048a85;
+}
+
+.form-filtro {  
+    flex: 1;
+    min-width: 250px;
+}
+
+.form-filtro select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #05b5af;
+    border-radius: 6px;
+    background-color: white;
+    cursor: pointer;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s;
+    font-family: inherit;
+}
+
+.form-filtro select:hover {
+    border-color: #05b5af;
+}
+
+.medicos-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 25px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.medico-card {
+    background-color: #fff;
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid #e0e0e0;
+}
+
+.medico-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    border-color: #05b5af;
+}
+
+.medico-avatar {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 15px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #05b5af;
+    background-color: #f0f8ff;
+}
+
+.medico-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.medico-info h3 {
+    color: #37527a;
+    margin-bottom: 5px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.medico-info p {
+    color: #666;
+    font-size: 14px;
+    margin: 5px 0;
+}
+
+.medico-info p.especialidad {
+    color: #05b5af;
+    font-weight: 500;
+}
+
+.no-resultados {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+
+.no-resultados p {
+    color: #666;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.no-resultados a {
+    color: #05b5af;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s;
+}
+
+.no-resultados a:hover {
+    color: #048a85;
+    text-decoration: underline;
+}
+
+/*TODO LO DEL TITULO Y EL BOTON DE FILTRAR */
+
+.titulo-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 1.5rem 0;
+    padding: 0 1rem;
+    gap: 1rem;
+    color: #122138;
+}
+
+.titulo-content h2 {
+    font-size: 2rem;
+    flex: 1 1 200px;
+    word-break: break-word;
+}
+
+@media (min-width: 481px) {
+    .filtros-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .form-busqueda,
+    .form-filtro {
+        min-width: 15.625rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .titulo-content {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1.5rem;
+    }
+    
+    .medicos-container {
+        grid-template-columns: repeat(auto-fill, minmax(13.75rem, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .form-busqueda {
+        flex: 2;
+    }
+    
+    .form-filtro {
+        flex: 1;
+    }
+}
+
+@media (min-width: 992px) {
+    .container {
+        padding: 0 2rem;
+    }
+    
+    .medicos-container {
+        grid-template-columns: repeat(auto-fill, minmax(18.75rem, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .medicos-container {
+        grid-template-columns: 1fr;
+        padding: 0.625rem;
+    }
+    
+    .medico-card {
+        padding: 1rem;
+    }
+    
+    .no-resultados {
+        padding: 1.5rem 1rem;
+    }
+}

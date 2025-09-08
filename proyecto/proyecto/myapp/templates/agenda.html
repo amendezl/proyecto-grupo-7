@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Agenda Médica{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/agenda.css' %}">
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+{% endblock %}
+
+{% block content %}
+<div class="main-content">
+    <h1 class="agenda-title">Agenda Médica</h1>
+
+    <div class="filter-row">
+        <input type="date" id="filter-date" class="filter-date" value="{{ fecha_seleccionada|date:'Y-m-d' }}">
+
+        <input type="text" id="filter-medico" placeholder="Buscar médico" class="filter-input">
+        <input type="text" id="filter-paciente" placeholder="Buscar paciente" class="filter-input">
+
+        <button class="btn-ver-proximas" id="btn-ver-proximas" data-proximas="{{ mostrar_actuales|default:0 }}">
+            <i class='bx bx-time'></i>
+            {% if mostrar_actuales %}
+            Ver todas
+            {% else %}
+            Ver próximas
+            {% endif %}
+        </button>
+
+    </div>
+
+    <div class="filter-row">
+        <select id="filter-box" class="dropdown-boxes">
+            <option value="">Todos los boxes</option>
+            {% for box in boxes %}
+            <option value="{{ box.idbox }}">Box {{ box.numerobox }}</option>
+            {% endfor %}
+        </select>
+
+        <select id="filter-tipo-cita" class="dropdown-boxes">
+            <option value="">Todos los tipos de Cita</option>
+            {% for tipo in tipos_cita %}
+            <option value="{{ tipo.idtipocita }}">{{ tipo.tipocita }}</option>
+            {% endfor %}
+        </select>
+
+        <button id="btnAbrirModal">Agendar Cita No Médica</button>
+    </div>
+
+    <div id="modalCita" class="modal">
+        <div class="modal-content">
+            <span class="cerrar">&times;</span>
+            <h2>Agendar Cita No Médica</h2>
+            <form id="formCitaNoMedica">
+                {% csrf_token %}
+
+                <label for="box">Box:</label>
+                <select id="box" name="box" required>
+                    <option value="">Seleccionar box</option>
+                    {% for box in boxes %}
+                    <option value="{{ box.idbox }}">Box {{ box.numerobox }}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="fechaConsulta">Fecha:</label>
+                <input type="date" id="fechaConsulta" name="fechaConsulta" required>
+
+                <label for="horaInicio">Hora inicio:</label>
+                <input type="time" id="horaInicio" name="horaInicio" required>
+
+                <label for="horaFin">Hora fin:</label>
+                <input type="time" id="horaFin" name="horaFin" required>
+
+                <button type="submit">Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table class="agenda-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Box</th>
+                    <th>Médico</th>
+                    <th>Paciente</th>
+                    <th>Tipo de Cita</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for consulta in consultas %}
+                <tr>
+                    <td data-label="Fecha">{{ consulta.fechaconsulta }}</td>
+                    <td data-label="Hora">{{ consulta.horainicio|time:'H:i' }}</td>
+                    <td data-label="Box">Box {{ consulta.idbox.numerobox }}</td>
+                    <td data-label="Médico">{{ consulta.rutmedico.nombremedico }}
+                        {{ consulta.rutmedico.apellidomedico }}</td>
+                    <td data-label="Paciente">{{ consulta.rutpaciente.nombrepaciente }}
+                        {{ consulta.rutpaciente.apellidopaciente }}</td>
+                    <td data-label="Tipo de Cita">{{ consulta.idtipocita.tipocita }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align:center; font-style:italic; color:gray;">
+                        No hay citas agendadas para esta fecha.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    function showToast(message, isError = false) {
+        const toast = $("#toast");
+        toast.removeClass("error");
+        if (isError) toast.addClass("error");
+
+        toast.text(message).addClass("show");
+
+        setTimeout(() => {
+            toast.removeClass("show");
+        }, 5000);
+    }
+
+    $(document).ready(function () {
+        let mostrandoProximas = $("#btn-ver-proximas").data("proximas") == 1;
+
+        $("#btnAbrirModal").click(function () {
+            $("#modalCita").css("display", "flex");
+        });
+
+        $(".cerrar, #modalCita").click(function (e) {
+            if (e.target === this) {
+                $("#modalCita").hide();
+            }
+        });
+
+        $("#formCitaNoMedica").submit(function (e) {
+            e.preventDefault();
+
+            $.ajax({
+                url: "{% url 'agendar_no_medica' %}",
+                type: "POST",
+                data: $(this).serialize(),
+                success: function (resp) {
+                    showToast(resp.mensaje, false);
+                    $("#modalCita").hide();
+                    $("#formCitaNoMedica")[0].reset();
+                },
+                error: function (xhr) {
+                    let mensajeError = "Ocurrió un error al agendar.";
+                    if (xhr.responseJSON && xhr.responseJSON.mensaje) {
+                        mensajeError = xhr.responseJSON.mensaje;
+                    }
+                    showToast(mensajeError, true);
+                }
+            });
+        });
+
+        function filtrarConsultas(extraParams = {}) {
+            const medico = $("#filter-medico").val();
+            const paciente = $("#filter-paciente").val();
+            const fecha = $("#filter-date").val();
+            const box = $("#filter-box").val();
+            const tipoCita = $("#filter-tipo-cita").val();
+
+            const params = {
+                medico: medico,
+                paciente: paciente,
+                fecha: fecha,
+                box: box,
+                tipo_cita: tipoCita,
+                ...extraParams
+            };
+
+            $.ajax({
+                url: "{% url 'agenda' %}",
+                type: "GET",
+                data: params,
+                success: function (data) {
+                    const nuevo_tbody = $(data).find("tbody").html();
+                    $("tbody").hide().html(nuevo_tbody).fadeIn(200);
+                }
+            });
+        }
+
+        $("#btn-ver-proximas").click(function () {
+            mostrandoProximas = !mostrandoProximas;
+
+            if (mostrandoProximas) {
+                filtrarConsultas({ mostrar_actuales: 1 });
+                $(this).html("<i class='bx bx-time'></i> Ver todas");
+            } else {
+                filtrarConsultas();
+                $(this).html("<i class='bx bx-time'></i> Ver próximas");
+            }
+        });
+
+        $("#filter-medico, #filter-paciente").on("keyup", function () {
+            const extra = mostrandoProximas ? { mostrar_actuales: 1 } : {};
+            filtrarConsultas(extra);
+        });
+
+        $("#filter-box").change(function () {
+            const extra = mostrandoProximas ? { mostrar_actuales: 1 } : {};
+            filtrarConsultas(extra);
+        });
+
+        $("#filter-date").change(function () {
+            const extra = mostrandoProximas ? { mostrar_actuales: 1 } : {};
+            filtrarConsultas(extra);
+        });
+
+        $("#filter-tipo-cita").change(function () {
+            const extra = mostrandoProximas ? { mostrar_actuales: 1 } : {};
+            filtrarConsultas(extra);
+        });
+    });
+</script>
+{% endblock %}
