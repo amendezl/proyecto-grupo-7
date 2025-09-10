@@ -1,0 +1,537 @@
+service: sistema-espacios-hospitalarios
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  environment:
+    QUEUE_URL: { Ref: MyQueue }
+    DB_TYPE: dynamodb
+    DYNAMODB_TABLE: ${self:service}-${sls:stage}-table
+    JWT_SECRET: ${env:JWT_SECRET, 'your-super-secret-jwt-key-change-in-production'}
+    NODE_ENV: ${sls:stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            Fn::GetAtt: [ MyQueue, Arn ]
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [ DynamoDBTable, Arn ]
+            - Fn::Join:
+                - '/'
+                - - Fn::GetAtt: [ DynamoDBTable, Arn ]
+                  - '*'
+  logs:
+    httpApi: true
+  tracing:
+    lambda: true
+
+functions:
+  # Autenticación
+  login:
+    handler: src/handlers/auth.login
+    events:
+      - httpApi:
+          method: POST
+          path: /api/auth/login
+
+  logout:
+    handler: src/handlers/auth.logout
+    events:
+      - httpApi:
+          method: POST
+          path: /api/auth/logout
+
+  register:
+    handler: src/handlers/auth.register
+    events:
+      - httpApi:
+          method: POST
+          path: /api/auth/register
+
+  # Dashboard
+  dashboard:
+    handler: src/handlers/dashboard.getDashboard
+    events:
+      - httpApi:
+          method: GET
+          path: /api/dashboard
+
+  estadisticasDetalladas:
+    handler: src/handlers/dashboard.getEstadisticasDetalladas
+    events:
+      - httpApi:
+          method: GET
+          path: /api/dashboard/estadisticas
+
+  # Espacios
+  getEspacios:
+    handler: src/handlers/espacios.getEspacios
+    events:
+      - httpApi:
+          method: GET
+          path: /api/espacios
+
+  getEspacio:
+    handler: src/handlers/espacios.getEspacio
+    events:
+      - httpApi:
+          method: GET
+          path: /api/espacios/{id}
+
+  createEspacio:
+    handler: src/handlers/espacios.createEspacio
+    events:
+      - httpApi:
+          method: POST
+          path: /api/espacios
+
+  updateEspacio:
+    handler: src/handlers/espacios.updateEspacio
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/espacios/{id}
+
+  deleteEspacio:
+    handler: src/handlers/espacios.deleteEspacio
+    events:
+      - httpApi:
+          method: DELETE
+          path: /api/espacios/{id}
+
+  estadisticasEspacios:
+    handler: src/handlers/espacios.getEstadisticasEspacios
+    events:
+      - httpApi:
+          method: GET
+          path: /api/espacios/estadisticas
+
+  # Reservas
+  getReservas:
+    handler: src/handlers/reservas.getReservas
+    events:
+      - httpApi:
+          method: GET
+          path: /api/reservas
+
+  getReserva:
+    handler: src/handlers/reservas.getReserva
+    events:
+      - httpApi:
+          method: GET
+          path: /api/reservas/{id}
+
+  createReserva:
+    handler: src/handlers/reservas.createReserva
+    events:
+      - httpApi:
+          method: POST
+          path: /api/reservas
+
+  updateReserva:
+    handler: src/handlers/reservas.updateReserva
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/reservas/{id}
+
+  cancelReserva:
+    handler: src/handlers/reservas.cancelReserva
+    events:
+      - httpApi:
+          method: PATCH
+          path: /api/reservas/{id}/cancel
+
+  deleteReserva:
+    handler: src/handlers/reservas.deleteReserva
+    events:
+      - httpApi:
+          method: DELETE
+          path: /api/reservas/{id}
+
+  estadisticasReservas:
+    handler: src/handlers/reservas.getEstadisticasReservas
+    events:
+      - httpApi:
+          method: GET
+          path: /api/reservas/estadisticas
+
+  # Usuarios
+  getUsuarios:
+    handler: src/handlers/usuarios.getUsuarios
+    events:
+      - httpApi:
+          method: GET
+          path: /api/usuarios
+
+  getUsuario:
+    handler: src/handlers/usuarios.getUsuario
+    events:
+      - httpApi:
+          method: GET
+          path: /api/usuarios/{id}
+
+  createUsuario:
+    handler: src/handlers/usuarios.createUsuario
+    events:
+      - httpApi:
+          method: POST
+          path: /api/usuarios
+
+  updateUsuario:
+    handler: src/handlers/usuarios.updateUsuario
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/usuarios/{id}
+
+  deleteUsuario:
+    handler: src/handlers/usuarios.deleteUsuario
+    events:
+      - httpApi:
+          method: DELETE
+          path: /api/usuarios/{id}
+
+  toggleUsuarioEstado:
+    handler: src/handlers/usuarios.toggleUsuarioEstado
+    events:
+      - httpApi:
+          method: PATCH
+          path: /api/usuarios/{id}/toggle
+
+  getPerfilActual:
+    handler: src/handlers/usuarios.getPerfilActual
+    events:
+      - httpApi:
+          method: GET
+          path: /api/usuarios/perfil
+
+  updatePerfilActual:
+    handler: src/handlers/usuarios.updatePerfilActual
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/usuarios/perfil
+
+  cambiarPassword:
+    handler: src/handlers/usuarios.cambiarPassword
+    events:
+      - httpApi:
+          method: POST
+          path: /api/usuarios/cambiar-password
+
+  # Recursos
+  getRecursos:
+    handler: src/handlers/recursos.getRecursos
+    events:
+      - httpApi:
+          method: GET
+          path: /api/recursos
+
+  getRecurso:
+    handler: src/handlers/recursos.getRecurso
+    events:
+      - httpApi:
+          method: GET
+          path: /api/recursos/{id}
+
+  createRecurso:
+    handler: src/handlers/recursos.createRecurso
+    events:
+      - httpApi:
+          method: POST
+          path: /api/recursos
+
+  updateRecurso:
+    handler: src/handlers/recursos.updateRecurso
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/recursos/{id}
+
+  deleteRecurso:
+    handler: src/handlers/recursos.deleteRecurso
+    events:
+      - httpApi:
+          method: DELETE
+          path: /api/recursos/{id}
+
+  toggleDisponibilidad:
+    handler: src/handlers/recursos.toggleDisponibilidad
+    events:
+      - httpApi:
+          method: PATCH
+          path: /api/recursos/{id}/disponibilidad
+
+  getRecursosPorTipo:
+    handler: src/handlers/recursos.getRecursosPorTipo
+    events:
+      - httpApi:
+          method: GET
+          path: /api/recursos/tipo/{tipo}
+
+  estadisticasRecursos:
+    handler: src/handlers/recursos.getEstadisticasRecursos
+    events:
+      - httpApi:
+          method: GET
+          path: /api/recursos/estadisticas
+
+  buscarRecursos:
+    handler: src/handlers/recursos.buscarRecursos
+    events:
+      - httpApi:
+          method: GET
+          path: /api/recursos/buscar
+
+  # Responsables
+  getResponsables:
+    handler: src/handlers/responsables.getResponsables
+    events:
+      - httpApi:
+          method: GET
+          path: /api/responsables
+
+  getResponsable:
+    handler: src/handlers/responsables.getResponsable
+    events:
+      - httpApi:
+          method: GET
+          path: /api/responsables/{id}
+
+  createResponsable:
+    handler: src/handlers/responsables.createResponsable
+    events:
+      - httpApi:
+          method: POST
+          path: /api/responsables
+
+  updateResponsable:
+    handler: src/handlers/responsables.updateResponsable
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/responsables/{id}
+
+  deleteResponsable:
+    handler: src/handlers/responsables.deleteResponsable
+    events:
+      - httpApi:
+          method: DELETE
+          path: /api/responsables/{id}
+
+  toggleResponsableEstado:
+    handler: src/handlers/responsables.toggleResponsableEstado
+    events:
+      - httpApi:
+          method: PATCH
+          path: /api/responsables/{id}/toggle
+
+  getResponsablesPorArea:
+    handler: src/handlers/responsables.getResponsablesPorArea
+    events:
+      - httpApi:
+          method: GET
+          path: /api/responsables/area/{area}
+
+  getEspaciosAsignados:
+    handler: src/handlers/responsables.getEspaciosAsignados
+    events:
+      - httpApi:
+          method: GET
+          path: /api/responsables/{id}/espacios
+
+  asignarEspacio:
+    handler: src/handlers/responsables.asignarEspacio
+    events:
+      - httpApi:
+          method: POST
+          path: /api/responsables/{id}/asignar-espacio
+
+  estadisticasResponsables:
+    handler: src/handlers/responsables.getEstadisticasResponsables
+    events:
+      - httpApi:
+          method: GET
+          path: /api/responsables/estadisticas
+
+  # Zonas
+  getZonas:
+    handler: src/handlers/zonas.getZonas
+    events:
+      - httpApi:
+          method: GET
+          path: /api/zonas
+
+  getZona:
+    handler: src/handlers/zonas.getZona
+    events:
+      - httpApi:
+          method: GET
+          path: /api/zonas/{id}
+
+  createZona:
+    handler: src/handlers/zonas.createZona
+    events:
+      - httpApi:
+          method: POST
+          path: /api/zonas
+
+  updateZona:
+    handler: src/handlers/zonas.updateZona
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/zonas/{id}
+
+  deleteZona:
+    handler: src/handlers/zonas.deleteZona
+    events:
+      - httpApi:
+          method: DELETE
+          path: /api/zonas/{id}
+
+  toggleZonaEstado:
+    handler: src/handlers/zonas.toggleZonaEstado
+    events:
+      - httpApi:
+          method: PATCH
+          path: /api/zonas/{id}/toggle
+
+  getZonasPorPiso:
+    handler: src/handlers/zonas.getZonasPorPiso
+    events:
+      - httpApi:
+          method: GET
+          path: /api/zonas/piso/{piso}
+
+  getEspaciosZona:
+    handler: src/handlers/zonas.getEspaciosZona
+    events:
+      - httpApi:
+          method: GET
+          path: /api/zonas/{id}/espacios
+
+  estadisticasZonas:
+    handler: src/handlers/zonas.getEstadisticasZonas
+    events:
+      - httpApi:
+          method: GET
+          path: /api/zonas/estadisticas
+
+  getPisosDisponibles:
+    handler: src/handlers/zonas.getPisosDisponibles
+    events:
+      - httpApi:
+          method: GET
+          path: /api/zonas/pisos
+
+  getEdificiosDisponibles:
+    handler: src/handlers/zonas.getEdificiosDisponibles
+    events:
+      - httpApi:
+          method: GET
+          path: /api/zonas/edificios
+
+  # Worker para procesamiento asíncrono
+  queueWorker:
+    handler: src/handlers/queueWorker.process
+    timeout: 30
+    memorySize: 256
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [ MyQueue, Arn ]
+          batchSize: 10
+          maximumBatchingWindow: 30
+
+plugins:
+  - serverless-offline
+  # Uncomment if you want to drive SQS locally with LocalStack:
+  # - serverless-offline-sqs
+
+package:
+  individually: true
+  patterns:
+    - '!**/*.md'
+    - '!**/*.test.*'
+
+custom:
+  serverless-offline:
+    httpPort: 3000
+  # serverless-offline-sqs:
+  #   autoCreate: true
+  #   apiVersion: '2012-11-05'
+  #   endpoint: http://localhost:4566  # LocalStack
+  #   region: ${self:provider.region}
+  #   accessKeyId: root
+  #   secretAccessKey: root
+  #   queues:
+  #     - ${self:service}-${sls:stage}-queue
+
+resources:
+  Resources:
+    MyQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-queue
+        VisibilityTimeout: 60
+        MessageRetentionPeriod: 1209600
+    
+    DynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-table
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        StreamSpecification:
+          StreamViewType: NEW_AND_OLD_IMAGES
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        
+  Outputs:
+    QueueUrl:
+      Value: { Ref: MyQueue }
+    DynamoDBTable:
+      Value: { Ref: DynamoDBTable }
+    DynamoDBTableArn:
+      Value: { Fn::GetAtt: [ DynamoDBTable, Arn ] }

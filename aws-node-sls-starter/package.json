@@ -1,0 +1,28 @@
+{
+  "name": "sistema-espacios-hospitalarios",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "serverless offline",
+    "deploy": "serverless deploy --stage dev --region us-east-1",
+    "deploy:prod": "serverless deploy --stage prod --region us-east-1",
+    "remove": "serverless remove",
+    "info": "serverless info --verbose",
+    "logs:worker": "serverless logs -f queueWorker -t"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-offline": "^13.6.0",
+    "serverless-offline-sqs": "^8.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.600.0",
+    "@aws-sdk/client-dynamodb": "^3.600.0",
+    "@aws-sdk/lib-dynamodb": "^3.600.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.1",
+    "joi": "^17.11.0"
+  }
+}
