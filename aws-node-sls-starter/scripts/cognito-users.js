@@ -1,0 +1,194 @@
+#!/usr/bin/env node
+
+/**
+ * Script de utilidades para gestionar usuarios de Cognito
+ * Uso: node scripts/cognito-users.js [comando] [argumentos]
+ */
+
+const {
+  CognitoIdentityProviderClient,
+  AdminCreateUserCommand,
+  AdminSetUserPasswordCommand,
+  AdminDeleteUserCommand,
+  ListUsersCommand,
+  AdminAddUserToGroupCommand,
+  AdminCreateGroupCommand
+} = require('@aws-sdk/client-cognito-identity-provider');
+
+const client = new CognitoIdentityProviderClient({
+  region: process.env.AWS_REGION || 'us-east-1'
+});
+
+// Configurar desde variables de entorno o parámetros del stack
+const USER_POOL_ID = process.env.USER_POOL_ID;
+
+async function createUser(email, password, role = 'usuario', nombre = '', apellido = '') {
+  if (!USER_POOL_ID) {
+    console.error('USER_POOL_ID no está configurado');
+    process.exit(1);
+  }
+
+  try {
+    console.log(`Creando usuario: ${email}`);
+    
+    // Crear usuario
+    const createCmd = new AdminCreateUserCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: email,
+      UserAttributes: [
+        { Name: 'email', Value: email },
+        { Name: 'email_verified', Value: 'true' },
+        { Name: 'name', Value: nombre },
+        { Name: 'family_name', Value: apellido },
+        { Name: 'custom:role', Value: role }
+      ],
+      MessageAction: 'SUPPRESS' // No enviar email de bienvenida
+    });
+
+    await client.send(createCmd);
+    console.log('✅ Usuario creado exitosamente');
+
+    // Establecer contraseña permanente
+    const passwordCmd = new AdminSetUserPasswordCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: email,
+      Password: password,
+      Permanent: true
+    });
+
+    await client.send(passwordCmd);
+    console.log('✅ Contraseña establecida');
+
+    console.log('\n📋 Detalles del usuario:');
+    console.log(`   Email: ${email}`);
+    console.log(`   Contraseña: ${password}`);
+    console.log(`   Rol: ${role}`);
+    console.log(`   Nombre: ${nombre} ${apellido}`);
+
+  } catch (error) {
+    console.error('❌ Error creando usuario:', error.message);
+  }
+}
+
+async function listUsers() {
+  if (!USER_POOL_ID) {
+    console.error('USER_POOL_ID no está configurado');
+    process.exit(1);
+  }
+
+  try {
+    const cmd = new ListUsersCommand({
+      UserPoolId: USER_POOL_ID
+    });
+
+    const result = await client.send(cmd);
+    
+    console.log(`\n👥 Usuarios en el pool (${result.Users.length}):\n`);
+    
+    result.Users.forEach(user => {
+      const email = user.Attributes.find(attr => attr.Name === 'email')?.Value || 'N/A';
+      const role = user.Attributes.find(attr => attr.Name === 'custom:role')?.Value || 'usuario';
+      const name = user.Attributes.find(attr => attr.Name === 'name')?.Value || '';
+      const familyName = user.Attributes.find(attr => attr.Name === 'family_name')?.Value || '';
+      
+      console.log(`📧 ${email}`);
+      console.log(`   Nombre: ${name} ${familyName}`);
+      console.log(`   Rol: ${role}`);
+      console.log(`   Estado: ${user.UserStatus}`);
+      console.log(`   Creado: ${user.UserCreateDate}`);
+      console.log('');
+    });
+
+  } catch (error) {
+    console.error('❌ Error listando usuarios:', error.message);
+  }
+}
+
+async function deleteUser(email) {
+  if (!USER_POOL_ID) {
+    console.error('USER_POOL_ID no está configurado');
+    process.exit(1);
+  }
+
+  try {
+    const cmd = new AdminDeleteUserCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: email
+    });
+
+    await client.send(cmd);
+    console.log(`✅ Usuario ${email} eliminado exitosamente`);
+
+  } catch (error) {
+    console.error('❌ Error eliminando usuario:', error.message);
+  }
+}
+
+function showHelp() {
+  console.log(`
+🏥 Script de gestión de usuarios de Cognito
+
+Uso: node scripts/cognito-users.js [comando] [argumentos]
+
+Comandos disponibles:
+  create <email> <password> [rol] [nombre] [apellido]
+    Crea un nuevo usuario en Cognito
+    Ejemplo: node scripts/cognito-users.js create admin@hospital.com Admin123! admin "Dr. Juan" "Pérez"
+
+  list
+    Lista todos los usuarios del pool
+    Ejemplo: node scripts/cognito-users.js list
+
+  delete <email>
+    Elimina un usuario del pool
+    Ejemplo: node scripts/cognito-users.js delete usuario@hospital.com
+
+  help
+    Muestra esta ayuda
+
+Variables de entorno requeridas:
+  USER_POOL_ID: ID del User Pool de Cognito
+  AWS_REGION: Región de AWS (default: us-east-1)
+
+Roles disponibles:
+  - admin: Administrador del sistema
+  - responsable: Responsable de espacios
+  - usuario: Usuario final (default)
+
+Ejemplos de usuarios para pruebas:
+  node scripts/cognito-users.js create admin@hospital.com Admin123! admin "Dr. Juan" "Pérez"
+  node scripts/cognito-users.js create responsable@hospital.com Resp123! responsable "María" "González"
+  node scripts/cognito-users.js create usuario@hospital.com User123! usuario "Carlos" "Martínez"
+`);
+}
+
+// Procesamiento de comandos
+const args = process.argv.slice(2);
+const command = args[0];
+
+switch (command) {
+  case 'create':
+    if (args.length < 3) {
+      console.error('❌ Faltan argumentos. Uso: create <email> <password> [rol] [nombre] [apellido]');
+      process.exit(1);
+    }
+    createUser(args[1], args[2], args[3] || 'usuario', args[4] || '', args[5] || '');
+    break;
+
+  case 'list':
+    listUsers();
+    break;
+
+  case 'delete':
+    if (args.length < 2) {
+      console.error('❌ Falta email. Uso: delete <email>');
+      process.exit(1);
+    }
+    deleteUser(args[1]);
+    break;
+
+  case 'help':
+  default:
+    showHelp();
+    break;
+}

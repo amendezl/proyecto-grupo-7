@@ -1,0 +1,128 @@
+/**
+ * Utilitarios para trabajar con autenticación de Cognito
+ */
+
+/**
+ * Extrae información del usuario desde los claims de Cognito JWT
+ * @param {Object} event - Event de Lambda con autorización de API Gateway
+ * @returns {Object} - Información del usuario
+ */
+const getUserFromCognito = (event) => {
+  try {
+    // API Gateway JWT authorizer coloca las claims en event.requestContext.authorizer.jwt.claims
+    const claims = event.requestContext?.authorizer?.jwt?.claims;
+    
+    if (!claims) {
+      throw new Error('No se encontraron claims de autenticación');
+    }
+
+    return {
+      id: claims.sub,
+      email: claims.email,
+      cognitoUsername: claims['cognito:username'],
+      emailVerified: claims.email_verified === 'true',
+      // Atributos personalizados
+      rol: claims['custom:role'] || 'usuario',
+      nombre: claims.name || '',
+      apellido: claims.family_name || '',
+      // Información del token
+      tokenUse: claims.token_use,
+      audience: claims.aud,
+      issuer: claims.iss,
+      exp: claims.exp,
+      iat: claims.iat
+    };
+  } catch (error) {
+    console.error('Error extrayendo usuario de Cognito:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verifica si el usuario tiene el rol requerido
+ * @param {Object} user - Usuario de Cognito
+ * @param {string|Array} requiredRole - Rol(es) requerido(s)
+ * @returns {boolean} - Si el usuario tiene autorización
+ */
+const hasRole = (user, requiredRole) => {
+  if (!user.rol) return false;
+  
+  if (Array.isArray(requiredRole)) {
+    return requiredRole.includes(user.rol);
+  }
+  
+  return user.rol === requiredRole;
+};
+
+/**
+ * Verifica si el usuario es administrador
+ * @param {Object} user - Usuario de Cognito
+ * @returns {boolean}
+ */
+const isAdmin = (user) => {
+  return user.rol === 'admin';
+};
+
+/**
+ * Verifica si el usuario es responsable
+ * @param {Object} user - Usuario de Cognito
+ * @returns {boolean}
+ */
+const isResponsable = (user) => {
+  return user.rol === 'responsable';
+};
+
+/**
+ * Middleware para verificar roles
+ * @param {string|Array} requiredRoles - Roles requeridos
+ * @returns {Function} - Función middleware
+ */
+const requireRole = (requiredRoles) => {
+  return (handler) => {
+    return async (event) => {
+      try {
+        const user = getUserFromCognito(event);
+        
+        if (!hasRole(user, requiredRoles)) {
+          return {
+            statusCode: 403,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({
+              ok: false,
+              error: 'No tienes permisos para realizar esta acción'
+            })
+          };
+        }
+        
+        // Agregar usuario al event para uso posterior
+        event.cognitoUser = user;
+        
+        return await handler(event);
+      } catch (error) {
+        console.error('Error en middleware de autorización:', error);
+        return {
+          statusCode: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          },
+          body: JSON.stringify({
+            ok: false,
+            error: 'Token de autenticación inválido'
+          })
+        };
+      }
+    };
+  };
+};
+
+module.exports = {
+  getUserFromCognito,
+  hasRole,
+  isAdmin,
+  isResponsable,
+  requireRole
+};

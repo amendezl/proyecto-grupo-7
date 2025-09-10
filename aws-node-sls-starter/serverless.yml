@@ -10,6 +10,8 @@ provider:
     QUEUE_URL: { Ref: MyQueue }
     DB_TYPE: dynamodb
     DYNAMODB_TABLE: ${self:service}-${sls:stage}-table
+    USER_POOL_ID: { Ref: CognitoUserPool }
+    USER_POOL_CLIENT_ID: { Ref: CognitoUserPoolClient }
     JWT_SECRET: ${env:JWT_SECRET, 'your-super-secret-jwt-key-change-in-production'}
     NODE_ENV: ${sls:stage}
   iam:
@@ -37,26 +39,66 @@ provider:
                 - '/'
                 - - Fn::GetAtt: [ DynamoDBTable, Arn ]
                   - '*'
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminInitiateAuth
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminSetUserPassword
+            - cognito-idp:AdminGetUser
+            - cognito-idp:InitiateAuth
+            - cognito-idp:RespondToAuthChallenge
+          Resource:
+            - Fn::GetAtt: [ CognitoUserPool, Arn ]
   logs:
     httpApi: true
   tracing:
     lambda: true
+  httpApi:
+    authorizers:
+      cognitoJwt:
+        type: jwt
+        identitySource: $request.header.Authorization
+        issuerUrl:
+          Fn::Sub:
+            - https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
+            - { UserPoolId: { Ref: CognitoUserPool } }
+        audience:
+          - { Ref: CognitoUserPoolClient }
 
 functions:
-  # Autenticación
+  # Autenticación con Cognito
   login:
-    handler: src/handlers/auth.login
+    handler: src/handlers/cognitoAuth.login
     events:
       - httpApi:
           method: POST
           path: /api/auth/login
 
+  refresh:
+    handler: src/handlers/cognitoAuth.refresh
+    events:
+      - httpApi:
+          method: POST
+          path: /api/auth/refresh
+
+  me:
+    handler: src/handlers/cognitoAuth.me
+    events:
+      - httpApi:
+          method: GET
+          path: /api/me
+          authorizer:
+            name: cognitoJwt
+
+  # Endpoints originales con autorización de Cognito
   logout:
     handler: src/handlers/auth.logout
     events:
       - httpApi:
           method: POST
           path: /api/auth/logout
+          authorizer:
+            name: cognitoJwt
 
   register:
     handler: src/handlers/auth.register
@@ -65,13 +107,15 @@ functions:
           method: POST
           path: /api/auth/register
 
-  # Dashboard
+  # Dashboard con protección Cognito
   dashboard:
     handler: src/handlers/dashboard.getDashboard
     events:
       - httpApi:
           method: GET
           path: /api/dashboard
+          authorizer:
+            name: cognitoJwt
 
   estadisticasDetalladas:
     handler: src/handlers/dashboard.getEstadisticasDetalladas
@@ -79,14 +123,18 @@ functions:
       - httpApi:
           method: GET
           path: /api/dashboard/estadisticas
+          authorizer:
+            name: cognitoJwt
 
-  # Espacios
+  # Espacios con protección Cognito
   getEspacios:
     handler: src/handlers/espacios.getEspacios
     events:
       - httpApi:
           method: GET
           path: /api/espacios
+          authorizer:
+            name: cognitoJwt
 
   getEspacio:
     handler: src/handlers/espacios.getEspacio
@@ -94,6 +142,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/espacios/{id}
+          authorizer:
+            name: cognitoJwt
 
   createEspacio:
     handler: src/handlers/espacios.createEspacio
@@ -101,6 +151,8 @@ functions:
       - httpApi:
           method: POST
           path: /api/espacios
+          authorizer:
+            name: cognitoJwt
 
   updateEspacio:
     handler: src/handlers/espacios.updateEspacio
@@ -108,6 +160,8 @@ functions:
       - httpApi:
           method: PUT
           path: /api/espacios/{id}
+          authorizer:
+            name: cognitoJwt
 
   deleteEspacio:
     handler: src/handlers/espacios.deleteEspacio
@@ -115,6 +169,8 @@ functions:
       - httpApi:
           method: DELETE
           path: /api/espacios/{id}
+          authorizer:
+            name: cognitoJwt
 
   estadisticasEspacios:
     handler: src/handlers/espacios.getEstadisticasEspacios
@@ -122,14 +178,18 @@ functions:
       - httpApi:
           method: GET
           path: /api/espacios/estadisticas
+          authorizer:
+            name: cognitoJwt
 
-  # Reservas
+  # Reservas con protección Cognito
   getReservas:
     handler: src/handlers/reservas.getReservas
     events:
       - httpApi:
           method: GET
           path: /api/reservas
+          authorizer:
+            name: cognitoJwt
 
   getReserva:
     handler: src/handlers/reservas.getReserva
@@ -137,6 +197,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/reservas/{id}
+          authorizer:
+            name: cognitoJwt
 
   createReserva:
     handler: src/handlers/reservas.createReserva
@@ -144,6 +206,8 @@ functions:
       - httpApi:
           method: POST
           path: /api/reservas
+          authorizer:
+            name: cognitoJwt
 
   updateReserva:
     handler: src/handlers/reservas.updateReserva
@@ -151,6 +215,8 @@ functions:
       - httpApi:
           method: PUT
           path: /api/reservas/{id}
+          authorizer:
+            name: cognitoJwt
 
   cancelReserva:
     handler: src/handlers/reservas.cancelReserva
@@ -158,6 +224,8 @@ functions:
       - httpApi:
           method: PATCH
           path: /api/reservas/{id}/cancel
+          authorizer:
+            name: cognitoJwt
 
   deleteReserva:
     handler: src/handlers/reservas.deleteReserva
@@ -165,6 +233,8 @@ functions:
       - httpApi:
           method: DELETE
           path: /api/reservas/{id}
+          authorizer:
+            name: cognitoJwt
 
   estadisticasReservas:
     handler: src/handlers/reservas.getEstadisticasReservas
@@ -172,14 +242,18 @@ functions:
       - httpApi:
           method: GET
           path: /api/reservas/estadisticas
+          authorizer:
+            name: cognitoJwt
 
-  # Usuarios
+  # Usuarios con protección Cognito
   getUsuarios:
     handler: src/handlers/usuarios.getUsuarios
     events:
       - httpApi:
           method: GET
           path: /api/usuarios
+          authorizer:
+            name: cognitoJwt
 
   getUsuario:
     handler: src/handlers/usuarios.getUsuario
@@ -187,6 +261,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/usuarios/{id}
+          authorizer:
+            name: cognitoJwt
 
   createUsuario:
     handler: src/handlers/usuarios.createUsuario
@@ -194,6 +270,8 @@ functions:
       - httpApi:
           method: POST
           path: /api/usuarios
+          authorizer:
+            name: cognitoJwt
 
   updateUsuario:
     handler: src/handlers/usuarios.updateUsuario
@@ -201,6 +279,8 @@ functions:
       - httpApi:
           method: PUT
           path: /api/usuarios/{id}
+          authorizer:
+            name: cognitoJwt
 
   deleteUsuario:
     handler: src/handlers/usuarios.deleteUsuario
@@ -208,6 +288,8 @@ functions:
       - httpApi:
           method: DELETE
           path: /api/usuarios/{id}
+          authorizer:
+            name: cognitoJwt
 
   toggleUsuarioEstado:
     handler: src/handlers/usuarios.toggleUsuarioEstado
@@ -215,6 +297,8 @@ functions:
       - httpApi:
           method: PATCH
           path: /api/usuarios/{id}/toggle
+          authorizer:
+            name: cognitoJwt
 
   getPerfilActual:
     handler: src/handlers/usuarios.getPerfilActual
@@ -222,6 +306,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/usuarios/perfil
+          authorizer:
+            name: cognitoJwt
 
   updatePerfilActual:
     handler: src/handlers/usuarios.updatePerfilActual
@@ -229,6 +315,8 @@ functions:
       - httpApi:
           method: PUT
           path: /api/usuarios/perfil
+          authorizer:
+            name: cognitoJwt
 
   cambiarPassword:
     handler: src/handlers/usuarios.cambiarPassword
@@ -236,14 +324,18 @@ functions:
       - httpApi:
           method: POST
           path: /api/usuarios/cambiar-password
+          authorizer:
+            name: cognitoJwt
 
-  # Recursos
+  # Recursos con protección Cognito
   getRecursos:
     handler: src/handlers/recursos.getRecursos
     events:
       - httpApi:
           method: GET
           path: /api/recursos
+          authorizer:
+            name: cognitoJwt
 
   getRecurso:
     handler: src/handlers/recursos.getRecurso
@@ -251,6 +343,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/recursos/{id}
+          authorizer:
+            name: cognitoJwt
 
   createRecurso:
     handler: src/handlers/recursos.createRecurso
@@ -258,6 +352,8 @@ functions:
       - httpApi:
           method: POST
           path: /api/recursos
+          authorizer:
+            name: cognitoJwt
 
   updateRecurso:
     handler: src/handlers/recursos.updateRecurso
@@ -265,6 +361,8 @@ functions:
       - httpApi:
           method: PUT
           path: /api/recursos/{id}
+          authorizer:
+            name: cognitoJwt
 
   deleteRecurso:
     handler: src/handlers/recursos.deleteRecurso
@@ -272,6 +370,8 @@ functions:
       - httpApi:
           method: DELETE
           path: /api/recursos/{id}
+          authorizer:
+            name: cognitoJwt
 
   toggleDisponibilidad:
     handler: src/handlers/recursos.toggleDisponibilidad
@@ -279,6 +379,8 @@ functions:
       - httpApi:
           method: PATCH
           path: /api/recursos/{id}/disponibilidad
+          authorizer:
+            name: cognitoJwt
 
   getRecursosPorTipo:
     handler: src/handlers/recursos.getRecursosPorTipo
@@ -286,6 +388,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/recursos/tipo/{tipo}
+          authorizer:
+            name: cognitoJwt
 
   estadisticasRecursos:
     handler: src/handlers/recursos.getEstadisticasRecursos
@@ -293,6 +397,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/recursos/estadisticas
+          authorizer:
+            name: cognitoJwt
 
   buscarRecursos:
     handler: src/handlers/recursos.buscarRecursos
@@ -300,14 +406,18 @@ functions:
       - httpApi:
           method: GET
           path: /api/recursos/buscar
+          authorizer:
+            name: cognitoJwt
 
-  # Responsables
+  # Responsables con protección Cognito
   getResponsables:
     handler: src/handlers/responsables.getResponsables
     events:
       - httpApi:
           method: GET
           path: /api/responsables
+          authorizer:
+            name: cognitoJwt
 
   getResponsable:
     handler: src/handlers/responsables.getResponsable
@@ -315,6 +425,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/responsables/{id}
+          authorizer:
+            name: cognitoJwt
 
   createResponsable:
     handler: src/handlers/responsables.createResponsable
@@ -322,6 +434,8 @@ functions:
       - httpApi:
           method: POST
           path: /api/responsables
+          authorizer:
+            name: cognitoJwt
 
   updateResponsable:
     handler: src/handlers/responsables.updateResponsable
@@ -329,6 +443,8 @@ functions:
       - httpApi:
           method: PUT
           path: /api/responsables/{id}
+          authorizer:
+            name: cognitoJwt
 
   deleteResponsable:
     handler: src/handlers/responsables.deleteResponsable
@@ -336,6 +452,8 @@ functions:
       - httpApi:
           method: DELETE
           path: /api/responsables/{id}
+          authorizer:
+            name: cognitoJwt
 
   toggleResponsableEstado:
     handler: src/handlers/responsables.toggleResponsableEstado
@@ -343,6 +461,8 @@ functions:
       - httpApi:
           method: PATCH
           path: /api/responsables/{id}/toggle
+          authorizer:
+            name: cognitoJwt
 
   getResponsablesPorArea:
     handler: src/handlers/responsables.getResponsablesPorArea
@@ -350,6 +470,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/responsables/area/{area}
+          authorizer:
+            name: cognitoJwt
 
   getEspaciosAsignados:
     handler: src/handlers/responsables.getEspaciosAsignados
@@ -357,6 +479,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/responsables/{id}/espacios
+          authorizer:
+            name: cognitoJwt
 
   asignarEspacio:
     handler: src/handlers/responsables.asignarEspacio
@@ -364,6 +488,8 @@ functions:
       - httpApi:
           method: POST
           path: /api/responsables/{id}/asignar-espacio
+          authorizer:
+            name: cognitoJwt
 
   estadisticasResponsables:
     handler: src/handlers/responsables.getEstadisticasResponsables
@@ -371,14 +497,18 @@ functions:
       - httpApi:
           method: GET
           path: /api/responsables/estadisticas
+          authorizer:
+            name: cognitoJwt
 
-  # Zonas
+  # Zonas con protección Cognito
   getZonas:
     handler: src/handlers/zonas.getZonas
     events:
       - httpApi:
           method: GET
           path: /api/zonas
+          authorizer:
+            name: cognitoJwt
 
   getZona:
     handler: src/handlers/zonas.getZona
@@ -386,6 +516,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/zonas/{id}
+          authorizer:
+            name: cognitoJwt
 
   createZona:
     handler: src/handlers/zonas.createZona
@@ -393,6 +525,8 @@ functions:
       - httpApi:
           method: POST
           path: /api/zonas
+          authorizer:
+            name: cognitoJwt
 
   updateZona:
     handler: src/handlers/zonas.updateZona
@@ -400,6 +534,8 @@ functions:
       - httpApi:
           method: PUT
           path: /api/zonas/{id}
+          authorizer:
+            name: cognitoJwt
 
   deleteZona:
     handler: src/handlers/zonas.deleteZona
@@ -407,6 +543,8 @@ functions:
       - httpApi:
           method: DELETE
           path: /api/zonas/{id}
+          authorizer:
+            name: cognitoJwt
 
   toggleZonaEstado:
     handler: src/handlers/zonas.toggleZonaEstado
@@ -414,6 +552,8 @@ functions:
       - httpApi:
           method: PATCH
           path: /api/zonas/{id}/toggle
+          authorizer:
+            name: cognitoJwt
 
   getZonasPorPiso:
     handler: src/handlers/zonas.getZonasPorPiso
@@ -421,6 +561,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/zonas/piso/{piso}
+          authorizer:
+            name: cognitoJwt
 
   getEspaciosZona:
     handler: src/handlers/zonas.getEspaciosZona
@@ -428,6 +570,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/zonas/{id}/espacios
+          authorizer:
+            name: cognitoJwt
 
   estadisticasZonas:
     handler: src/handlers/zonas.getEstadisticasZonas
@@ -435,6 +579,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/zonas/estadisticas
+          authorizer:
+            name: cognitoJwt
 
   getPisosDisponibles:
     handler: src/handlers/zonas.getPisosDisponibles
@@ -442,6 +588,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/zonas/pisos
+          authorizer:
+            name: cognitoJwt
 
   getEdificiosDisponibles:
     handler: src/handlers/zonas.getEdificiosDisponibles
@@ -449,6 +597,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/zonas/edificios
+          authorizer:
+            name: cognitoJwt
 
   # Worker para procesamiento asíncrono
   queueWorker:
@@ -527,6 +677,68 @@ resources:
           StreamViewType: NEW_AND_OLD_IMAGES
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: true
+
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-${sls:stage}-pool
+        UsernameAttributes:
+          - email
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireNumbers: true
+            RequireSymbols: false
+            RequireUppercase: true
+        Schema:
+          - Name: email
+            AttributeDataType: String
+            Required: true
+            Mutable: true
+          - Name: name
+            AttributeDataType: String
+            Required: false
+            Mutable: true
+          - Name: family_name
+            AttributeDataType: String
+            Required: false
+            Mutable: true
+          - Name: custom:role
+            AttributeDataType: String
+            Required: false
+            Mutable: true
+
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: ${self:service}-${sls:stage}-app
+        GenerateSecret: false
+        UserPoolId: { Ref: CognitoUserPool }
+        PreventUserExistenceErrors: ENABLED
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+          - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        AccessTokenValidity: 60
+        IdTokenValidity: 60
+        RefreshTokenValidity: 30
+        TokenValidityUnits:
+          AccessToken: minutes
+          IdToken: minutes
+          RefreshToken: days
+        WriteAttributes:
+          - email
+          - name
+          - family_name
+          - custom:role
+        ReadAttributes:
+          - email
+          - name
+          - family_name
+          - custom:role
         
   Outputs:
     QueueUrl:
@@ -535,3 +747,12 @@ resources:
       Value: { Ref: DynamoDBTable }
     DynamoDBTableArn:
       Value: { Fn::GetAtt: [ DynamoDBTable, Arn ] }
+    UserPoolId:
+      Value: { Ref: CognitoUserPool }
+      Description: Cognito User Pool ID
+    UserPoolClientId:
+      Value: { Ref: CognitoUserPoolClient }
+      Description: Cognito User Pool Client ID
+    CognitoUserPoolArn:
+      Value: { Fn::GetAtt: [ CognitoUserPool, Arn ] }
+      Description: Cognito User Pool ARN
