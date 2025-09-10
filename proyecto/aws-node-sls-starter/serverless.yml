@@ -1,0 +1,87 @@
+service: aws-node-sls-starter
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  environment:
+    QUEUE_URL: { Ref: MyQueue }
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            Fn::GetAtt: [ MyQueue, Arn ]
+  logs:
+    httpApi: true
+  tracing:
+    lambda: true
+
+functions:
+  hello:
+    handler: src/handlers/hello.hello
+    events:
+      - httpApi:
+          method: GET
+          path: /hello
+
+  enqueue:
+    handler: src/handlers/enqueue.enqueue
+    events:
+      - httpApi:
+          method: POST
+          path: /enqueue
+
+  queueWorker:
+    handler: src/handlers/queueWorker.process
+    timeout: 30
+    memorySize: 256
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt: [ MyQueue, Arn ]
+          batchSize: 10
+          maximumBatchingWindow: 30
+
+plugins:
+  - serverless-offline
+  # Uncomment if you want to drive SQS locally with LocalStack:
+  # - serverless-offline-sqs
+
+package:
+  individually: true
+  patterns:
+    - '!**/*.md'
+    - '!**/*.test.*'
+
+custom:
+  serverless-offline:
+    httpPort: 3000
+  # serverless-offline-sqs:
+  #   autoCreate: true
+  #   apiVersion: '2012-11-05'
+  #   endpoint: http://localhost:4566  # LocalStack
+  #   region: ${self:provider.region}
+  #   accessKeyId: root
+  #   secretAccessKey: root
+  #   queues:
+  #     - ${self:service}-${sls:stage}-queue
+
+resources:
+  Resources:
+    MyQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${sls:stage}-queue
+        VisibilityTimeout: 60
+        MessageRetentionPeriod: 1209600
+  Outputs:
+    QueueUrl:
+      Value: { Ref: MyQueue }

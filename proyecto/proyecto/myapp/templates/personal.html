@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Personal Médico{% endblock %}
+{% block title %}Personal{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/personal.css' %}">
 {% endblock %}
@@ -8,7 +8,7 @@
 {% block content %}
 <div class="main-content">
     <div class="titulo-content">
-        <h1>Personal Médico</h1>
+        <h1>Personal</h1>
         
         <div class="filtros-container">
             <div class="form-busqueda">
@@ -22,12 +22,12 @@
             </div>
             
             <form method="get" class="form-filtro">
-                <select name="especialidad" id="select-especialidad">
-                    <option value="">Todas las especialidades</option>
-                    {% for esp in especialidades %}
-                    <option value="{{ esp.idespecialidad }}"
-                            {% if especialidad_actual == esp.idespecialidad %}selected{% endif %}>
-                        {{ esp.nombreespecialidad }} ({{ esp.medico_set.count }})
+                <select name="tipo_actividad" id="select-tipo-actividad">
+                    <option value="">Todos los tipos de actividad</option>
+                    {% for tipo in tipos_actividad %}
+                    <option value="{{ tipo.idtipoactividad }}"
+                            {% if tipo_actividad_actual == tipo.idtipoactividad %}selected{% endif %}>
+                        {{ tipo.nombretipoactividad }} ({{ tipo.responsable_set.count }})
                     </option>
                     {% endfor %}
                 </select>
@@ -35,24 +35,24 @@
         </div>
     </div>
 
-    <div class="medicos-container">
-        {% for medico in medicos %}
-        <div class="medico-card" data-especialidad="{{ medico.idespecialidad.idespecialidad|default:'' }}">
-            <div class="medico-avatar">
-                <img src="{% static 'images/avatares/'|add:medico.nombremedico|lower|add:'_'|add:medico.apellidomedico|lower|add:'.jpg' %}" 
+    <div class="personal-container">
+        {% for responsable in responsables %}
+        <div class="personal-card" data-tipo-actividad="{{ responsable.idtipoactividad.idtipoactividad|default:'' }}">
+            <div class="personal-avatar">
+                <img src="{% static 'images/avatares/'|add:responsable.nombreresponsable|lower|add:'_'|add:responsable.apellidoresponsable|lower|add:'.jpg' %}" 
                      onerror="this.onerror=null; this.src='{% static 'images/avatar_default.jpg' %}'"
-                     alt="Foto de {{ medico.nombremedico }} {{ medico.apellidomedico }}">
+                     alt="Foto de {{ responsable.nombreresponsable }} {{ responsable.apellidoresponsable }}">
             </div>
-            <div class="medico-info">
-                <h3>Dr. {{ medico.nombremedico }} {{ medico.apellidomedico }}</h3>
-                {% if medico.idespecialidad %}
-                <p class="especialidad">{{ medico.idespecialidad.nombreespecialidad }}</p>
+            <div class="personal-info">
+                <h3>{{ responsable.nombreresponsable }} {{ responsable.apellidoresponsable }}</h3>
+                {% if responsable.idtipoactividad %}
+                <p class="tipo-actividad">{{ responsable.idtipoactividad.nombretipoactividad }}</p>
                 {% endif %}
             </div>
         </div>
         {% empty %}
         <div class="no-resultados">
-            <p>No hay médicos registrados</p>
+            <p>No hay personal registrado</p>
         </div>
         {% endfor %}
         
@@ -69,24 +69,24 @@
 document.addEventListener('DOMContentLoaded', function() {
     const inputBusqueda = document.getElementById('input-busqueda');
     const btnBuscar = document.getElementById('btn-buscar');
-    const selectEspecialidad = document.getElementById('select-especialidad');
+    const selectTipoActividad = document.getElementById('select-tipo-actividad');
     const btnReset = document.getElementById('btn-reset');
     const noResultsMsg = document.getElementById('no-resultados-busqueda');
     const mensajeNoResults = document.getElementById('mensaje-no-resultados');
     
-    function filtrarMedicos() {
+    function filtrarPersonal() {
         const termino = inputBusqueda.value.toLowerCase().trim();
-        const especialidad = selectEspecialidad.value;
+        const tipoActividad = selectTipoActividad.value;
         let resultadosVisibles = 0;
         
-        document.querySelectorAll('.medico-card').forEach(card => {
+        document.querySelectorAll('.personal-card').forEach(card => {
             const nombreCompleto = card.querySelector('h3').textContent.toLowerCase();
-            const cardEspecialidad = card.getAttribute('data-especialidad');
+            const cardTipoActividad = card.getAttribute('data-tipo-actividad');
             
             const coincideBusqueda = termino === '' || nombreCompleto.includes(termino);
-            const coincideEspecialidad = especialidad === '' || cardEspecialidad === especialidad;
+            const coincideTipoActividad = tipoActividad === '' || cardTipoActividad === tipoActividad;
             
-            if (coincideBusqueda && coincideEspecialidad) {
+            if (coincideBusqueda && coincideTipoActividad) {
                 card.style.display = 'block';
                 resultadosVisibles++;
             } else {
@@ -95,15 +95,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         if (resultadosVisibles === 0) {
-            let mensaje = 'No se encontraron médicos';
-            if (termino !== '' || especialidad !== '') {
+            let mensaje = 'No se encontró personal';
+            if (termino !== '' || tipoActividad !== '') {
                 mensaje += ' con los filtros aplicados';
                 if (termino !== '') {
                     mensaje += ` que coincidan con "${termino}"`;
                 }
-                if (especialidad !== '') {
-                    const especialidadNombre = selectEspecialidad.options[selectEspecialidad.selectedIndex].text.split(' (')[0];
-                    mensaje += ` en ${especialidadNombre}`;
+                if (tipoActividad !== '') {
+                    const tipoActividadNombre = selectTipoActividad.options[selectTipoActividad.selectedIndex].text.split(' (')[0];
+                    mensaje += ` en ${tipoActividadNombre}`;
                 }
             }
             
@@ -115,31 +115,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     inputBusqueda.addEventListener('input', function() {
-        filtrarMedicos();
+        filtrarPersonal();
     });
     
-    btnBuscar.addEventListener('click', filtrarMedicos);
+    btnBuscar.addEventListener('click', filtrarPersonal);
     
-    selectEspecialidad.addEventListener('change', function() {
-        filtrarMedicos();
+    selectTipoActividad.addEventListener('change', function() {
+        filtrarPersonal();
     });
     
     btnReset.addEventListener('click', function(e) {
         e.preventDefault();
         inputBusqueda.value = '';
-        selectEspecialidad.value = '';
-        filtrarMedicos();
+        selectTipoActividad.value = '';
+        filtrarPersonal();
     });
     
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('busqueda') || urlParams.has('especialidad')) {
+    if (urlParams.has('busqueda') || urlParams.has('tipo_actividad')) {
         if (urlParams.has('busqueda')) {
             inputBusqueda.value = urlParams.get('busqueda');
         }
-        if (urlParams.has('especialidad')) {
-            selectEspecialidad.value = urlParams.get('especialidad');
+        if (urlParams.has('tipo_actividad')) {
+            selectTipoActividad.value = urlParams.get('tipo_actividad');
         }
-        filtrarMedicos();
+        filtrarPersonal();
     }
 });
 </script>

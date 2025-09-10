@@ -1,0 +1,53 @@
+{
+  "name": "sistema-gestion-espacios",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de espacios desarrollado en Node.js con soporte para SQLite y DynamoDB",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "jest",
+    "migrate": "node scripts/migrate.js",
+    "setup-dynamodb": "node scripts/setup-dynamodb.js",
+    "setup-sqlite": "node scripts/setup-sqlite.js"
+  },
+  "keywords": ["espacios", "reservas", "gestión", "nodejs", "express", "dynamodb", "sqlite"],
+  "author": "VesperDevs",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-handlebars": "^7.1.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "express-validator": "^7.0.1",
+    "morgan": "^1.10.0",
+    "helmet": "^7.0.0",
+    "compression": "^1.7.4",
+    "sqlite3": "^5.1.6",
+    "sequelize": "^6.32.1",
+    "aws-sdk": "^2.1460.0",
+    "exceljs": "^4.4.0",
+    "moment": "^2.29.4",
+    "uuid": "^9.0.0",
+    "chalk": "^4.1.2",
+    "winston": "^3.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.6.2",
+    "supertest": "^6.3.3",
+    "@types/node": "^20.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amendezl/proyecto-grupo-7.git"
+  }
+}

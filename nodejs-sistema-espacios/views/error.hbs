@@ -1,0 +1,54 @@
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-exclamation-triangle-fill text-danger"></i>
+            {{title}}
+        </h1>
+        <hr>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="alert alert-danger">
+            <h4 class="alert-heading">Error {{error.status}}</h4>
+            <p class="mb-0">{{error.message}}</p>
+        </div>
+
+        {{#if error.stack}}
+            <div class="card">
+                <div class="card-header">
+                    <h5>Detalles del Error</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="text-muted"><code>{{error.stack}}</code></pre>
+                </div>
+            </div>
+        {{/if}}
+
+        <div class="mt-4">
+            <a href="/dashboard" class="btn btn-primary">
+                <i class="bi bi-house"></i> Ir al Dashboard
+            </a>
+            <button onclick="history.back()" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </button>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-info-circle"></i> ¿Qué puedes hacer?</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-check text-success"></i> Verificar la URL</li>
+                    <li><i class="bi bi-check text-success"></i> Ir al <a href="/dashboard">Dashboard</a></li>
+                    <li><i class="bi bi-check text-success"></i> Contactar al administrador</li>
+                    <li><i class="bi bi-check text-success"></i> Reportar el problema</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

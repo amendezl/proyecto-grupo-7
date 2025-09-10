@@ -61,7 +61,7 @@
 
             <div class="header-side">
                 <a href="{% url 'panel' %}">
-                    <img src="{% static 'images/logo_hospital.png' %}" alt="Logo Hospital" class="header-logo">
+                    <img src="{% static 'images/logo_gestion.png' %}" alt="Logo Sistema" class="header-logo">
                 </a>
             </div>
 
@@ -70,11 +70,11 @@
                 <a href="{% url 'agenda' %}" class="{% if request.path == '/agenda/' %}active{% endif %}">Agenda</a>
                 <a href="{% url 'dashboard' %}"
                     class="{% if request.path == '/dashboard/' %}active{% endif %}">Dashboard</a>
-                <a href="{% url 'boxes' %}" class="{% if request.path == '/boxes/' %}active{% endif %}">Boxes</a>
+                <a href="{% url 'espacios' %}" class="{% if request.path == '/espacios/' %}active{% endif %}">Espacios</a>
                 <a href="{% url 'personal' %}"
                     class="{% if request.path == '/personal/' %}active{% endif %}">Personal</a>
-                <a href="{% url 'implementos' %}"
-                    class="{% if request.path == '/implementos/' %}active{% endif %}">Implementos</a>
+                <a href="{% url 'recursos' %}"
+                    class="{% if request.path == '/recursos/' %}active{% endif %}">Recursos</a>
                 <a href="{% url 'reportes' %}"
                     class="{% if request.path == '/reportes/' %}active{% endif %}">Reportes</a>
             </nav>

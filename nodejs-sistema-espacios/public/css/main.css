@@ -1,0 +1,228 @@
+/* Estilos principales del sistema */
+
+/* Variables CSS */
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #0dcaf0;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+}
+
+/* Estilos generales */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Navbar personalizada */
+.navbar-brand {
+    font-weight: bold;
+}
+
+.navbar-nav .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 0.375rem;
+}
+
+/* Tarjetas de estadísticas */
+.card {
+    border: none;
+    border-radius: 0.75rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Botones personalizados */
+.btn {
+    border-radius: 0.5rem;
+    font-weight: 500;
+}
+
+/* Tablas */
+.table {
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: var(--light-color);
+    border-bottom: 2px solid var(--primary-color);
+    font-weight: 600;
+}
+
+/* Formularios */
+.form-control, .form-select {
+    border-radius: 0.5rem;
+    border: 1px solid #ced4da;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Alertas */
+.alert {
+    border: none;
+    border-radius: 0.75rem;
+    font-weight: 500;
+}
+
+/* Badges */
+.badge {
+    border-radius: 0.5rem;
+}
+
+/* Estados de espacios */
+.estado-disponible {
+    color: var(--success-color);
+}
+
+.estado-ocupado {
+    color: var(--warning-color);
+}
+
+.estado-mantenimiento {
+    color: var(--danger-color);
+}
+
+.estado-reservado {
+    color: var(--info-color);
+}
+
+/* Loading spinner personalizado */
+.spinner-border-custom {
+    width: 2rem;
+    height: 2rem;
+    border-width: 0.25em;
+}
+
+/* Paginación */
+.pagination {
+    justify-content: center;
+}
+
+.page-link {
+    border-radius: 0.5rem;
+    margin: 0 0.125rem;
+    border: 1px solid #dee2e6;
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+}
+
+/* Utilities */
+.text-nowrap {
+    white-space: nowrap;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Tooltips personalizados */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+/* Modales */
+.modal-content {
+    border-radius: 0.75rem;
+    border: none;
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    background-color: var(--light-color);
+}
+
+/* Iconos */
+.bi {
+    vertical-align: -0.125em;
+}
+
+/* Cards de dashboard */
+.dashboard-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Filtros */
+.filter-container {
+    background-color: white;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Estados de reservas */
+.reserva-activa {
+    border-left: 4px solid var(--success-color);
+}
+
+.reserva-pendiente {
+    border-left: 4px solid var(--warning-color);
+}
+
+.reserva-cancelada {
+    border-left: 4px solid var(--danger-color);
+}
+
+.reserva-completada {
+    border-left: 4px solid var(--info-color);
+}
+
+/* Sidebar para móviles */
+@media (max-width: 991.98px) {
+    .navbar-collapse {
+        background-color: rgba(13, 110, 253, 0.95);
+        border-radius: 0.5rem;
+        margin-top: 0.5rem;
+        padding: 1rem;
+    }
+}

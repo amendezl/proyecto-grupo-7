@@ -13,19 +13,19 @@
   <div class="dashboard-cards">
     <div class="card uso">
       <div class="card-content">
-        BOXES EN USO <br>
+        ESPACIOS EN USO <br>
         <span>{{ en_uso }}</span>
       </div>
     </div>
     <div class="card disponibles">
       <div class="card-content">
-        BOXES DISPONIBLES <br>
+        ESPACIOS DISPONIBLES <br>
         <span>{{ disponibles }}</span>
       </div>
     </div>
     <div class="card mantencion">
       <div class="card-content">
-        BOXES EN MANTENCIÓN <br>
+        ESPACIOS EN MANTENCIÓN <br>
         <span>{{ en_mantencion }}</span>
       </div>
     </div>
@@ -33,16 +33,16 @@
 
   <div class="dashboard-graphics">
     <div class="chart-container" style="max-width: 400px;">
-      <h4>Porcentaje de Ocupación de Boxes - Hoy</h4>
+      <h4>Porcentaje de Ocupación de Espacios - Hoy</h4>
       <canvas id="ocupacionChart"></canvas>
       <p style="text-align:center; font-weight:bold;">
-        Porcentaje de Boxes Disponibles: {{ porcentajes.disponibles }}%
+        Porcentaje de Espacios Disponibles: {{ porcentajes.disponibles }}%
       </p>
     </div>
 
     <div class="chart-container">
-      <h4>Especialidades más demandadas - Hoy</h4>
-      <canvas id="especialidadesChart"></canvas>
+      <h4>Tipos de Actividad más demandados - Hoy</h4>
+      <canvas id="tiposActividadChart"></canvas>
     </div>
   </div>
 
@@ -138,7 +138,7 @@
     data: {
         labels: {{ horas|safe }},
         datasets: [{
-            label: 'Boxes disponibles por hora',
+            label: 'Espacios disponibles por hora',
             data: {{ ocupados_por_hora|safe }},
             fill: true,
             backgroundColor: 'rgba(0, 188, 212, 0.1)',
@@ -223,14 +223,14 @@
     }
   });
 
-  const ctx3 = document.getElementById('especialidadesChart').getContext('2d');
+  const ctx3 = document.getElementById('tiposActividadChart').getContext('2d');
   new Chart(ctx3, {
     type: 'bar',
     data: {
-        labels: {{ labels_especialidades|safe }},
+        labels: {{ labels_tipos_actividad|safe }},
         datasets: [{
-            label: 'Número de consultas',
-            data: {{ data_especialidades|safe }},
+            label: 'Número de reservas',
+            data: {{ data_tipos_actividad|safe }},
             backgroundColor: [
                 '#05b5af',
                 '#05b5af',

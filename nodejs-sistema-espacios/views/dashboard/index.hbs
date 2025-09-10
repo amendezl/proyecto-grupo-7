@@ -1,0 +1,274 @@
+<div class="row">
+    <div class="col-12">
+        <h1 class="h2">
+            <i class="bi bi-speedometer2"></i>
+            Dashboard - Sistema de Gestión de Espacios
+        </h1>
+        <p class="text-muted">Vista general del sistema y estadísticas en tiempo real</p>
+        <hr>
+    </div>
+</div>
+
+<!-- Tarjetas de estadísticas -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0" id="total-espacios">-</h3>
+                        <p class="mb-0">Total Espacios</p>
+                    </div>
+                    <i class="bi bi-grid-3x3 fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0" id="espacios-disponibles">-</h3>
+                        <p class="mb-0">Espacios Disponibles</p>
+                    </div>
+                    <i class="bi bi-check-circle fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0" id="espacios-ocupados">-</h3>
+                        <p class="mb-0">Espacios Ocupados</p>
+                    </div>
+                    <i class="bi bi-person-fill fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-0" id="reservas-mes">-</h3>
+                        <p class="mb-0">Reservas del Mes</p>
+                    </div>
+                    <i class="bi bi-calendar-check fa-2x"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos y datos -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-bar-chart"></i> Ocupación Semanal</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="ocupacionChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history"></i> Actividad Reciente</h5>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="actividad-reciente">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accesos rápidos -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-lightning"></i> Accesos Rápidos</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-2 col-sm-4 mb-3">
+                        <a href="/reservas/crear" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-plus-circle d-block mb-2"></i>
+                            Nueva Reserva
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 mb-3">
+                        <a href="/espacios/crear" class="btn btn-outline-success w-100">
+                            <i class="bi bi-grid-3x3 d-block mb-2"></i>
+                            Nuevo Espacio
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 mb-3">
+                        <a href="/usuarios/crear" class="btn btn-outline-info w-100">
+                            <i class="bi bi-person-plus d-block mb-2"></i>
+                            Nuevo Usuario
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 mb-3">
+                        <a href="/recursos/crear" class="btn btn-outline-warning w-100">
+                            <i class="bi bi-box-seam d-block mb-2"></i>
+                            Nuevo Recurso
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 mb-3">
+                        <a href="/zonas/crear" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-geo-alt d-block mb-2"></i>
+                            Nueva Zona
+                        </a>
+                    </div>
+                    <div class="col-md-2 col-sm-4 mb-3">
+                        <a href="/responsables/crear" class="btn btn-outline-dark w-100">
+                            <i class="bi bi-person-badge d-block mb-2"></i>
+                            Nuevo Responsable
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variables globales para los gráficos
+let ocupacionChart = null;
+
+// Cargar datos al inicializar la página
+document.addEventListener('DOMContentLoaded', function() {
+    cargarEstadisticas();
+    cargarOcupacionSemanal();
+    cargarActividadReciente();
+    
+    // Actualizar datos cada 30 segundos
+    setInterval(() => {
+        cargarEstadisticas();
+        cargarActividadReciente();
+    }, 30000);
+});
+
+// Función para cargar estadísticas generales
+async function cargarEstadisticas() {
+    try {
+        const response = await fetch('/dashboard/api/stats');
+        const data = await response.json();
+        
+        document.getElementById('total-espacios').textContent = data.totalEspacios || 0;
+        document.getElementById('espacios-disponibles').textContent = data.espaciosDisponibles || 0;
+        document.getElementById('espacios-ocupados').textContent = data.espaciosOcupados || 0;
+        document.getElementById('reservas-mes').textContent = data.reservasDelMes || 0;
+        
+    } catch (error) {
+        console.error('Error cargando estadísticas:', error);
+    }
+}
+
+// Función para cargar gráfico de ocupación semanal
+async function cargarOcupacionSemanal() {
+    try {
+        const response = await fetch('/dashboard/api/ocupacion-semanal');
+        const data = await response.json();
+        
+        const ctx = document.getElementById('ocupacionChart').getContext('2d');
+        
+        if (ocupacionChart) {
+            ocupacionChart.destroy();
+        }
+        
+        ocupacionChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'],
+                datasets: [{
+                    label: 'Reservas',
+                    data: data.ocupacionPorDia || [0, 0, 0, 0, 0, 0, 0],
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error cargando ocupación semanal:', error);
+    }
+}
+
+// Función para cargar actividad reciente
+async function cargarActividadReciente() {
+    try {
+        const response = await fetch('/dashboard/api/actividad');
+        const data = await response.json();
+        
+        const container = document.getElementById('actividad-reciente');
+        
+        if (!data.actividad || data.actividad.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center">No hay actividad reciente</p>';
+            return;
+        }
+        
+        let html = '';
+        data.actividad.forEach(item => {
+            const fecha = new Date(item.fecha).toLocaleDateString('es-ES');
+            const hora = item.hora ? item.hora.substring(0, 5) : '';
+            
+            html += `
+                <div class="d-flex justify-content-between align-items-start mb-3 pb-2 border-bottom">
+                    <div>
+                        <div class="fw-bold">${item.descripcion}</div>
+                        <small class="text-muted">
+                            <i class="bi bi-calendar3"></i> ${fecha}
+                            ${hora ? `<i class="bi bi-clock ms-2"></i> ${hora}` : ''}
+                        </small>
+                    </div>
+                    <span class="badge bg-primary">${item.tipo}</span>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error cargando actividad reciente:', error);
+        document.getElementById('actividad-reciente').innerHTML = 
+            '<p class="text-danger text-center">Error cargando actividad</p>';
+    }
+}
+</script>

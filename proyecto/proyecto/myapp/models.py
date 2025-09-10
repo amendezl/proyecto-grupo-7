@@ -123,21 +123,21 @@ class DjangoSession(models.Model):
         db_table = 'django_session'
 
 
-class Pasillo(models.Model):
-    idpasillo = models.AutoField(db_column='idPasillo', primary_key=True)  # Field name made lowercase.
-    nombrepasillo = models.CharField(db_column='nombrePasillo', max_length=60, blank=True, null=True)  # Field name made lowercase.
+class Zona(models.Model):
+    idzona = models.AutoField(db_column='idZona', primary_key=True)  # Field name made lowercase.
+    nombrezona = models.CharField(db_column='nombreZona', max_length=60, blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
         managed = False
-        db_table = 'pasillo'
+        db_table = 'zona'
 
-class Especialidad(models.Model):
-    idespecialidad = models.AutoField(db_column='idEspecialidad', primary_key=True)  # Field name made lowercase.
-    nombreespecialidad = models.CharField(db_column='nombreEspecialidad', max_length=20)  # Field name made lowercase.
+class TipoActividad(models.Model):
+    idtipoactividad = models.AutoField(db_column='idTipoActividad', primary_key=True)  # Field name made lowercase.
+    nombretipoactividad = models.CharField(db_column='nombreTipoActividad', max_length=50)  # Field name made lowercase.
 
     class Meta:
         managed = False
-        db_table = 'especialidad'
+        db_table = 'tipoactividad'
 
 
 class Estado(models.Model):
@@ -149,104 +149,104 @@ class Estado(models.Model):
         db_table = 'estado'
 
 
-class Estadobox(models.Model):
-    idestadobox = models.AutoField(db_column='idEstadoBox', primary_key=True)  # Field name made lowercase.
-    descripcionestadobox = models.TextField(db_column='descripcionEstadoBox', blank=True, null=True)  # Field name made lowercase.
+class EstadoEspacio(models.Model):
+    idestadoespacio = models.AutoField(db_column='idEstadoEspacio', primary_key=True)  # Field name made lowercase.
+    descripcionestadoespacio = models.TextField(db_column='descripcionEstadoEspacio', blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
         managed = False
-        db_table = 'estadobox'
+        db_table = 'estadoespacio'
 
 
-class Estadoimplemento(models.Model):
-    idestadoimplemento = models.AutoField(db_column='idEstadoImplemento', primary_key=True)  # Field name made lowercase.
+class EstadoRecurso(models.Model):
+    idestadorecurso = models.AutoField(db_column='idEstadoRecurso', primary_key=True)  # Field name made lowercase.
     descripcion = models.TextField(blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'estadoimplemento'
+        db_table = 'estadorecurso'
 
 
-class Implemento(models.Model):
-    idimplemento = models.AutoField(db_column='idImplemento', primary_key=True)  # Field name made lowercase.
-    nombreimplemento = models.CharField(db_column='nombreImplemento', max_length=60, blank=True, null=True)  # Field name made lowercase.
-
-    class Meta:
-        managed = False
-        db_table = 'implemento'
-
-
-class Medico(models.Model):
-    rutmedico = models.CharField(db_column='rutMedico', primary_key=True, max_length=11)  # Field name made lowercase.
-    idespecialidad = models.ForeignKey(Especialidad, models.DO_NOTHING, db_column='idEspecialidad', blank=True, null=True)  # Field name made lowercase.
-    nombremedico = models.CharField(db_column='nombreMedico', max_length=60, blank=True, null=True)  # Field name made lowercase.
-    apellidomedico = models.CharField(db_column='apellidoMedico', max_length=60, blank=True, null=True)  # Field name made lowercase.
-    fechanacimientomedico = models.DateField(db_column='fechaNacimientoMedico', blank=True, null=True)  # Field name made lowercase.
+class Recurso(models.Model):
+    idrecurso = models.AutoField(db_column='idRecurso', primary_key=True)  # Field name made lowercase.
+    nombrerecurso = models.CharField(db_column='nombreRecurso', max_length=60, blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
         managed = False
-        db_table = 'medico'
-
-class Especialidadmedico(models.Model):
-    idespecialidad = models.ForeignKey('Especialidad', models.DO_NOTHING, db_column='idEspecialidad')
-    rutmedico = models.ForeignKey('Medico', models.DO_NOTHING, db_column='rutMedico', related_name='especialidades_medico')
-
-    class Meta:
-        managed = False
-        db_table = 'especialidadmedico'
-        unique_together = (('idespecialidad', 'rutmedico'),)
+        db_table = 'recurso'
 
 
-class Paciente(models.Model):
-    rutpaciente = models.CharField(db_column='rutPaciente', primary_key=True, max_length=11)  # Field name made lowercase.
-    nombrepaciente = models.CharField(db_column='nombrePaciente', max_length=60, blank=True, null=True)  # Field name made lowercase.
-    apellidopaciente = models.CharField(db_column='apellidoPaciente', max_length=60, blank=True, null=True)  # Field name made lowercase.
-    fechanacimientopaciente = models.DateField(db_column='fechaNacimientoPaciente', blank=True, null=True)  # Field name made lowercase.
+class Responsable(models.Model):
+    rutresponsable = models.CharField(db_column='rutResponsable', primary_key=True, max_length=11)  # Field name made lowercase.
+    idtipoactividad = models.ForeignKey(TipoActividad, models.DO_NOTHING, db_column='idTipoActividad', blank=True, null=True)  # Field name made lowercase.
+    nombreresponsable = models.CharField(db_column='nombreResponsable', max_length=60, blank=True, null=True)  # Field name made lowercase.
+    apellidoresponsable = models.CharField(db_column='apellidoResponsable', max_length=60, blank=True, null=True)  # Field name made lowercase.
+    fechanacimientoresponsable = models.DateField(db_column='fechaNacimientoResponsable', blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
         managed = False
-        db_table = 'paciente'
+        db_table = 'responsable'
 
-class Box(models.Model):
-    idbox = models.AutoField(db_column='idBox', primary_key=True)  # Field name made lowercase.
-    idpasillo = models.ForeignKey('Pasillo', models.DO_NOTHING, db_column='idPasillo', blank=True, null=True)  # Field name made lowercase.
-    numerobox = models.IntegerField(db_column='numeroBox', blank=True, null=True)  # Field name made lowercase.
-    idestadobox = models.ForeignKey('Estadobox', models.DO_NOTHING, db_column='idEstadoBox', blank=True, null=True)  # Field name made lowercase.
-    especialidadbox = models.CharField(db_column='especialidadBox', max_length=100, blank=True, null=True)  # Field name made lowercase.
+class TipoActividadResponsable(models.Model):
+    idtipoactividad = models.ForeignKey('TipoActividad', models.DO_NOTHING, db_column='idTipoActividad')
+    rutresponsable = models.ForeignKey('Responsable', models.DO_NOTHING, db_column='rutResponsable', related_name='tipos_actividad_responsable')
 
     class Meta:
         managed = False
-        db_table = 'box'
-
-class Especialidadbox(models.Model):
-    idespecialidad = models.ForeignKey('Especialidad', models.DO_NOTHING, db_column='idEspecialidad')
-    idbox = models.ForeignKey('Box', models.DO_NOTHING, db_column='idBox', related_name='especialidades_asociadas')
-
-    class Meta:
-        managed = False
-        db_table = 'especialidadbox'
-        unique_together = (('idespecialidad', 'idbox'),)
+        db_table = 'tipoactividadresponsable'
+        unique_together = (('idtipoactividad', 'rutresponsable'),)
 
 
-
-class Boximplemento(models.Model):
-    idimplemento = models.ForeignKey('Implemento', models.DO_NOTHING, db_column='idImplemento')  # Field name made lowercase.
-    idbox = models.ForeignKey(Box, models.DO_NOTHING, db_column='idBox')  # Field name made lowercase.
-    idestadoimplemento = models.ForeignKey('Estadoimplemento', models.DO_NOTHING, db_column='idEstadoImplemento', blank=True, null=True)  # Field name made lowercase.
+class Usuario(models.Model):
+    rutusuario = models.CharField(db_column='rutUsuario', primary_key=True, max_length=11)  # Field name made lowercase.
+    nombreusuario = models.CharField(db_column='nombreUsuario', max_length=60, blank=True, null=True)  # Field name made lowercase.
+    apellidousuario = models.CharField(db_column='apellidoUsuario', max_length=60, blank=True, null=True)  # Field name made lowercase.
+    fechanacimientousuario = models.DateField(db_column='fechaNacimientoUsuario', blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
         managed = False
-        db_table = 'boximplemento'
-        unique_together = (('idimplemento', 'idbox'),)
+        db_table = 'usuario'
+
+class Espacio(models.Model):
+    idespacio = models.AutoField(db_column='idEspacio', primary_key=True)  # Field name made lowercase.
+    idzona = models.ForeignKey('Zona', models.DO_NOTHING, db_column='idZona', blank=True, null=True)  # Field name made lowercase.
+    numeroespacio = models.IntegerField(db_column='numeroEspacio', blank=True, null=True)  # Field name made lowercase.
+    idestadoespacio = models.ForeignKey('EstadoEspacio', models.DO_NOTHING, db_column='idEstadoEspacio', blank=True, null=True)  # Field name made lowercase.
+    tipoactividadespacio = models.CharField(db_column='tipoActividadEspacio', max_length=100, blank=True, null=True)  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'espacio'
+
+class TipoActividadEspacio(models.Model):
+    idtipoactividad = models.ForeignKey('TipoActividad', models.DO_NOTHING, db_column='idTipoActividad')
+    idespacio = models.ForeignKey('Espacio', models.DO_NOTHING, db_column='idEspacio', related_name='tipos_actividad_asociadas')
+
+    class Meta:
+        managed = False
+        db_table = 'tipoactividadespacio'
+        unique_together = (('idtipoactividad', 'idespacio'),)
+
+
+
+class EspacioRecurso(models.Model):
+    idrecurso = models.ForeignKey('Recurso', models.DO_NOTHING, db_column='idRecurso')  # Field name made lowercase.
+    idespacio = models.ForeignKey(Espacio, models.DO_NOTHING, db_column='idEspacio')  # Field name made lowercase.
+    idestadorecurso = models.ForeignKey('EstadoRecurso', models.DO_NOTHING, db_column='idEstadoRecurso', blank=True, null=True)  # Field name made lowercase.
+
+    class Meta:
+        managed = False
+        db_table = 'espaciorecurso'
+        unique_together = (('idrecurso', 'idespacio'),)
 
     def cambiar_estado(self, nuevo_estado):
-        estado_anterior = self.idestadoimplemento_id
-        self.idestadoimplemento_id = nuevo_estado
+        estado_anterior = self.idestadorecurso_id
+        self.idestadorecurso_id = nuevo_estado
         self.save()
         
         from .observers import NotificadorCambioEstado
         NotificadorCambioEstado().notificar(
-            self.idimplemento,
+            self.idrecurso,
             estado_anterior,
             nuevo_estado
         )
@@ -255,25 +255,25 @@ class Boximplemento(models.Model):
     def marcar_no_disponible(self):
         return self.cambiar_estado(3)
     
-class TipoCita(models.Model):
-    idtipocita = models.AutoField(db_column='idTipoCita', primary_key=True)
-    tipocita = models.TextField(db_column='tipoCita', blank=True, null=True)
+class TipoReserva(models.Model):
+    idtiporeserva = models.AutoField(db_column='idTipoReserva', primary_key=True)
+    tiporeserva = models.TextField(db_column='tipoReserva', blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'tipocita'
+        db_table = 'tiporeserva'
 
-class Consulta(models.Model):
-    idconsulta = models.AutoField(db_column='idConsulta', primary_key=True)  # Field name made lowercase.
-    idbox = models.ForeignKey(Box, models.DO_NOTHING, db_column='idBox', blank=True, null=True)  # Field name made lowercase.
-    rutpaciente = models.ForeignKey('Paciente', models.DO_NOTHING, db_column='rutPaciente', blank=True, null=True)  # Field name made lowercase.
-    rutmedico = models.ForeignKey('Medico', models.DO_NOTHING, db_column='rutMedico', blank=True, null=True)  # Field name made lowercase.
+class Reserva(models.Model):
+    idreserva = models.AutoField(db_column='idReserva', primary_key=True)  # Field name made lowercase.
+    idespacio = models.ForeignKey(Espacio, models.DO_NOTHING, db_column='idEspacio', blank=True, null=True)  # Field name made lowercase.
+    rutusuario = models.ForeignKey('Usuario', models.DO_NOTHING, db_column='rutUsuario', blank=True, null=True)  # Field name made lowercase.
+    rutresponsable = models.ForeignKey('Responsable', models.DO_NOTHING, db_column='rutResponsable', blank=True, null=True)  # Field name made lowercase.
     idestado = models.ForeignKey('Estado', models.DO_NOTHING, db_column='idEstado', blank=True, null=True)  # Field name made lowercase.
-    fechaconsulta = models.DateField(db_column='fechaConsulta', blank=True, null=True)  # Field name made lowercase.
+    fechareserva = models.DateField(db_column='fechaReserva', blank=True, null=True)  # Field name made lowercase.
     horainicio = models.TimeField(db_column='horaInicio', blank=True, null=True)  # Field name made lowercase.
     horafin = models.TimeField(db_column='horaFin', blank=True, null=True)  # Field name made lowercase.
-    idtipocita = models.ForeignKey('TipoCita', models.DO_NOTHING, db_column='idTipoCita', blank=True, null=True)
+    idtiporeserva = models.ForeignKey('TipoReserva', models.DO_NOTHING, db_column='idTipoReserva', blank=True, null=True)
 
     class Meta:
         managed = False
-        db_table = 'consulta'
+        db_table = 'reserva'

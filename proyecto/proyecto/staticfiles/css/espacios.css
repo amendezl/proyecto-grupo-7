@@ -1,0 +1,350 @@
+/* Contenedor de zonas */
+.espacios-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+/* Estilos de la zona */
+.zona-section {
+    margin-bottom: 1rem;
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-sizing: border-box;
+    border: 1px solid #05b5af;
+}
+
+.zona-section:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    border-color: #05b5af;
+}
+
+.zona-header {
+    font-weight: bold;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #37527a;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #f0f4f8;
+    margin-bottom: 1rem;
+}
+
+/* VISUALIZACION DE LOS ESPACIOS */
+.espacios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.espacio-card {
+    padding: 1rem 0.5rem;
+    border-radius: 8px;
+    border: 2px solid #ddd;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.espacio-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.espacio-numero {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.espacio-info {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.tipo-actividad {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.estado-text {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* Estados de los espacios */
+.espacio-card.disponible {
+    background: #e8f5e8;
+    border-color: #4caf50;
+    color: #2e7d32;
+}
+
+.espacio-card.ocupado {
+    background: #ffebee;
+    border-color: #f44336;
+    color: #c62828;
+}
+
+.espacio-card.mantencion {
+    background: #fff8e1;
+    border-color: #ff9800;
+    color: #e65100;
+}
+
+/* Contenedor de filtros */
+.filtros-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.filtros-superiores {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.card-disponibles {
+    background: linear-gradient(135deg, #05b5af, #037d79);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 200px;
+}
+
+.card-titulo {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+}
+
+.card-numero {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.leyenda-espacios {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.leyenda-espacios div {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.color-circulo {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.color-circulo.gray {
+    background-color: #4caf50;
+}
+
+.color-circulo.red {
+    background-color: #f44336;
+}
+
+.color-circulo.yellow {
+    background-color: #ff9800;
+}
+
+.filtros-inferiores {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.filtrar-wrapper {
+    position: relative;
+}
+
+.filtrar-btn {
+    background: #05b5af;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.3s ease;
+    min-width: 180px;
+    text-align: left;
+}
+
+.filtrar-btn:hover {
+    background: #037d79;
+}
+
+.dropdown-filtro {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    margin-top: 0.25rem;
+}
+
+.dropdown-filtro div {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.dropdown-filtro div:last-child {
+    border-bottom: none;
+}
+
+.dropdown-filtro div:hover {
+    background: #f8f9fa;
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem !important;
+}
+
+.checkbox-item input[type="checkbox"] {
+    margin: 0;
+}
+
+.checkbox-item label {
+    margin: 0;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .espacios-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .filtros-superiores {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+    
+    .filtros-inferiores {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .filtrar-btn {
+        min-width: auto;
+        text-align: center;
+    }
+    
+    .espacios-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 0.8rem;
+    }
+    
+    .espacio-card {
+        min-height: 70px;
+        padding: 0.5rem;
+    }
+    
+    .espacio-numero {
+        font-size: 1.2rem;
+    }
+    
+    .espacio-info {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .leyenda-espacios {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    
+    .espacios-grid {
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 0.5rem;
+    }
+}
+
+/* Contador de disponibles en zona */
+.disponibles-count {
+    background: #e8f5e8;
+    color: #2e7d32;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.zona-section {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Mejoras visuales */
+.titulo-content h1 {
+    color: #37527a;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.main-content {
+    padding: 2rem;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
