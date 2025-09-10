@@ -3,6 +3,7 @@ const {
   InitiateAuthCommand,
   GetUserCommand
 } = require("@aws-sdk/client-cognito-identity-provider");
+const { resilienceManager } = require('../utils/resilienceManager');
 
 const client = new CognitoIdentityProviderClient({});
 
@@ -19,23 +20,33 @@ const login = async (event) => {
       return response(400, { ok: false, error: "username y password son obligatorios" });
     }
 
-    const cmd = new InitiateAuthCommand({
-      AuthFlow: "USER_PASSWORD_AUTH",
-      ClientId: process.env.USER_POOL_CLIENT_ID,
-      AuthParameters: {
-        USERNAME: username,
-        PASSWORD: password
+    // Ejecutar login con resiliencia (Retry + Circuit Breaker)
+    const authResult = await resilienceManager.executeAuth(
+      async () => {
+        const cmd = new InitiateAuthCommand({
+          AuthFlow: "USER_PASSWORD_AUTH",
+          ClientId: process.env.USER_POOL_CLIENT_ID,
+          AuthParameters: {
+            USERNAME: username,
+            PASSWORD: password
+          }
+        });
+
+        return await client.send(cmd);
+      },
+      {
+        operation: 'cognitoLogin',
+        username: username.substring(0, 3) + '***', // Log parcial por seguridad
+        priority: 'critical' // Login es crítico para el hospital
       }
-    });
+    );
 
-    const out = await client.send(cmd);
-
-    if (out.ChallengeName) {
+    if (authResult.ChallengeName) {
       // Manejo de desafíos como NEW_PASSWORD_REQUIRED se podría agregar aquí
-      return response(403, { ok: false, challenge: out.ChallengeName });
+      return response(403, { ok: false, challenge: authResult.ChallengeName });
     }
 
-    const auth = out.AuthenticationResult || {};
+    const auth = authResult.AuthenticationResult || {};
     return response(200, {
       ok: true,
       idToken: auth.IdToken,
@@ -43,8 +54,26 @@ const login = async (event) => {
       refreshToken: auth.RefreshToken,
       expiresIn: auth.ExpiresIn
     });
-  } catch (err) {
-    console.error(err);
+    
+  } catch (error) {
+    console.error('[COGNITO_LOGIN] Error:', error);
+    
+    // Manejar errores específicos de resiliencia
+    if (error.name === 'CircuitOpenError') {
+      return response(503, { 
+        ok: false, 
+        error: "Servicio de autenticación temporalmente no disponible",
+        retryAfter: Math.ceil((error.nextAttemptTime - Date.now()) / 1000)
+      });
+    }
+    
+    if (error.name === 'RetryExhaustedError') {
+      return response(503, { 
+        ok: false, 
+        error: "Servicio de autenticación sobrecargado, intente más tarde"
+      });
+    }
+    
     return response(401, { ok: false, error: "Credenciales inválidas o usuario no confirmado" });
   }
 };
@@ -61,16 +90,27 @@ const refresh = async (event) => {
       return response(400, { ok: false, error: "refreshToken es obligatorio" });
     }
 
-    const cmd = new InitiateAuthCommand({
-      AuthFlow: "REFRESH_TOKEN_AUTH",
-      ClientId: process.env.USER_POOL_CLIENT_ID,
-      AuthParameters: {
-        REFRESH_TOKEN: refreshToken
-      }
-    });
+    // Ejecutar refresh con resiliencia
+    const authResult = await resilienceManager.executeAuth(
+      async () => {
+        const cmd = new InitiateAuthCommand({
+          AuthFlow: "REFRESH_TOKEN_AUTH",
+          ClientId: process.env.USER_POOL_CLIENT_ID,
+          AuthParameters: {
+            REFRESH_TOKEN: refreshToken
+          }
+        });
 
-    const out = await client.send(cmd);
-    const auth = out.AuthenticationResult || {};
+        return await client.send(cmd);
+      },
+      {
+        operation: 'cognitoRefresh',
+        hasRefreshToken: !!refreshToken,
+        priority: 'standard'
+      }
+    );
+
+    const auth = authResult.AuthenticationResult || {};
 
     return response(200, {
       ok: true,
@@ -78,8 +118,18 @@ const refresh = async (event) => {
       accessToken: auth.AccessToken,
       expiresIn: auth.ExpiresIn
     });
-  } catch (err) {
-    console.error(err);
+    
+  } catch (error) {
+    console.error('[COGNITO_REFRESH] Error:', error);
+    
+    // Manejar errores específicos de resiliencia
+    if (error.name === 'CircuitOpenError') {
+      return response(503, { 
+        ok: false, 
+        error: "Servicio de autenticación temporalmente no disponible" 
+      });
+    }
+    
     return response(401, { ok: false, error: "Refresh token inválido o expirado" });
   }
 };

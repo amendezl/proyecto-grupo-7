@@ -1,6 +1,7 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, DeleteCommand, ScanCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
+const { resilienceManager } = require('../utils/resilienceManager');
 
 class DynamoDBManager {
     constructor() {
@@ -9,6 +10,20 @@ class DynamoDBManager {
         });
         this.docClient = DynamoDBDocumentClient.from(client);
         this.tableName = process.env.DYNAMODB_TABLE;
+    }
+
+    /**
+     * Ejecuta comandos DynamoDB con resiliencia completa (Retry + Circuit Breaker)
+     */
+    async executeCommand(command, context = {}) {
+        return resilienceManager.executeDatabase(
+            () => this.docClient.send(command),
+            {
+                ...context,
+                table: this.tableName,
+                commandType: command.constructor.name
+            }
+        );
     }
 
     // Espacios
@@ -37,7 +52,11 @@ class DynamoDBManager {
             Item: item
         });
 
-        await this.docClient.send(command);
+        await this.executeCommand(command, { 
+            operation: 'createEspacio', 
+            espacioId: item.id,
+            priority: 'standard'
+        });
         return item;
     }
 
@@ -51,7 +70,10 @@ class DynamoDBManager {
             }
         });
 
-        const result = await this.docClient.send(command);
+        const result = await this.executeCommand(command, { 
+            operation: 'getEspacios', 
+            filtersCount: Object.keys(filters).length 
+        });
         let items = result.Items || [];
 
         // Aplicar filtros si existen
