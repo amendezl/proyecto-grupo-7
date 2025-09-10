@@ -12,7 +12,7 @@
 
 const { createRetryManager, retryOperation } = require('./retryPattern');
 const { createCircuitBreaker, circuitRegistry } = require('./circuitBreakerPattern');
-const SpaceBulkheadManager = require('./bulkheadPattern');
+const { SpaceBulkheadManager, BulkheadRejectionError } = require('../patterns/bulkheadPattern');
 
 /**
  * Configuraciones combinadas para diferentes niveles de criticidad

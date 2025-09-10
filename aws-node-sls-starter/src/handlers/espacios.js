@@ -1,5 +1,5 @@
 const DynamoDBManager = require('../database/DynamoDBManager');
-const resilienceManager = require('../patterns/resilienceManager');
+const { resilienceManager } = require('../utils/resilienceManager');
 const { withAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../utils/auth');
 const { success, badRequest, notFound, created } = require('../utils/responses');
 
