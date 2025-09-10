@@ -77,7 +77,7 @@ const createResponsable = withAuth(async (event) => {
     }
     
     // Determinar criticidad según el área
-    const esCritico = ['emergency', 'icu', 'surgery', 'critical_care'].includes(area);
+    const esCritico = ['critical', 'high_priority', 'management', 'security'].includes(area);
     
     return await resilienceManager.executeWithFullResilience(
         async () => {
@@ -98,7 +98,7 @@ const createResponsable = withAuth(async (event) => {
             
             return created(nuevoResponsable);
         },
-        esCritico ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        esCritico ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',
         {
             operation: 'createResponsable',
             area: area,
@@ -121,7 +121,7 @@ const updateResponsable = withAuth(async (event) => {
     
     // Determinar criticidad según el área si se está actualizando
     const esCritico = updateData.area && 
-        ['emergency', 'icu', 'surgery', 'critical_care'].includes(updateData.area);
+        ['critical', 'high_priority', 'management', 'security'].includes(updateData.area);
     
     return await resilienceManager.executeWithFullResilience(
         async () => {
@@ -135,7 +135,7 @@ const updateResponsable = withAuth(async (event) => {
                 throw error;
             }
         },
-        esCritico ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        esCritico ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',
         {
             operation: 'updateResponsable',
             responsableId: id,

@@ -5,7 +5,7 @@
  * - DynamoDB connections
  * - Cognito authentication
  * - SQS messaging
- * - External medical APIs
+ * - External APIs
  * 
  * Estados:
  * - CLOSED: Todo funciona normalmente
@@ -31,7 +31,7 @@ const CIRCUIT_STATES = {
  */
 const CIRCUIT_CONFIGS = {
   // Para servicios de emergencia médica (tolerancia mínima a fallos)
-  EMERGENCY: {
+  HIGH_PRIORITY: {
     failureThreshold: 3,        // 3 fallos consecutivos
     recoveryTimeout: 5000,      // 5 segundos para reintentar
     successThreshold: 2,        // 2 éxitos para cerrar circuito
@@ -457,7 +457,7 @@ const createCircuitBreaker = {
   /**
    * Para servicios de emergencia médica
    */
-  emergency: (serviceName) => new CircuitBreaker(CIRCUIT_CONFIGS.EMERGENCY, serviceName),
+  high_priority: (serviceName) => new CircuitBreaker(CIRCUIT_CONFIGS.HIGH_PRIORITY, serviceName),
   
   /**
    * Para DynamoDB

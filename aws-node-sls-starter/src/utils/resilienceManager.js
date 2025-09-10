@@ -1,35 +1,35 @@
 /**
- * Manager de Resiliencia para el Sistema Hospitalario
+ * Manager de Resiliencia para el Sistema de Gestión de Espacios
  * 
  * Combina los patrones Retry, Circuit Breaker y Bulkhead para máxima estabilidad:
  * - Retry para errores transitorios
  * - Circuit Breaker para prevenir cascadas de fallos
  * - Bulkhead para aislamiento de recursos por tipo de operación
- * - Configuraciones específicas para servicios médicos críticos
+ * - Configuraciones específicas para servicios críticos del negocio
  * - Monitoreo y métricas unificadas
- * - Fallbacks inteligentes para operaciones críticas
+ * - Fallbacks inteligentes para operaciones importantes
  */
 
 const { createRetryManager, retryOperation } = require('./retryPattern');
 const { createCircuitBreaker, circuitRegistry } = require('./circuitBreakerPattern');
-const { HospitalBulkheadManager, BulkheadRejectionError } = require('../patterns/bulkheadPattern');
+const SpaceBulkheadManager = require('./bulkheadPattern');
 
 /**
  * Configuraciones combinadas para diferentes niveles de criticidad
  */
 const RESILIENCE_CONFIGS = {
-  // Servicios críticos (emergencias, vida/muerte)
-  CRITICAL_MEDICAL: {
-    serviceName: 'critical-medical',
+  // Servicios críticos del negocio (operaciones importantes)
+  CRITICAL_BUSINESS: {
+    serviceName: 'critical-business',
     retryType: 'critical',
-    circuitType: 'emergency',
+    circuitType: 'high_priority',
     enableMetrics: true,
-    fallbackStrategy: 'EMERGENCY_FALLBACK'
+    fallbackStrategy: 'PRIORITY_FALLBACK'
   },
   
   // Autenticación de usuarios
   AUTHENTICATION: {
-    serviceName: 'cognito-auth',
+    serviceName: 'user-auth',
     retryType: 'auth',
     circuitType: 'auth',
     enableMetrics: true,
@@ -38,16 +38,16 @@ const RESILIENCE_CONFIGS = {
   
   // Operaciones de base de datos
   DATABASE_OPERATIONS: {
-    serviceName: 'dynamodb-ops',
+    serviceName: 'database-ops',
     retryType: 'standard',
     circuitType: 'database',
     enableMetrics: true,
     fallbackStrategy: 'READ_REPLICA_FALLBACK'
   },
   
-  // APIs médicas externas (laboratorios, etc.)
-  EXTERNAL_MEDICAL_API: {
-    serviceName: 'external-medical',
+  // APIs externas
+  EXTERNAL_API: {
+    serviceName: 'external-api',
     retryType: 'standard',
     circuitType: 'externalApi',
     enableMetrics: true,
@@ -65,20 +65,20 @@ const RESILIENCE_CONFIGS = {
 };
 
 /**
- * Estrategias de fallback específicas para el hospital
+ * Estrategias de fallback específicas para el sistema de gestión de espacios
  */
 const FALLBACK_STRATEGIES = {
   /**
-   * Para emergencias médicas - datos básicos siempre disponibles
+   * Para operaciones críticas del negocio - datos básicos siempre disponibles
    */
-  EMERGENCY_FALLBACK: async (context) => {
-    console.log('[FALLBACK] Usando datos de emergencia básicos');
+  PRIORITY_FALLBACK: async (context) => {
+    console.log('[FALLBACK] Usando datos prioritarios básicos');
     return {
       success: false,
       fallback: true,
       data: {
-        message: 'Servicio en modo emergencia - contactar IT urgente',
-        emergencyProtocol: 'Activar procedimientos manuales',
+        message: 'Servicio en modo crítico - contactar soporte técnico',
+        businessProtocol: 'Activar procedimientos manuales',
         contacto: 'IT: ext. 911'
       },
       timestamp: new Date().toISOString()
@@ -127,7 +127,7 @@ const FALLBACK_STRATEGIES = {
       success: false,
       fallback: true,
       data: {
-        message: 'Datos de laboratorio cacheados (pueden estar desactualizados)',
+        message: 'Datos externos cacheados (pueden estar desactualizados)',
         cached: true,
         age: '< 24 horas'
       },
@@ -154,9 +154,9 @@ const FALLBACK_STRATEGIES = {
 };
 
 /**
- * Clase principal del Manager de Resiliencia
+ * Clase principal del Manager de Resiliencia para el Sistema de Gestión de Espacios
  */
-class ResilienceManager {
+class SpaceResilienceManager {
   constructor() {
     this.metrics = {
       totalOperations: 0,
@@ -171,7 +171,7 @@ class ResilienceManager {
     };
     
     // Inicializar el manager de Bulkhead
-    this.bulkheadManager = new HospitalBulkheadManager();
+    this.bulkheadManager = new SpaceBulkheadManager();
     console.log('[RESILIENCE] Manager inicializado con Retry + Circuit Breaker + Bulkhead');
   }
 
@@ -257,17 +257,17 @@ class ResilienceManager {
    * Determina el pool de Bulkhead apropiado según la configuración
    */
   _getBulkheadPoolForConfig(config, context) {
-    // Operaciones de emergencia médica
-    if (config.serviceName.includes('critical-medical') || 
-        context.priority === 'emergency' ||
-        context.type === 'medical_emergency') {
-      return 'EMERGENCY';
+    // Operaciones críticas del negocio
+    if (config.serviceName.includes('critical-business') || 
+        context.priority === 'critical' ||
+        context.type === 'business_critical') {
+      return 'HIGH_PRIORITY';
     }
     
-    // Operaciones críticas (quirófanos, UCI)
+    // Operaciones importantes (alta prioridad)
     if (config.serviceName.includes('critical') || 
-        context.priority === 'critical' ||
-        context.type === 'critical_care') {
+        context.priority === 'high' ||
+        context.type === 'high_priority') {
       return 'CRITICAL';
     }
     
@@ -303,14 +303,14 @@ class ResilienceManager {
   }
 
   /**
-   * Métodos específicos para cada tipo de operación hospitalaria
+   * Métodos específicos para cada tipo de operación del sistema de gestión de espacios
    */
 
-  // Para operaciones críticas de emergencia
+  // Para operaciones críticas del negocio
   async executeCritical(operation, context = {}) {
     return this.executeWithResilience(
       operation, 
-      'CRITICAL_MEDICAL', 
+      'CRITICAL_BUSINESS', 
       { ...context, priority: 'critical' }
     );
   }
@@ -333,12 +333,12 @@ class ResilienceManager {
     );
   }
 
-  // Para APIs médicas externas
+  // Para APIs externas
   async executeExternalApi(operation, context = {}) {
     return this.executeWithResilience(
       operation, 
-      'EXTERNAL_MEDICAL_API', 
-      { ...context, apiType: 'medical' }
+      'EXTERNAL_API', 
+      { ...context, apiType: 'external' }
     );
   }
 
@@ -355,19 +355,19 @@ class ResilienceManager {
    * Métodos específicos para acceso directo a pools de Bulkhead
    */
 
-  // Operaciones de emergencia médica (máxima prioridad)
-  async executeEmergency(operation, context = {}) {
-    return this.bulkheadManager.executeEmergency(operation, {
+  // Operaciones de alta prioridad del negocio
+  async executeHighPriority(operation, context = {}) {
+    return this.bulkheadManager.executeHighPriority(operation, {
       ...context,
-      operation: context.operation || 'medical_emergency'
+      operation: context.operation || 'high_priority_business'
     });
   }
 
-  // Operaciones críticas de cuidados intensivos
-  async executeCriticalCare(operation, context = {}) {
+  // Operaciones críticas del sistema
+  async executeCriticalBusiness(operation, context = {}) {
     return this.bulkheadManager.executeCritical(operation, {
       ...context,
-      operation: context.operation || 'critical_care'
+      operation: context.operation || 'critical_business'
     });
   }
 
@@ -517,7 +517,7 @@ class ResilienceManager {
 }
 
 // Instancia global singleton
-const resilienceManager = new ResilienceManager();
+const resilienceManager = new SpaceResilienceManager();
 
 /**
  * Decorador para añadir resiliencia automática a métodos
@@ -539,11 +539,11 @@ function withResilience(configKey, context = {}) {
 }
 
 module.exports = {
-  ResilienceManager,
+  SpaceResilienceManager,
   resilienceManager,
   withResilience,
   RESILIENCE_CONFIGS,
   FALLBACK_STRATEGIES,
-  HospitalBulkheadManager,
+  SpaceBulkheadManager,
   BulkheadRejectionError
 };

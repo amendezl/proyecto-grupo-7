@@ -80,7 +80,7 @@ const createRecurso = withAuth(async (event) => {
     }
     
     // Determinar criticidad del recurso para asignar pool apropiado
-    const esCritico = ['medical_equipment', 'emergency', 'life_support', 'surgical'].includes(tipo);
+    const esCritico = ['equipment', 'critical', 'infrastructure', 'priority'].includes(tipo);
     
     return await resilienceManager.executeWithFullResilience(
         async () => {
@@ -101,7 +101,7 @@ const createRecurso = withAuth(async (event) => {
             
             return created(nuevoRecurso);
         },
-        esCritico ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        esCritico ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',
         {
             operation: 'createRecurso',
             resourceType: tipo,
@@ -124,7 +124,7 @@ const updateRecurso = withAuth(async (event) => {
     
     // Determinar criticidad para el pool apropiado
     const esCritico = updateData.tipo && 
-        ['medical_equipment', 'emergency', 'life_support', 'surgical'].includes(updateData.tipo);
+        ['equipment', 'critical', 'infrastructure', 'priority'].includes(updateData.tipo);
     
     return await resilienceManager.executeWithFullResilience(
         async () => {
@@ -138,7 +138,7 @@ const updateRecurso = withAuth(async (event) => {
                 throw error;
             }
         },
-        esCritico ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        esCritico ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',
         {
             operation: 'updateRecurso',
             resourceId: id,

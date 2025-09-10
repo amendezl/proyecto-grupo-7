@@ -164,7 +164,7 @@ const createReserva = withAuth(async (event) => {
                 userId: user.id,
                 esCritica,
                 // Datos para fallback de emergencia
-                emergencyData: esCritica ? {
+                priorityData: esCritica ? {
                     espacio_id,
                     usuario_id: user.id,
                     proposito,

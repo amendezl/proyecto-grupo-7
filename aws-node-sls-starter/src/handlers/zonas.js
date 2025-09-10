@@ -78,7 +78,7 @@ const createZona = withAuth(async (event) => {
     
     // Determinar criticidad según el tipo de zona
     const esCritica = zonaData.tipoZona && 
-        ['emergency', 'icu', 'surgery', 'critical_care', 'trauma'].includes(zonaData.tipoZona);
+        ['critical', 'high_priority', 'priority', 'security', 'management'].includes(zonaData.tipoZona);
     
     return await resilienceManager.executeWithFullResilience(
         async () => {
@@ -99,7 +99,7 @@ const createZona = withAuth(async (event) => {
             
             return created(nuevaZona);
         },
-        esCritica ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        esCritica ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',
         {
             operation: 'createZona',
             tipoZona: zonaData.tipoZona,
@@ -122,7 +122,7 @@ const updateZona = withAuth(async (event) => {
     
     // Determinar criticidad según el tipo de zona si se está actualizando
     const esCritica = updateData.tipoZona && 
-        ['emergency', 'icu', 'surgery', 'critical_care', 'trauma'].includes(updateData.tipoZona);
+        ['critical', 'high_priority', 'priority', 'security', 'management'].includes(updateData.tipoZona);
     
     return await resilienceManager.executeWithFullResilience(
         async () => {
@@ -136,7 +136,7 @@ const updateZona = withAuth(async (event) => {
                 throw error;
             }
         },
-        esCritica ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        esCritica ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',
         {
             operation: 'updateZona',
             zonaId: id,

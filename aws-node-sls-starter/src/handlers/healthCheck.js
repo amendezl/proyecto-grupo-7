@@ -78,17 +78,17 @@ const testResiliencePatterns = withAuth(async (event) => {
     };
     
     try {
-        // Test Bulkhead Emergency Pool
-        testResults.patterns.push('bulkhead-emergency');
-        const emergencyResult = await resilienceManager.executeEmergency(
-            async () => ({ test: 'emergency', success: true }),
-            { operation: 'test_emergency_pool' }
+        // Test Bulkhead High Priority Pool
+        testResults.patterns.push('bulkhead-high-priority');
+        const highPriorityResult = await resilienceManager.executeHighPriority(
+            async () => ({ test: 'high_priority', success: true }),
+            { operation: 'test_high_priority_pool' }
         );
-        testResults.results.emergencyPool = { success: true, data: emergencyResult };
+        testResults.results.highPriorityPool = { success: true, data: highPriorityResult };
         
         // Test Bulkhead Critical Pool
         testResults.patterns.push('bulkhead-critical');
-        const criticalResult = await resilienceManager.executeCriticalCare(
+        const criticalResult = await resilienceManager.executeCriticalBusiness(
             async () => ({ test: 'critical', success: true }),
             { operation: 'test_critical_pool' }
         );
@@ -136,7 +136,7 @@ const getResilienceConfiguration = withAuth(async (event) => {
     return success({
         resilienceConfigs: RESILIENCE_CONFIGS,
         bulkheadPools: {
-            EMERGENCY: { maxConcurrency: 20, queueSize: 50, timeoutMs: 60000 },
+            HIGH_PRIORITY: { maxConcurrency: 20, queueSize: 50, timeoutMs: 60000 },
             CRITICAL: { maxConcurrency: 15, queueSize: 30, timeoutMs: 45000 },
             STANDARD: { maxConcurrency: 25, queueSize: 100, timeoutMs: 30000 },
             LOW_PRIORITY: { maxConcurrency: 10, queueSize: 20, timeoutMs: 15000 },

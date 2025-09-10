@@ -36,8 +36,8 @@ async function testResilienceIntegration() {
                 return { success: true, data: 'Datos médicos críticos obtenidos' };
             },
             {
-                operation: 'testCriticalMedicalOperation',
-                type: 'medical_emergency'
+                operation: 'testCriticalBusinessOperation',
+                type: 'business_critical'
             }
         );
         console.log('  ✅ Resultado:', result2);

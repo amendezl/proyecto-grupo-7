@@ -1,12 +1,12 @@
 /**
- * Bulkhead Pattern Implementation for Hospital Management System
+ * Bulkhead Pattern Implementation for Space Management System
  * 
  * Inspirado en compartimentos estancos navales, este patrón aísla recursos
  * para que el fallo de un tipo de operación no afecte a otras operaciones críticas.
  * 
  * Implementa pools de recursos separados para:
- * - Operaciones de emergencia (máxima prioridad)
- * - Operaciones críticas (quirófanos, UCI)
+ * - Operaciones de alta prioridad (máxima prioridad)
+ * - Operaciones críticas (importantes para el negocio)
  * - Operaciones estándar (consultas, reservas normales)
  * - Operaciones de baja prioridad (reportes, estadísticas)
  * - Operaciones administrativas
@@ -241,27 +241,27 @@ class BulkheadRejectionError extends Error {
 }
 
 /**
- * Manager principal del patrón Bulkhead para el sistema hospitalario
+ * Manager principal del patrón Bulkhead para el sistema de gestión de espacios
  */
-class HospitalBulkheadManager {
+class SpaceBulkheadManager {
     constructor() {
         this.pools = new Map();
-        this.initializeHospitalPools();
+        this.initializeSpacePools();
     }
 
     /**
-     * Inicializa pools específicos para operaciones hospitalarias
+     * Inicializa pools específicos para operaciones de gestión de espacios
      */
-    initializeHospitalPools() {
-        // Pool para operaciones de emergencia (máxima prioridad)
-        this.pools.set('EMERGENCY', new BulkheadPool(
-            'EMERGENCY',
+    initializeSpacePools() {
+        // Pool para operaciones de alta prioridad (máxima prioridad)
+        this.pools.set('HIGH_PRIORITY', new BulkheadPool(
+            'HIGH_PRIORITY',
             20,      // 20 operaciones concurrentes máximo
             50,      // Cola de 50 operaciones
             60000    // Timeout de 60 segundos
         ));
 
-        // Pool para operaciones críticas (quirófanos, UCI)
+        // Pool para operaciones críticas (importantes para el negocio)
         this.pools.set('CRITICAL', new BulkheadPool(
             'CRITICAL',
             15,      // 15 operaciones concurrentes
@@ -301,11 +301,11 @@ class HospitalBulkheadManager {
             10000    // Timeout de 10 segundos (rápido)
         ));
 
-        console.log('[BULKHEAD] Pools hospitalarios inicializados:', Array.from(this.pools.keys()));
+        console.log('[BULKHEAD] Pools de gestión de espacios inicializados:', Array.from(this.pools.keys()));
     }
 
     /**
-     * Ejecuta operación en el pool apropiado según el contexto hospitalario
+     * Ejecuta operación en el pool apropiado según el contexto de gestión de espacios
      */
     async executeInPool(poolName, operation, context = {}) {
         const pool = this.pools.get(poolName);
@@ -317,8 +317,8 @@ class HospitalBulkheadManager {
         try {
             const result = await pool.execute(operation, context);
             
-            // Log para operaciones críticas
-            if (poolName === 'EMERGENCY' || poolName === 'CRITICAL') {
+            // Log para operaciones críticas o de alta prioridad
+            if (poolName === 'HIGH_PRIORITY' || poolName === 'CRITICAL') {
                 console.log(`[BULKHEAD_${poolName}] Operación ejecutada:`, {
                     pool: poolName,
                     context: context.operation || 'unknown',
@@ -342,24 +342,24 @@ class HospitalBulkheadManager {
     }
 
     /**
-     * Métodos convenientes para tipos específicos de operaciones hospitalarias
+     * Métodos convenientes para tipos específicos de operaciones de gestión de espacios
      */
 
-    // Operaciones de emergencia
-    async executeEmergency(operation, context = {}) {
-        return this.executeInPool('EMERGENCY', operation, { 
+    // Operaciones de alta prioridad del negocio
+    async executeHighPriority(operation, context = {}) {
+        return this.executeInPool('HIGH_PRIORITY', operation, { 
             ...context, 
-            priority: 'emergency',
-            type: 'medical_emergency'
+            priority: 'high',
+            type: 'business_critical'
         });
     }
 
-    // Operaciones críticas (quirófanos, UCI)
+    // Operaciones críticas del negocio
     async executeCritical(operation, context = {}) {
         return this.executeInPool('CRITICAL', operation, { 
             ...context, 
             priority: 'critical',
-            type: 'critical_care'
+            type: 'critical_business'
         });
     }
 
@@ -449,7 +449,7 @@ class HospitalBulkheadManager {
 }
 
 module.exports = {
-    HospitalBulkheadManager,
+    SpaceBulkheadManager,
     BulkheadPool,
     BulkheadRejectionError
 };

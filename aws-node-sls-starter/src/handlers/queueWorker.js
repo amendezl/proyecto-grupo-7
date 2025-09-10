@@ -12,13 +12,13 @@ module.exports.process = async (event) => {
           
           // Determinar tipo de mensaje para asignar prioridad correcta
           const messageType = body.type || 'general';
-          const isEmergency = body.priority === 'emergency' || messageType === 'emergency';
+          const isHighPriority = body.priority === 'high' || messageType === 'high_priority';
           
           // TODO: Add your business logic here
           // Ejemplo de procesamiento basado en tipo de mensaje
           switch (messageType) {
-            case 'emergency':
-              console.log('🚨 Processing emergency message:', body);
+            case 'high_priority':
+              console.log('🚨 Processing high priority message:', body);
               break;
             case 'notification':
               console.log('📱 Processing notification:', body);
