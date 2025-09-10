@@ -612,6 +612,57 @@ functions:
           batchSize: 10
           maximumBatchingWindow: 30
 
+  # Endpoints de monitoreo de resiliencia (Retry + Circuit Breaker + Bulkhead)
+  resilienceHealth:
+    handler: src/handlers/healthCheck.getResilienceHealth
+    events:
+      - httpApi:
+          method: GET
+          path: /api/health/resilience
+
+  completeResilienceHealth:
+    handler: src/handlers/healthCheck.getCompleteResilienceHealth
+    events:
+      - httpApi:
+          method: GET
+          path: /api/health/resilience/complete
+
+  bulkheadStatus:
+    handler: src/handlers/healthCheck.getBulkheadStatus
+    events:
+      - httpApi:
+          method: GET
+          path: /api/health/bulkhead
+          authorizer:
+            name: cognitoJwt
+
+  resetResilienceMetrics:
+    handler: src/handlers/healthCheck.resetResilienceMetrics
+    events:
+      - httpApi:
+          method: POST
+          path: /api/health/resilience/reset
+          authorizer:
+            name: cognitoJwt
+
+  testResiliencePatterns:
+    handler: src/handlers/healthCheck.testResiliencePatterns
+    events:
+      - httpApi:
+          method: POST
+          path: /api/health/resilience/test
+          authorizer:
+            name: cognitoJwt
+
+  resilienceConfiguration:
+    handler: src/handlers/healthCheck.getResilienceConfiguration
+    events:
+      - httpApi:
+          method: GET
+          path: /api/health/resilience/config
+          authorizer:
+            name: cognitoJwt
+
 plugins:
   - serverless-offline
   # Uncomment if you want to drive SQS locally with LocalStack:
