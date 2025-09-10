@@ -1,6 +1,7 @@
 const DynamoDBManager = require('../database/DynamoDBManager');
 const { withAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../utils/auth');
 const { success, badRequest, notFound, created } = require('../utils/responses');
+const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
@@ -10,20 +11,29 @@ const db = new DynamoDBManager();
 const getZonas = withErrorHandling(async (event) => {
     const queryParams = extractQueryParams(event);
     
-    let zonas = await db.getEntities('zona');
-    
-    // Aplicar filtros si existen
-    if (queryParams.piso) {
-        zonas = zonas.filter(zona => zona.piso === queryParams.piso);
-    }
-    if (queryParams.activa !== undefined) {
-        zonas = zonas.filter(zona => zona.activa === (queryParams.activa === 'true'));
-    }
-    
-    return success({
-        zonas,
-        total: zonas.length
-    });
+    return await resilienceManager.executeDatabase(
+        async () => {
+            let zonas = await db.getEntities('zona');
+            
+            // Aplicar filtros si existen
+            if (queryParams.piso) {
+                zonas = zonas.filter(zona => zona.piso === queryParams.piso);
+            }
+            if (queryParams.activa !== undefined) {
+                zonas = zonas.filter(zona => zona.activa === (queryParams.activa === 'true'));
+            }
+            
+            return success({
+                zonas,
+                total: zonas.length
+            });
+        },
+        {
+            operation: 'getZonas',
+            priority: 'standard',
+            filters: queryParams
+        }
+    );
 });
 
 /**
@@ -36,13 +46,22 @@ const getZona = withErrorHandling(async (event) => {
         return badRequest('ID de la zona es requerido');
     }
     
-    const zona = await db.getEntityById('zona', id);
-    
-    if (!zona) {
-        return notFound('Zona no encontrada');
-    }
-    
-    return success(zona);
+    return await resilienceManager.executeDatabase(
+        async () => {
+            const zona = await db.getEntityById('zona', id);
+            
+            if (!zona) {
+                return notFound('Zona no encontrada');
+            }
+            
+            return success(zona);
+        },
+        {
+            operation: 'getZona',
+            zonaId: id,
+            priority: 'standard'
+        }
+    );
 });
 
 /**
@@ -57,22 +76,37 @@ const createZona = withAuth(async (event) => {
         return badRequest('Nombre, piso y edificio son requeridos');
     }
     
-    const nuevaZona = await db.createEntity('zona', {
-        nombre,
-        descripcion,
-        piso,
-        edificio,
-        activa: zonaData.activa !== false,
-        capacidadMaxima: zonaData.capacidadMaxima,
-        tipoZona: zonaData.tipoZona,
-        caracteristicas: zonaData.caracteristicas || [],
-        horarioApertura: zonaData.horarioApertura,
-        horarioCierre: zonaData.horarioCierre,
-        diasOperacion: zonaData.diasOperacion || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
-        observaciones: zonaData.observaciones
-    });
+    // Determinar criticidad según el tipo de zona
+    const esCritica = zonaData.tipoZona && 
+        ['emergency', 'icu', 'surgery', 'critical_care', 'trauma'].includes(zonaData.tipoZona);
     
-    return created(nuevaZona);
+    return await resilienceManager.executeWithFullResilience(
+        async () => {
+            const nuevaZona = await db.createEntity('zona', {
+                nombre,
+                descripcion,
+                piso,
+                edificio,
+                activa: zonaData.activa !== false,
+                capacidadMaxima: zonaData.capacidadMaxima,
+                tipoZona: zonaData.tipoZona,
+                caracteristicas: zonaData.caracteristicas || [],
+                horarioApertura: zonaData.horarioApertura,
+                horarioCierre: zonaData.horarioCierre,
+                diasOperacion: zonaData.diasOperacion || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
+                observaciones: zonaData.observaciones
+            });
+            
+            return created(nuevaZona);
+        },
+        esCritica ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        {
+            operation: 'createZona',
+            tipoZona: zonaData.tipoZona,
+            priority: esCritica ? 'critical' : 'standard',
+            isCritical: esCritica
+        }
+    );
 }, ['admin']);
 
 /**
@@ -86,15 +120,31 @@ const updateZona = withAuth(async (event) => {
         return badRequest('ID de la zona es requerido');
     }
     
-    try {
-        const zonaActualizada = await db.updateEntity('zona', id, updateData);
-        return success(zonaActualizada);
-    } catch (error) {
-        if (error.message === 'zona no encontrado') {
-            return notFound('Zona no encontrada');
+    // Determinar criticidad según el tipo de zona si se está actualizando
+    const esCritica = updateData.tipoZona && 
+        ['emergency', 'icu', 'surgery', 'critical_care', 'trauma'].includes(updateData.tipoZona);
+    
+    return await resilienceManager.executeWithFullResilience(
+        async () => {
+            try {
+                const zonaActualizada = await db.updateEntity('zona', id, updateData);
+                return success(zonaActualizada);
+            } catch (error) {
+                if (error.message === 'zona no encontrado') {
+                    return notFound('Zona no encontrada');
+                }
+                throw error;
+            }
+        },
+        esCritica ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        {
+            operation: 'updateZona',
+            zonaId: id,
+            tipoZona: updateData.tipoZona,
+            priority: esCritica ? 'critical' : 'standard',
+            isCritical: esCritica
         }
-        throw error;
-    }
+    );
 }, ['admin']);
 
 /**

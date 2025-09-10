@@ -1,6 +1,7 @@
 const DynamoDBManager = require('../database/DynamoDBManager');
 const { withAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../utils/auth');
 const { success, badRequest, notFound, created } = require('../utils/responses');
+const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
@@ -10,20 +11,29 @@ const db = new DynamoDBManager();
 const getResponsables = withErrorHandling(async (event) => {
     const queryParams = extractQueryParams(event);
     
-    let responsables = await db.getEntities('responsable');
-    
-    // Aplicar filtros si existen
-    if (queryParams.area) {
-        responsables = responsables.filter(resp => resp.area === queryParams.area);
-    }
-    if (queryParams.activo !== undefined) {
-        responsables = responsables.filter(resp => resp.activo === (queryParams.activo === 'true'));
-    }
-    
-    return success({
-        responsables,
-        total: responsables.length
-    });
+    return await resilienceManager.executeDatabase(
+        async () => {
+            let responsables = await db.getEntities('responsable');
+            
+            // Aplicar filtros si existen
+            if (queryParams.area) {
+                responsables = responsables.filter(resp => resp.area === queryParams.area);
+            }
+            if (queryParams.activo !== undefined) {
+                responsables = responsables.filter(resp => resp.activo === (queryParams.activo === 'true'));
+            }
+            
+            return success({
+                responsables,
+                total: responsables.length
+            });
+        },
+        {
+            operation: 'getResponsables',
+            priority: 'standard',
+            filters: queryParams
+        }
+    );
 });
 
 /**
@@ -36,13 +46,22 @@ const getResponsable = withErrorHandling(async (event) => {
         return badRequest('ID del responsable es requerido');
     }
     
-    const responsable = await db.getEntityById('responsable', id);
-    
-    if (!responsable) {
-        return notFound('Responsable no encontrado');
-    }
-    
-    return success(responsable);
+    return await resilienceManager.executeDatabase(
+        async () => {
+            const responsable = await db.getEntityById('responsable', id);
+            
+            if (!responsable) {
+                return notFound('Responsable no encontrado');
+            }
+            
+            return success(responsable);
+        },
+        {
+            operation: 'getResponsable',
+            responsableId: id,
+            priority: 'standard'
+        }
+    );
 });
 
 /**
@@ -57,22 +76,36 @@ const createResponsable = withAuth(async (event) => {
         return badRequest('Nombre, apellido, email y área son requeridos');
     }
     
-    const nuevoResponsable = await db.createEntity('responsable', {
-        nombre,
-        apellido,
-        email,
-        telefono,
-        area,
-        cargo,
-        activo: responsableData.activo !== false,
-        fechaIngreso: responsableData.fechaIngreso || new Date().toISOString(),
-        horarioInicio: responsableData.horarioInicio,
-        horarioFin: responsableData.horarioFin,
-        diasTrabajo: responsableData.diasTrabajo || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
-        observaciones: responsableData.observaciones
-    });
+    // Determinar criticidad según el área
+    const esCritico = ['emergency', 'icu', 'surgery', 'critical_care'].includes(area);
     
-    return created(nuevoResponsable);
+    return await resilienceManager.executeWithFullResilience(
+        async () => {
+            const nuevoResponsable = await db.createEntity('responsable', {
+                nombre,
+                apellido,
+                email,
+                telefono,
+                area,
+                cargo,
+                activo: responsableData.activo !== false,
+                fechaIngreso: responsableData.fechaIngreso || new Date().toISOString(),
+                horarioInicio: responsableData.horarioInicio,
+                horarioFin: responsableData.horarioFin,
+                diasTrabajo: responsableData.diasTrabajo || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
+                observaciones: responsableData.observaciones
+            });
+            
+            return created(nuevoResponsable);
+        },
+        esCritico ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        {
+            operation: 'createResponsable',
+            area: area,
+            priority: esCritico ? 'critical' : 'standard',
+            isCritical: esCritico
+        }
+    );
 }, ['admin']);
 
 /**
@@ -86,15 +119,31 @@ const updateResponsable = withAuth(async (event) => {
         return badRequest('ID del responsable es requerido');
     }
     
-    try {
-        const responsableActualizado = await db.updateEntity('responsable', id, updateData);
-        return success(responsableActualizado);
-    } catch (error) {
-        if (error.message === 'responsable no encontrado') {
-            return notFound('Responsable no encontrado');
+    // Determinar criticidad según el área si se está actualizando
+    const esCritico = updateData.area && 
+        ['emergency', 'icu', 'surgery', 'critical_care'].includes(updateData.area);
+    
+    return await resilienceManager.executeWithFullResilience(
+        async () => {
+            try {
+                const responsableActualizado = await db.updateEntity('responsable', id, updateData);
+                return success(responsableActualizado);
+            } catch (error) {
+                if (error.message === 'responsable no encontrado') {
+                    return notFound('Responsable no encontrado');
+                }
+                throw error;
+            }
+        },
+        esCritico ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        {
+            operation: 'updateResponsable',
+            responsableId: id,
+            area: updateData.area,
+            priority: esCritico ? 'critical' : 'standard',
+            isCritical: esCritico
         }
-        throw error;
-    }
+    );
 }, ['admin']);
 
 /**

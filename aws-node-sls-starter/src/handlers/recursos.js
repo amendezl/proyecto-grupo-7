@@ -1,6 +1,7 @@
 const DynamoDBManager = require('../database/DynamoDBManager');
 const { withAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../utils/auth');
 const { success, badRequest, notFound, created } = require('../utils/responses');
+const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
@@ -10,23 +11,32 @@ const db = new DynamoDBManager();
 const getRecursos = withErrorHandling(async (event) => {
     const queryParams = extractQueryParams(event);
     
-    let recursos = await db.getEntities('recurso');
-    
-    // Aplicar filtros si existen
-    if (queryParams.tipo) {
-        recursos = recursos.filter(recurso => recurso.tipo === queryParams.tipo);
-    }
-    if (queryParams.estado) {
-        recursos = recursos.filter(recurso => recurso.estado === queryParams.estado);
-    }
-    if (queryParams.disponible !== undefined) {
-        recursos = recursos.filter(recurso => recurso.disponible === (queryParams.disponible === 'true'));
-    }
-    
-    return success({
-        recursos,
-        total: recursos.length
-    });
+    return await resilienceManager.executeDatabase(
+        async () => {
+            let recursos = await db.getEntities('recurso');
+            
+            // Aplicar filtros si existen
+            if (queryParams.tipo) {
+                recursos = recursos.filter(recurso => recurso.tipo === queryParams.tipo);
+            }
+            if (queryParams.estado) {
+                recursos = recursos.filter(recurso => recurso.estado === queryParams.estado);
+            }
+            if (queryParams.disponible !== undefined) {
+                recursos = recursos.filter(recurso => recurso.disponible === (queryParams.disponible === 'true'));
+            }
+            
+            return success({
+                recursos,
+                total: recursos.length
+            });
+        },
+        {
+            operation: 'getRecursos',
+            priority: 'standard',
+            filters: queryParams
+        }
+    );
 });
 
 /**
@@ -39,13 +49,22 @@ const getRecurso = withErrorHandling(async (event) => {
         return badRequest('ID del recurso es requerido');
     }
     
-    const recurso = await db.getEntityById('recurso', id);
-    
-    if (!recurso) {
-        return notFound('Recurso no encontrado');
-    }
-    
-    return success(recurso);
+    return await resilienceManager.executeDatabase(
+        async () => {
+            const recurso = await db.getEntityById('recurso', id);
+            
+            if (!recurso) {
+                return notFound('Recurso no encontrado');
+            }
+            
+            return success(recurso);
+        },
+        {
+            operation: 'getRecurso',
+            resourceId: id,
+            priority: 'standard'
+        }
+    );
 });
 
 /**
@@ -60,22 +79,36 @@ const createRecurso = withAuth(async (event) => {
         return badRequest('Nombre y tipo son requeridos');
     }
     
-    const nuevoRecurso = await db.createEntity('recurso', {
-        nombre,
-        tipo,
-        descripcion,
-        codigo,
-        estado: estado || 'disponible',
-        cantidad: cantidad || 1,
-        ubicacion,
-        disponible: recursoData.disponible !== false,
-        fechaAdquisicion: recursoData.fechaAdquisicion,
-        proveedor: recursoData.proveedor,
-        valorUnitario: recursoData.valorUnitario,
-        garantia: recursoData.garantia
-    });
+    // Determinar criticidad del recurso para asignar pool apropiado
+    const esCritico = ['medical_equipment', 'emergency', 'life_support', 'surgical'].includes(tipo);
     
-    return created(nuevoRecurso);
+    return await resilienceManager.executeWithFullResilience(
+        async () => {
+            const nuevoRecurso = await db.createEntity('recurso', {
+                nombre,
+                tipo,
+                descripcion,
+                codigo,
+                estado: estado || 'disponible',
+                cantidad: cantidad || 1,
+                ubicacion,
+                disponible: recursoData.disponible !== false,
+                fechaAdquisicion: recursoData.fechaAdquisicion,
+                proveedor: recursoData.proveedor,
+                valorUnitario: recursoData.valorUnitario,
+                garantia: recursoData.garantia
+            });
+            
+            return created(nuevoRecurso);
+        },
+        esCritico ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        {
+            operation: 'createRecurso',
+            resourceType: tipo,
+            priority: esCritico ? 'critical' : 'standard',
+            isCritical: esCritico
+        }
+    );
 }, ['admin', 'responsable']);
 
 /**
@@ -89,15 +122,31 @@ const updateRecurso = withAuth(async (event) => {
         return badRequest('ID del recurso es requerido');
     }
     
-    try {
-        const recursoActualizado = await db.updateEntity('recurso', id, updateData);
-        return success(recursoActualizado);
-    } catch (error) {
-        if (error.message === 'recurso no encontrado') {
-            return notFound('Recurso no encontrado');
+    // Determinar criticidad para el pool apropiado
+    const esCritico = updateData.tipo && 
+        ['medical_equipment', 'emergency', 'life_support', 'surgical'].includes(updateData.tipo);
+    
+    return await resilienceManager.executeWithFullResilience(
+        async () => {
+            try {
+                const recursoActualizado = await db.updateEntity('recurso', id, updateData);
+                return success(recursoActualizado);
+            } catch (error) {
+                if (error.message === 'recurso no encontrado') {
+                    return notFound('Recurso no encontrado');
+                }
+                throw error;
+            }
+        },
+        esCritico ? 'CRITICAL_MEDICAL' : 'DATABASE_OPERATIONS',
+        {
+            operation: 'updateRecurso',
+            resourceId: id,
+            resourceType: updateData.tipo,
+            priority: esCritico ? 'critical' : 'standard',
+            isCritical: esCritico
         }
-        throw error;
-    }
+    );
 }, ['admin', 'responsable']);
 
 /**

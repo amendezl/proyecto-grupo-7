@@ -1,6 +1,7 @@
 const DynamoDBManager = require('../database/DynamoDBManager');
 const { withAuth, withErrorHandling } = require('../utils/auth');
 const { success } = require('../utils/responses');
+const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
@@ -10,16 +11,17 @@ const db = new DynamoDBManager();
 const getDashboard = withAuth(async (event) => {
     const user = event.user;
     
-    try {
-        // Obtener todas las entidades necesarias
-        const [espacios, reservas, usuarios, recursos, responsables, zonas] = await Promise.all([
-            db.getEspacios(),
-            db.getReservas(),
-            db.getUsuarios(),
-            db.getEntities('recurso'),
-            db.getEntities('responsable'),
-            db.getEntities('zona')
-        ]);
+    return await resilienceManager.executeDatabase(
+        async () => {
+            // Obtener todas las entidades necesarias
+            const [espacios, reservas, usuarios, recursos, responsables, zonas] = await Promise.all([
+                db.getEspacios(),
+                db.getReservas(),
+                db.getUsuarios(),
+                db.getEntities('recurso'),
+                db.getEntities('responsable'),
+                db.getEntities('zona')
+            ]);
         
         // Estadísticas generales
         const stats = {
@@ -176,10 +178,14 @@ const getDashboard = withAuth(async (event) => {
         
         return success(dashboardData);
         
-    } catch (error) {
-        console.error('Error al obtener datos del dashboard:', error);
-        throw error;
-    }
+        },
+        {
+            operation: 'getDashboard',
+            userId: user.id,
+            userRole: user.rol,
+            priority: 'standard'
+        }
+    );
 });
 
 /**
