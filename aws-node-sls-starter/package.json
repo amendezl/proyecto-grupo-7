@@ -1,15 +1,18 @@
 {
-  "name": "sistema-espacios-hospitalarios",
+  "name": "sistema-gestion-espacios",
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
   "scripts": {
+    "predeploy": "node pre-deploy-check.js",
     "dev": "serverless offline",
-    "deploy": "serverless deploy --stage dev --region us-east-1",
-    "deploy:prod": "serverless deploy --stage prod --region us-east-1",
+    "deploy": "npm run predeploy && serverless deploy --stage dev --region us-east-1",
+    "deploy:prod": "npm run predeploy && serverless deploy --stage prod --region us-east-1",
+    "deploy:quick": "serverless deploy --stage dev --region us-east-1",
     "remove": "serverless remove",
     "info": "serverless info --verbose",
-    "logs:worker": "serverless logs -f queueWorker -t"
+    "logs:worker": "serverless logs -f queueWorker -t",
+    "test": "node test-resilience-integration.js"
   },
   "devDependencies": {
     "serverless": "^3.38.0",

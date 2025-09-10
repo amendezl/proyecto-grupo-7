@@ -1,4 +1,4 @@
-service: sistema-espacios-hospitalarios
+service: sistema-gestion-espacios
 frameworkVersion: '3'
 
 provider:
