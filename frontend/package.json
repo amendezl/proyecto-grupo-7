@@ -4,9 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "deploy:vercel": "vercel --prod",
+    "deploy:netlify": "netlify deploy --prod --dir=.next",
+    "deploy:aws": "amplify publish",
+    "export": "next build && next export"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.8",

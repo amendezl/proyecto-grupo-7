@@ -1,5 +1,5 @@
 /**
- * Handler específico para demostrar optimizaciones de modo vertical
+ * Handler específico para optimizaciones de modo vertical
  * Sin problemas de scrolling, paginación inteligente
  */
 

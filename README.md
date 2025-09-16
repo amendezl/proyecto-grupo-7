@@ -2,7 +2,34 @@
 
 **Proyecto Arquitectura de Sistemas 2025-2**
 
-**Autores**: Benjamin Bennett Ramírez, Antonio Méndez Leiva y Tomás Rodríguez Álvarez  
+**Autores**: Benjamin Bennett Ramírez, Antonio Ménd## ☁️ **Arquitectura 100% Serverless**
+
+### **🎪 Backend Serverless (AWS)**
+- **Runtime**: Node.js 20 en AWS Lambda
+- **Database**: DynamoDB serverless
+- **API**: AWS API Gateway
+- **Auth**: AWS Cognito
+- **Mensajes**: SQS + SNS
+- **Escalado**: Automático e infinito
+- **Costo**: $0 cuando no se usa
+
+### **🌐 Frontend Serverless (Multi-plataforma)**
+
+| **Plataforma** | **Características** | **Escalado** | **CDN** |
+|----------------|---------------------|--------------|---------|
+| **🔥 Vercel** | Zero-config, Edge Functions | ∞ automático | ✅ Global |
+| **⚡ AWS Amplify** | Integración AWS, Lambda@Edge | ∞ automático | ✅ CloudFront |
+| **🚀 Netlify** | Edge Functions, Forms | ∞ automático | ✅ Global |
+
+### **🎯 Beneficios Serverless Completo**
+- ✅ **Costo**: Solo pagas por requests reales
+- ✅ **Escalado**: De 0 a millones automáticamente  
+- ✅ **Mantenimiento**: Cero servidores que mantener
+- ✅ **Performance**: Edge computing global
+- ✅ **Seguridad**: Managed services enterprise
+- ✅ **Deploy**: Git push = deploy automático
+
+## 🏥 Optimizaciones Móvilesz Leiva y Tomás Rodríguez Álvarez  
 **Docente**: Mauricio Alex Vásquez Duque
 
 ## 🎯 Descripción
@@ -76,35 +103,63 @@ proyecto-grupo-7/
 
 ## 🎯 Para el Profesor
 
-**Backend API**: `./proyecto/`
-**Frontend Web**: `./frontend/`
+**Backend API**: `./proyecto/` (AWS Lambda Serverless)
+**Frontend Web**: `./frontend/` (Next.js 14 Serverless)
 
-**Deploy Backend**: 
+### **🚀 Deploy Backend Serverless**:
 ```bash
 cd proyecto
 npm install
 npm run deploy
+# Deploy automático a AWS Lambda
 ```
 
-**Ejecutar Frontend**:
+### **🌐 Deploy Frontend Serverless** (3 opciones):
+
+#### **Opción 1: Vercel (Recomendado)**
 ```bash
 cd frontend
-npm install
-npm run dev
-# Abrir http://localhost:3000
+npm install -g vercel
+vercel
+# Deploy automático serverless global
 ```
 
+#### **Opción 2: AWS Amplify**
+```bash
+cd frontend
+npm install -g @aws-amplify/cli
+amplify init && amplify add hosting
+amplify publish
+# Deploy en el mismo AWS del backend
+```
+
+#### **Opción 3: Netlify**
+```bash
+cd frontend
+npm install -g netlify-cli
+netlify deploy --prod
+# Deploy serverless con edge functions
+```
+
+### **🎪 Sistema 100% Serverless**
+- **Backend**: 85 Lambda Functions + DynamoDB
+- **Frontend**: Next.js en CDN global + Edge functions
+- **Escalado**: Automático e infinito
+- **Costo**: Solo pagas por uso real
+
 **Características Enterprise:**
-- ✅ **85 Lambda Functions** (100% Node.js serverless)
+- ✅ **85 Lambda Functions** (Backend 100% serverless)
+- ✅ **Next.js 14 Serverless** (Frontend 100% serverless)  
 - ✅ **96 APIs REST** (85 base + 11 móvil/orientación)
-- ✅ **Frontend Next.js 14** (TypeScript + Tailwind + PWA)
+- ✅ **Deploy Global CDN** (Vercel/Amplify/Netlify)
 - ✅ **Arquitectura desacoplada** y orientada a componentes
-- ✅ **Infraestructura 100% cloud** (AWS)
+- ✅ **Infraestructura 100% cloud** (AWS + Edge)
 - ✅ **Seguridad enterprise** (IAM + JWT + RBAC)
 - ✅ **Patrones de resiliencia** integrados
 - ✅ **Sistema personalizable** y generalista
 - ✅ **100% funcional web y móvil** con anti-scroll
 - ✅ **PWA instalable** como app nativa
+- ✅ **Escalado automático infinito** (frontend + backend)
 
 ## � **Frontend Moderno - Next.js 14**
 
@@ -128,12 +183,15 @@ npm run dev
 - ✅ **Dark Mode Ready** - Preparado para modo oscuro
 - ✅ **Cliente API Integrado** - Conecta con 85 endpoints backend
 
-### **🔗 Conexión Frontend-Backend**
+### **🔗 Conexión Frontend-Backend Serverless**
 - **API Client** configurado para conectar con AWS Lambda
 - **JWT Authentication** para seguridad
 - **Endpoints optimizados** según tipo de dispositivo
 - **Retry logic** y **error handling** automático
 - **Cache strategies** para performance
+- **Edge Functions** para SSR global
+- **CDN automático** para assets estáticos
+- **Deploy independiente** frontend y backend
 
 ## �🏥 Optimizaciones Móviles
 
