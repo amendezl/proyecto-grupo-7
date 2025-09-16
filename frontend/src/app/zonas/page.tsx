@@ -3,8 +3,8 @@
 import { useState, useMemo } from 'react';
 import { useZonas, useEspacios } from '@/hooks/useApi';
 import ToggleEstadoButton from '@/components/ToggleEstadoButton';
-import { Button, Badge } from '@/components/ui/components';
-import { Card } from '@/components/ui/Card';
+import { Button, Badge, Input } from '@/components/ui/components';
+import { Card, CardHeader, CardBody, CardFooter } from '@/components/ui/Card';
 import { 
   Building2, 
   Plus, 
@@ -18,7 +18,7 @@ import {
   XCircle,
   Map
 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// Note: using native <select> in this file because '@/components/ui/select' does not exist
 
 export default function ZonasPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -92,7 +92,7 @@ export default function ZonasPage() {
     return (
       <div className="text-center py-8">
         <p className="text-red-600 mb-4">{error}</p>
-        <Button onClick={refetch} variant="outline">
+        <Button onClick={refetch} variant="secondary">
           Reintentar
         </Button>
       </div>
@@ -122,118 +122,117 @@ export default function ZonasPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Total Zonas
-            </CardTitle>
+            <div className="text-sm font-medium text-gray-600">Total Zonas</div>
             <Map className="h-4 w-4 text-blue-500" />
           </CardHeader>
-          <CardContent>
+          <CardBody>
             <div className="text-2xl font-bold text-gray-900">{total}</div>
             <p className="text-xs text-gray-500">
               Distribución por edificio
             </p>
-          </CardContent>
+          </CardBody>
         </Card>
 
         <Card className="border-l-4 border-l-green-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Zonas Activas
-            </CardTitle>
+            <div className="text-sm font-medium text-gray-600">Zonas Activas</div>
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
-          <CardContent>
+          <CardBody>
             <div className="text-2xl font-bold text-gray-900">{estadisticas.activas}</div>
             <p className="text-xs text-gray-500">
               {((estadisticas.activas / total) * 100).toFixed(1)}% del total
             </p>
-          </CardContent>
+          </CardBody>
         </Card>
 
         <Card className="border-l-4 border-l-purple-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Capacidad Total
-            </CardTitle>
+            <div className="text-sm font-medium text-gray-600">Capacidad Total</div>
             <Users className="h-4 w-4 text-purple-500" />
           </CardHeader>
-          <CardContent>
+          <CardBody>
             <div className="text-2xl font-bold text-gray-900">{estadisticas.capacidadTotal}</div>
             <p className="text-xs text-gray-500">
               Personas máximo
             </p>
-          </CardContent>
+          </CardBody>
         </Card>
 
         <Card className="border-l-4 border-l-orange-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Espacios Disponibles
-            </CardTitle>
+            <div className="text-sm font-medium text-gray-600">Espacios Disponibles</div>
             <Building2 className="h-4 w-4 text-orange-500" />
           </CardHeader>
-          <CardContent>
+          <CardBody>
             <div className="text-2xl font-bold text-gray-900">{estadisticas.espaciosTotal}</div>
             <p className="text-xs text-gray-500">
               En todas las zonas
             </p>
-          </CardContent>
+          </CardBody>
         </Card>
       </div>
 
       {/* Filtros y búsqueda */}
-      <Card>
+        <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center">
+          <div className="text-lg flex items-center">
             <Filter className="w-5 h-5 mr-2" />
             Filtros y Búsqueda
-          </CardTitle>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardBody>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
+                label=""
                 placeholder="Buscar zonas..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(v) => setSearchTerm(v)}
                 className="pl-10"
               />
             </div>
 
-            <Select value={filtroActivo} onValueChange={setFiltroActivo}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todos los estados</SelectItem>
-                <SelectItem value="activo">Activas</SelectItem>
-                <SelectItem value="inactivo">Inactivas</SelectItem>
-              </SelectContent>
-            </Select>
+            <div>
+              <label className="sr-only">Filtrar por estado</label>
+              <select
+                value={filtroActivo}
+                onChange={(e) => setFiltroActivo(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Filtrar por estado"
+                title="Filtrar por estado"
+              >
+                <option value="">Todos los estados</option>
+                <option value="activo">Activas</option>
+                <option value="inactivo">Inactivas</option>
+              </select>
+            </div>
 
-            <Select value={filtroEdificio} onValueChange={setFiltroEdificio}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por área" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todas las áreas</SelectItem>
+            <div>
+              <label className="sr-only">Filtrar por área</label>
+              <select
+                value={filtroEdificio}
+                onChange={(e) => setFiltroEdificio(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Filtrar por área"
+                title="Filtrar por área"
+              >
+                <option value="">Todas las áreas</option>
                 {edificios.map((edificio) => (
-                  <SelectItem key={edificio} value={edificio}>
-                    {edificio}
-                  </SelectItem>
+                  <option key={edificio} value={edificio}>{edificio}</option>
                 ))}
-              </SelectContent>
-            </Select>
+              </select>
+            </div>
           </div>
 
-          {(searchTerm || filtroActivo || filtroEdificio) && (
-            <div className="mt-4 flex items-center justify-between">
+              {(searchTerm || filtroActivo || filtroEdificio) && (
+      <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-gray-600">
                 Mostrando {zonasFiltradas.length} de {total} zonas
               </p>
               <Button
-                variant="outline"
+                    variant="secondary"
                 size="sm"
                 onClick={() => {
                   setSearchTerm('');
@@ -245,7 +244,7 @@ export default function ZonasPage() {
               </Button>
             </div>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
       {/* Lista de zonas */}
@@ -268,7 +267,7 @@ export default function ZonasPage() {
 
       {zonasFiltradas.length === 0 && (
         <Card>
-          <CardContent className="text-center py-8">
+          <CardBody className="text-center py-8">
             <Map className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               No se encontraron zonas
@@ -279,7 +278,7 @@ export default function ZonasPage() {
                 : 'Comienza creando tu primera zona'
               }
             </p>
-          </CardContent>
+          </CardBody>
         </Card>
       )}
     </div>
@@ -321,16 +320,17 @@ function ZonaCard({
           </div>
           
           <ToggleEstadoButton
+            id={zona.id}
             entityType="zona"
-            entityId={zona.id}
-            currentEstado={isActive}
-            onToggle={onRefetch}
+            entityName={zona.nombre}
+            currentEstado={isActive ? 'disponible' : 'inactivo'}
+            onToggle={async (id: string) => { await onRefetch(); return Promise.resolve(); }}
             size="sm"
           />
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardBody className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-gray-50 rounded-lg">
             <div className="text-lg font-bold text-gray-900">{zona.capacidadTotal}</div>
@@ -354,7 +354,7 @@ function ZonaCard({
 
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600">Estado:</span>
-          <Badge variant={isActive ? "default" : "secondary"}>
+          <Badge variant={isActive ? 'disponible' : 'ocupado'}>
             {isActive ? 'Activa' : 'Inactiva'}
           </Badge>
         </div>
@@ -380,7 +380,7 @@ function ZonaCard({
         
         <div className="pt-2 border-t border-gray-100">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             className="w-full"
             onClick={() => {
@@ -391,7 +391,7 @@ function ZonaCard({
             Editar Zona
           </Button>
         </div>
-      </CardContent>
+      </CardBody>
     </Card>
   );
 }
