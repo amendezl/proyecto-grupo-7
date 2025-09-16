@@ -14,10 +14,11 @@ serverless deploy
 
 ### 📦 **Sistema Completo Desplegado Automáticamente:**
 
-- ✅ **50 Lambda Functions** (APIs REST completas)
+- ✅ **58 Lambda Functions** (APIs REST completas + SNS)
 - ✅ **DynamoDB Table** (Base de datos NoSQL)
 - ✅ **Cognito User Pool** (Autenticación JWT)
 - ✅ **SQS Queue** (Procesamiento asíncrono)
+- ✅ **3 SNS Topics** (Notificaciones empresariales)
 - ✅ **API Gateway** (Endpoints HTTP)
 - ✅ **IAM Roles** (Seguridad y permisos)
 - ✅ **CloudWatch** (Monitoreo y logs)
@@ -64,10 +65,11 @@ serverless deploy
 
 | Servicio AWS | Cantidad | Función |
 |--------------|----------|---------|
-| **Lambda Functions** | 50 | APIs del sistema |
+| **Lambda Functions** | 58 | APIs del sistema + SNS |
 | **DynamoDB** | 1 tabla | Base de datos |
 | **Cognito** | 1 pool | Autenticación |
 | **SQS** | 1 cola | Mensajería |
+| **SNS** | 3 topics | Notificaciones |
 | **API Gateway** | 1 | Endpoints REST |
 | **IAM Roles** | 5+ | Seguridad |
 
@@ -76,19 +78,22 @@ serverless deploy
 ## 🎯 APIs Disponibles Post-Despliegue
 
 ```
-POST /api/auth/login          - Autenticación
-GET  /api/espacios           - Listar espacios
-POST /api/espacios           - Crear espacio
-GET  /api/recursos           - Listar recursos
-POST /api/recursos           - Crear recurso
-GET  /api/responsables       - Listar responsables
-POST /api/responsables       - Crear responsable
-GET  /api/zonas             - Listar zonas
-POST /api/zonas             - Crear zona
-GET  /api/health/resilience  - Health check
+POST /api/auth/login              - Autenticación
+GET  /api/espacios               - Listar espacios
+POST /api/espacios               - Crear espacio
+GET  /api/recursos               - Listar recursos
+POST /api/recursos               - Crear recurso
+GET  /api/responsables           - Listar responsables
+POST /api/responsables           - Crear responsable
+GET  /api/zonas                 - Listar zonas
+POST /api/zonas                 - Crear zona
+GET  /api/health/resilience      - Health check
+POST /api/notifications/spaces   - Enviar notificación de espacio
+POST /api/notifications/alerts   - Enviar alerta del sistema
+POST /api/notifications/subscribe - Suscribirse a notificaciones
 ```
 
-**Total: 50 endpoints funcionales**
+**Total: 58 endpoints funcionales**
 
 ---
 
@@ -162,9 +167,10 @@ serverless deploy --stage prod
 **Con `serverless deploy`, su profesor obtiene:**
 
 ✅ **Sistema Enterprise Completo**  
-✅ **50 APIs REST Funcionando**  
+✅ **58 APIs REST Funcionando**  
 ✅ **Autenticación Segura JWT**  
 ✅ **Base de Datos NoSQL**  
+✅ **Notificaciones SNS**  
 ✅ **Patrones de Resiliencia**  
 ✅ **Monitoreo Automático**  
 ✅ **Arquitectura Serverless**  
@@ -178,6 +184,7 @@ serverless deploy --stage prod
 
 - 📖 **[SETUP-COMPLETO.md](SETUP-COMPLETO.md)**: Guía detallada paso a paso
 - 🚀 **[DEPLOYMENT.md](DEPLOYMENT.md)**: Documentación de despliegue
+- 📡 **[INTEGRACION-SNS.md](INTEGRACION-SNS.md)**: Documentación SNS completa
 - 🧪 **test-resilience-integration.js**: Tests de patrones
 - 🔍 **pre-deploy-check.js**: Verificación pre-despliegue
 - 📊 **simulate-deploy.js**: Simulación de despliegue

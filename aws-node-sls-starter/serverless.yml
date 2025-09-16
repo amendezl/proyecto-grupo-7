@@ -14,6 +14,9 @@ provider:
     USER_POOL_CLIENT_ID: { Ref: CognitoUserPoolClient }
     JWT_SECRET: ${env:JWT_SECRET, 'your-super-secret-jwt-key-change-in-production'}
     NODE_ENV: ${sls:stage}
+    SNS_TOPIC_ARN: { Ref: SpaceNotificationsTopic }
+    SNS_ALERTS_TOPIC_ARN: { Ref: SystemAlertsTopic }
+    SNS_ADMIN_TOPIC_ARN: { Ref: AdminNotificationsTopic }
   iam:
     role:
       statements:
@@ -25,6 +28,14 @@ provider:
             - sqs:GetQueueAttributes
           Resource:
             Fn::GetAtt: [ MyQueue, Arn ]
+        - Effect: Allow
+          Action:
+            - sns:Publish
+            - sns:Subscribe
+            - sns:CreateTopic
+            - sns:ListTopics
+            - sns:GetTopicAttributes
+          Resource: "*"
         - Effect: Allow
           Action:
             - dynamodb:Query
@@ -663,6 +674,77 @@ functions:
           authorizer:
             name: cognitoJwt
 
+  # === SNS NOTIFICATION FUNCTIONS ===
+  
+  # Envío de notificaciones de espacios
+  sendSpaceNotification:
+    handler: src/handlers/sns.sendSpaceNotification
+    events:
+      - httpApi:
+          method: POST
+          path: /api/notifications/spaces
+          authorizer:
+            name: cognitoJwt
+
+  # Envío de alertas del sistema
+  sendSystemAlert:
+    handler: src/handlers/sns.sendSystemAlert
+    events:
+      - httpApi:
+          method: POST
+          path: /api/notifications/alerts
+          authorizer:
+            name: cognitoJwt
+
+  # Notificaciones de administración
+  sendAdminNotification:
+    handler: src/handlers/sns.sendAdminNotification
+    events:
+      - httpApi:
+          method: POST
+          path: /api/notifications/admin
+          authorizer:
+            name: cognitoJwt
+
+  # Procesar notificaciones SNS (triggered by SNS)
+  processSpaceNotification:
+    handler: src/handlers/sns.processSpaceNotification
+    events:
+      - sns:
+          arn: { Ref: SpaceNotificationsTopic }
+
+  processSystemAlert:
+    handler: src/handlers/sns.processSystemAlert
+    events:
+      - sns:
+          arn: { Ref: SystemAlertsTopic }
+
+  processAdminNotification:
+    handler: src/handlers/sns.processAdminNotification
+    events:
+      - sns:
+          arn: { Ref: AdminNotificationsTopic }
+
+  # Suscripción a notificaciones
+  subscribeToNotifications:
+    handler: src/handlers/sns.subscribeToNotifications
+    events:
+      - httpApi:
+          method: POST
+          path: /api/notifications/subscribe
+          authorizer:
+            name: cognitoJwt
+
+  # Listar suscripciones
+  listSubscriptions:
+    handler: src/handlers/sns.listSubscriptions
+    events:
+      - httpApi:
+          method: GET
+          path: /api/notifications/subscriptions
+          authorizer:
+            name: cognitoJwt
+
 plugins:
   - serverless-offline
   # Uncomment if you want to drive SQS locally with LocalStack:
@@ -790,6 +872,29 @@ resources:
           - name
           - family_name
           - custom:role
+
+    # === SNS TOPICS ===
+    
+    # Topic para notificaciones de espacios (creación, actualización, asignación)
+    SpaceNotificationsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${sls:stage}-space-notifications
+        DisplayName: Space Management Notifications
+        
+    # Topic para alertas del sistema (errores, mantenimiento, capacidad)
+    SystemAlertsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${sls:stage}-system-alerts
+        DisplayName: System Alerts
+        
+    # Topic para notificaciones de administración (reports, backups, security)
+    AdminNotificationsTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${sls:stage}-admin-notifications
+        DisplayName: Admin Notifications
         
   Outputs:
     QueueUrl:
@@ -807,3 +912,21 @@ resources:
     CognitoUserPoolArn:
       Value: { Fn::GetAtt: [ CognitoUserPool, Arn ] }
       Description: Cognito User Pool ARN
+    SpaceNotificationsTopic:
+      Value: { Ref: SpaceNotificationsTopic }
+      Description: SNS Topic for Space Notifications
+    SystemAlertsTopic:
+      Value: { Ref: SystemAlertsTopic }
+      Description: SNS Topic for System Alerts
+    AdminNotificationsTopic:
+      Value: { Ref: AdminNotificationsTopic }
+      Description: SNS Topic for Admin Notifications
+    SpaceNotificationsTopicArn:
+      Value: { Ref: SpaceNotificationsTopic }
+      Description: SNS Topic ARN for Space Notifications
+    SystemAlertsTopicArn:
+      Value: { Ref: SystemAlertsTopic }
+      Description: SNS Topic ARN for System Alerts
+    AdminNotificationsTopicArn:
+      Value: { Ref: AdminNotificationsTopic }
+      Description: SNS Topic ARN for Admin Notifications

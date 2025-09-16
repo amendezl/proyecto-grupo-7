@@ -2,6 +2,7 @@ const DynamoDBManager = require('../database/DynamoDBManager');
 const { resilienceManager } = require('../utils/resilienceManager');
 const { withAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../utils/auth');
 const { success, badRequest, notFound, created } = require('../utils/responses');
+const { notifySpaceCreated, notifySpaceUpdated, notifySpaceDeleted } = require('../utils/snsNotifications');
 
 const db = new DynamoDBManager();
 
@@ -174,6 +175,12 @@ const createEspacio = withAuth(async (event) => {
             console.log(`[CRITICAL_SPACE] Espacio crítico creado: ${nuevoEspacio.id} - ${nombre} (${tipo})`);
         }
         
+        // Send SNS notification about space creation (async, non-blocking)
+        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub || 'system';
+        notifySpaceCreated(nuevoEspacio, userId).catch(error => {
+            console.error('Failed to send space creation notification:', error);
+        });
+        
         return created(nuevoEspacio);
         
     } catch (error) {
@@ -248,6 +255,12 @@ const updateEspacio = withAuth(async (event) => {
             }
         );
         
+        // Send SNS notification about space update (async, non-blocking)
+        const userId = event.requestContext?.authorizer?.jwt?.claims?.sub || 'system';
+        notifySpaceUpdated(espacioActualizado, userId, updateData).catch(error => {
+            console.error('Failed to send space update notification:', error);
+        });
+        
         return success(espacioActualizado);
     } catch (error) {
         if (error.message === 'Espacio no encontrado') {
@@ -311,6 +324,13 @@ const deleteEspacio = withAuth(async (event) => {
                 }
                 
                 await db.deleteEspacio(id);
+                
+                // Send SNS notification about space deletion (async, non-blocking)
+                const userId = event.requestContext?.authorizer?.jwt?.claims?.sub || 'system';
+                notifySpaceDeleted(id, espacioExistente.nombre, userId).catch(error => {
+                    console.error('Failed to send space deletion notification:', error);
+                });
+                
                 return { message: 'Espacio eliminado correctamente', id };
             },
             {

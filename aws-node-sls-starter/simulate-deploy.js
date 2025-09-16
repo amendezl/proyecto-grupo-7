@@ -17,6 +17,7 @@ const services = [
     { name: '💾 DynamoDB Table', description: 'Base de datos NoSQL con índices', time: '45s' },
     { name: '🔐 Cognito User Pool', description: 'Autenticación JWT segura', time: '30s' },
     { name: '📨 SQS Queue', description: 'Cola de mensajes asíncronos', time: '15s' },
+    { name: '📡 SNS Topics', description: 'Notificaciones empresariales (3 topics)', time: '20s' },
     { name: '🌐 API Gateway', description: 'Endpoints HTTP REST', time: '20s' },
     { name: '🔑 IAM Roles', description: 'Permisos y políticas de seguridad', time: '25s' }
 ];
@@ -35,7 +36,11 @@ const lambdaFunctions = [
     'getZonas', 'getZona', 'createZona', 'updateZona', 'deleteZona', 'toggleZonaEstado',
     'getZonasPorPiso', 'getEspaciosZona', 'estadisticasZonas', 'getPisosDisponibles', 'getEdificiosDisponibles',
     'queueWorker', 'resilienceHealth', 'completeResilienceHealth', 'bulkheadStatus',
-    'resetResilienceMetrics', 'testResiliencePatterns', 'resilienceConfiguration'
+    'resetResilienceMetrics', 'testResiliencePatterns', 'resilienceConfiguration',
+    // SNS Functions
+    'sendSpaceNotification', 'sendSystemAlert', 'sendAdminNotification',
+    'processSpaceNotification', 'processSystemAlert', 'processAdminNotification',
+    'subscribeToNotifications', 'listSubscriptions'
 ];
 
 console.log('🔧 Creando servicios AWS:');
@@ -65,7 +70,10 @@ setTimeout(() => {
     console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/responsables');
     console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/zonas');
     console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/auth/login');
-    console.log('   ... y 45 endpoints más');
+    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/notifications/spaces');
+    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/notifications/alerts');
+    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/notifications/subscribe');
+    console.log('   ... y 50 endpoints más');
 }, 4000);
 
 setTimeout(() => {
@@ -74,7 +82,8 @@ setTimeout(() => {
     console.log('   • DynamoDB Table: sistema-gestion-espacios-dev-table');
     console.log('   • Cognito User Pool: sistema-gestion-espacios-dev-users');
     console.log('   • SQS Queue: sistema-gestion-espacios-dev-queue');
-    console.log('   • 50 Lambda Functions desplegadas');
+    console.log('   • SNS Topics: space-notifications, system-alerts, admin-notifications');
+    console.log('   • 58 Lambda Functions desplegadas');
     console.log('   • API Gateway con endpoints REST');
     console.log('   • IAM Roles configurados');
     console.log('   • CloudWatch Logs habilitados');
@@ -108,10 +117,12 @@ setTimeout(() => {
 setTimeout(() => {
     console.log('\n🎉 ¡DESPLIEGUE COMPLETADO EXITOSAMENTE!');
     console.log('\n📋 Resumen:');
-    console.log('   ✅ 50 Lambda Functions operativas');
+    console.log('   ✅ 58 Lambda Functions operativas');
     console.log('   ✅ DynamoDB configurada y lista');
     console.log('   ✅ Cognito JWT funcionando');
+    console.log('   ✅ SNS Topics configurados (3)');
     console.log('   ✅ APIs REST accesibles');
+    console.log('   ✅ Notificaciones empresariales activas');
     console.log('   ✅ Patrones de resiliencia activos');
     console.log('   ✅ Sistema genérico de gestión de espacios');
     console.log('   ✅ Listo para cualquier industria');
