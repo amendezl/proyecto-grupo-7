@@ -56,40 +56,86 @@ Sistema empresarial de gestión de espacios hospitalarios desarrollado con **Nod
 ```
 proyecto-grupo-7/
 ├── proyecto/                # 🎯 PROYECTO PRINCIPAL (Node.js Serverless)
-│   ├── src/                 # Código fuente
+│   ├── src/                 # Código fuente backend
 │   │   ├── handlers/        # Lambda Functions (85 endpoints)
 │   │   ├── database/        # DynamoDB Manager
 │   │   ├── utils/           # Utilidades y patrones
 │   │   └── patterns/        # Patrones de resiliencia
 │   ├── serverless.yml      # Configuración AWS
 │   └── package.json        # Dependencias Node.js
+├── frontend/                # ✨ FRONTEND MODERNO (Next.js 14)
+│   ├── src/                 # Código fuente frontend
+│   │   ├── app/             # App Router + Pages
+│   │   ├── components/      # Componentes UI reutilizables
+│   │   └── lib/             # Cliente API + Configuración
+│   ├── next.config.js       # Configuración PWA + Optimizaciones
+│   └── package.json        # Dependencias frontend
 ├── LICENSE                 # Licencia del proyecto
 └── README.md              # Este archivo
 ```
 
 ## 🎯 Para el Profesor
 
-**Proyecto Principal**: `./proyecto/`
+**Backend API**: `./proyecto/`
+**Frontend Web**: `./frontend/`
 
-**Deploy único**: 
+**Deploy Backend**: 
 ```bash
 cd proyecto
 npm install
 npm run deploy
 ```
 
+**Ejecutar Frontend**:
+```bash
+cd frontend
+npm install
+npm run dev
+# Abrir http://localhost:3000
+```
+
 **Características Enterprise:**
 - ✅ **85 Lambda Functions** (100% Node.js serverless)
 - ✅ **96 APIs REST** (85 base + 11 móvil/orientación)
+- ✅ **Frontend Next.js 14** (TypeScript + Tailwind + PWA)
 - ✅ **Arquitectura desacoplada** y orientada a componentes
 - ✅ **Infraestructura 100% cloud** (AWS)
 - ✅ **Seguridad enterprise** (IAM + JWT + RBAC)
 - ✅ **Patrones de resiliencia** integrados
 - ✅ **Sistema personalizable** y generalista
 - ✅ **100% funcional web y móvil** con anti-scroll
-- ✅ **Single-command deployment**
+- ✅ **PWA instalable** como app nativa
 
-## 🏥 Optimizaciones Móviles
+## � **Frontend Moderno - Next.js 14**
+
+### **🚀 Stack Tecnológico Frontend**
+- **Framework**: Next.js 14 con App Router
+- **Lenguaje**: TypeScript para type safety
+- **Estilos**: Tailwind CSS + Mobile-first design
+- **Componentes**: Headless UI + Lucide React icons
+- **Animaciones**: Framer Motion para UX fluida
+- **PWA**: Service Workers + App instalable
+- **Estado**: Zustand + SWR para cache
+- **Formularios**: React Hook Form + Zod validation
+
+### **📱 Características Frontend**
+- ✅ **Responsive Design** - Funciona en móvil, tablet, desktop
+- ✅ **PWA Instalable** - Se puede instalar como app nativa
+- ✅ **Detección de Dispositivo** - Adapta UI según dispositivo
+- ✅ **Navegación Adaptativa** - Menú móvil + sidebar desktop
+- ✅ **Loading States** - Skeleton loaders y estados de carga
+- ✅ **Error Handling** - Manejo elegante de errores
+- ✅ **Dark Mode Ready** - Preparado para modo oscuro
+- ✅ **Cliente API Integrado** - Conecta con 85 endpoints backend
+
+### **🔗 Conexión Frontend-Backend**
+- **API Client** configurado para conectar con AWS Lambda
+- **JWT Authentication** para seguridad
+- **Endpoints optimizados** según tipo de dispositivo
+- **Retry logic** y **error handling** automático
+- **Cache strategies** para performance
+
+## �🏥 Optimizaciones Móviles
 
 ### **📱 Endpoints Móvil-Específicos**
 - `/api/mobile/dashboard` - Dashboard optimizado 60% payload reducido
