@@ -55,9 +55,9 @@ Sistema empresarial de gestión de espacios hospitalarios desarrollado con **Nod
 
 ```
 proyecto-grupo-7/
-├── aws-node-sls-starter/    # 🎯 PROYECTO PRINCIPAL (Node.js Serverless)
+├── proyecto/                # 🎯 PROYECTO PRINCIPAL (Node.js Serverless)
 │   ├── src/                 # Código fuente
-│   │   ├── handlers/        # Lambda Functions (81 endpoints)
+│   │   ├── handlers/        # Lambda Functions (85 endpoints)
 │   │   ├── database/        # DynamoDB Manager
 │   │   ├── utils/           # Utilidades y patrones
 │   │   └── patterns/        # Patrones de resiliencia
@@ -69,11 +69,11 @@ proyecto-grupo-7/
 
 ## 🎯 Para el Profesor
 
-**Proyecto Principal**: `./aws-node-sls-starter/`
+**Proyecto Principal**: `./proyecto/`
 
 **Deploy único**: 
 ```bash
-cd aws-node-sls-starter
+cd proyecto
 npm install
 npm run deploy
 ```
