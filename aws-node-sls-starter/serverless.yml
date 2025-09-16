@@ -118,6 +118,96 @@ functions:
           method: POST
           path: /api/auth/register
 
+  # === GESTIÓN DE PERSONALIZACIÓN (COMPONENTE SAAS) ===
+  
+  # Configuración global del cliente
+  getClientGlobalConfig:
+    handler: src/handlers/personalization.getClientGlobalConfig
+    events:
+      - httpApi:
+          method: GET
+          path: /api/personalization/client/{clientId}/global
+          authorizer:
+            name: cognitoJwt
+
+  updateClientGlobalConfig:
+    handler: src/handlers/personalization.updateClientGlobalConfig
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/personalization/client/{clientId}/global
+          authorizer:
+            name: cognitoJwt
+
+  # Configuración específica del usuario
+  getUserSpecificConfig:
+    handler: src/handlers/personalization.getUserSpecificConfig
+    events:
+      - httpApi:
+          method: GET
+          path: /api/personalization/client/{clientId}/user/{userId}
+          authorizer:
+            name: cognitoJwt
+
+  updateUserSpecificConfig:
+    handler: src/handlers/personalization.updateUserSpecificConfig
+    events:
+      - httpApi:
+          method: PUT
+          path: /api/personalization/client/{clientId}/user/{userId}
+          authorizer:
+            name: cognitoJwt
+
+  # Configuración completa (global + específica + externa)
+  getCompleteUserConfig:
+    handler: src/handlers/personalization.getCompleteUserConfig
+    events:
+      - httpApi:
+          method: GET
+          path: /api/personalization/client/{clientId}/user/{userId}/complete
+          authorizer:
+            name: cognitoJwt
+
+  # Mecanismo de desacople - Carga configuración externa
+  loadExternalConfig:
+    handler: src/handlers/personalization.loadExternalConfig
+    events:
+      - httpApi:
+          method: POST
+          path: /api/personalization/client/{clientId}/load-external
+          authorizer:
+            name: cognitoJwt
+
+  # Exportar configuración del cliente
+  exportClientConfig:
+    handler: src/handlers/personalization.exportClientConfig
+    events:
+      - httpApi:
+          method: GET
+          path: /api/personalization/client/{clientId}/export
+          authorizer:
+            name: cognitoJwt
+
+  # Limpiar cache de configuraciones
+  clearConfigurationCache:
+    handler: src/handlers/personalization.clearConfigurationCache
+    events:
+      - httpApi:
+          method: POST
+          path: /api/personalization/cache/clear
+          authorizer:
+            name: cognitoJwt
+
+  # Configuración por industria
+  getIndustryConfig:
+    handler: src/handlers/personalization.getIndustryConfig
+    events:
+      - httpApi:
+          method: GET
+          path: /api/personalization/industries/{industry}/config
+          authorizer:
+            name: cognitoJwt
+
   # Dashboard con protección Cognito
   dashboard:
     handler: src/handlers/dashboard.getDashboard
@@ -855,9 +945,9 @@ resources:
           - ALLOW_USER_PASSWORD_AUTH
           - ALLOW_REFRESH_TOKEN_AUTH
           - ALLOW_ADMIN_USER_PASSWORD_AUTH
-        AccessTokenValidity: 60
-        IdTokenValidity: 60
-        RefreshTokenValidity: 30
+        AccessTokenValidity: 4
+        IdTokenValidity: 4
+        RefreshTokenValidity: 1
         TokenValidityUnits:
           AccessToken: minutes
           IdToken: minutes

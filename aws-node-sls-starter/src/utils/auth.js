@@ -1,13 +1,14 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { unauthorized } = require('./responses');
+const { hasPermission, requirePermissions, PERMISSIONS } = require('./permissions');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
 /**
- * Genera un token JWT
+ * Genera un token JWT con validez inferior a 5 minutos
  */
-const generateToken = (payload, expiresIn = '24h') => {
+const generateToken = (payload, expiresIn = '4m') => {
     return jwt.sign(payload, JWT_SECRET, { expiresIn });
 };
 
@@ -73,7 +74,7 @@ const verifyPassword = async (password, hashedPassword) => {
 };
 
 /**
- * Middleware para verificar roles
+ * Middleware para verificar roles (DEPRECATED - Usar requirePermissions)
  */
 const requireRole = (requiredRoles) => {
     return (user) => {
@@ -86,6 +87,27 @@ const requireRole = (requiredRoles) => {
         
         if (!hasRequiredRole) {
             throw new Error('Permisos insuficientes');
+        }
+        
+        return true;
+    };
+};
+
+/**
+ * Middleware para verificar permisos específicos (NUEVO - Principio de mínimo privilegio)
+ */
+const requireMinimumPermissions = (requiredPermissions) => {
+    return (user) => {
+        if (!user || !user.rol) {
+            throw new Error('Usuario no autenticado');
+        }
+        
+        const permissions = Array.isArray(requiredPermissions) ? requiredPermissions : [requiredPermissions];
+        
+        for (const permission of permissions) {
+            if (!hasPermission(user, permission)) {
+                throw new Error(`Permiso insuficiente: ${permission}`);
+            }
         }
         
         return true;
@@ -147,7 +169,7 @@ const withErrorHandling = (handler) => {
 };
 
 /**
- * Wrapper para handlers que requieren autenticación
+ * Wrapper para handlers que requieren autenticación con roles (DEPRECATED)
  */
 const withAuth = (handler, requiredRoles = []) => {
     return withErrorHandling(async (event, context) => {
@@ -155,6 +177,25 @@ const withAuth = (handler, requiredRoles = []) => {
         
         if (requiredRoles.length > 0) {
             requireRole(requiredRoles)(user);
+        }
+        
+        // Agregar usuario al evento para uso en el handler
+        event.user = user;
+        
+        return await handler(event, context);
+    });
+};
+
+/**
+ * Wrapper para handlers que requieren permisos específicos (NUEVO)
+ * Implementa el principio de mínimo privilegio
+ */
+const withPermissions = (handler, requiredPermissions = []) => {
+    return withErrorHandling(async (event, context) => {
+        const user = authenticateToken(event);
+        
+        if (requiredPermissions.length > 0) {
+            requireMinimumPermissions(requiredPermissions)(user);
         }
         
         // Agregar usuario al evento para uso en el handler
@@ -172,9 +213,11 @@ module.exports = {
     hashPassword,
     verifyPassword,
     requireRole,
+    requireMinimumPermissions,
     extractQueryParams,
     extractPathParams,
     parseBody,
     withErrorHandling,
-    withAuth
+    withAuth,
+    withPermissions
 };
