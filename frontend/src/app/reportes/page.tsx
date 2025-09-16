@@ -85,6 +85,22 @@ const metricsData = {
   }
 };
 
+// Función helper para obtener clase de ancho basada en porcentaje
+const getWidthClass = (percentage: number, maxValue: number = 100) => {
+  const normalizedPercentage = Math.round((percentage / maxValue) * 100);
+  if (normalizedPercentage === 0) return 'w-0';
+  if (normalizedPercentage <= 10) return 'w-[10%]';
+  if (normalizedPercentage <= 20) return 'w-[20%]';
+  if (normalizedPercentage <= 30) return 'w-[30%]';
+  if (normalizedPercentage <= 40) return 'w-[40%]';
+  if (normalizedPercentage <= 50) return 'w-[50%]';
+  if (normalizedPercentage <= 60) return 'w-[60%]';
+  if (normalizedPercentage <= 70) return 'w-[70%]';
+  if (normalizedPercentage <= 80) return 'w-[80%]';
+  if (normalizedPercentage <= 90) return 'w-[90%]';
+  return 'w-full';
+};
+
 export default function ReportesPage() {
   const [fechaInicio, setFechaInicio] = useState('2024-01-01');
   const [fechaFin, setFechaFin] = useState('2024-01-31');
@@ -165,6 +181,8 @@ export default function ReportesPage() {
             </label>
             <input
               type="date"
+              id="fecha-inicio"
+              aria-label="Fecha de inicio para el reporte"
               value={fechaInicio}
               onChange={(e) => setFechaInicio(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -176,6 +194,8 @@ export default function ReportesPage() {
             </label>
             <input
               type="date"
+              id="fecha-fin"
+              aria-label="Fecha de fin para el reporte"
               value={fechaFin}
               onChange={(e) => setFechaFin(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -186,6 +206,8 @@ export default function ReportesPage() {
               Tipo de Reporte
             </label>
             <select
+              id="tipo-reporte"
+              aria-label="Seleccionar tipo de reporte"
               value={tipoReporte}
               onChange={(e) => setTipoReporte(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -273,8 +295,7 @@ export default function ReportesPage() {
                 <div className="flex-1 mx-4">
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(item.reservas / 70) * 100}%` }}
+                      className={`bg-blue-600 h-2 rounded-full transition-all duration-300 ${getWidthClass(item.reservas, 70)}`}
                     ></div>
                   </div>
                 </div>
@@ -302,8 +323,7 @@ export default function ReportesPage() {
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${espacio.ocupacion}%` }}
+                      className={`bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-300 ${getWidthClass(espacio.ocupacion)}`}
                     ></div>
                   </div>
                 </div>

@@ -63,6 +63,7 @@ export default function Header({ urgentMode = false }: HeaderProps) {
             `} />
             <input
               type="text"
+              aria-label="Búsqueda rápida en el sistema"
               placeholder="Buscar espacio, reserva, usuario..."
               className={`
                 w-full pl-10 pr-4 py-2 rounded-lg border text-sm
@@ -80,7 +81,11 @@ export default function Header({ urgentMode = false }: HeaderProps) {
         <div className="flex items-center space-x-3">
           {/* Botón de urgencia */}
           {!urgentMode && (
-            <button className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+            <button 
+              aria-label="Activar modo urgente"
+              title="Activar modo urgente"
+              className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            >
               <AlertTriangle className="w-5 h-5" />
             </button>
           )}
@@ -88,6 +93,8 @@ export default function Header({ urgentMode = false }: HeaderProps) {
           {/* Notificaciones */}
           <div className="relative">
             <button
+              aria-label="Ver notificaciones"
+              title="Ver notificaciones"
               onClick={() => setShowNotifications(!showNotifications)}
               className={`
                 p-2 rounded-lg transition-colors relative
@@ -122,19 +129,25 @@ export default function Header({ urgentMode = false }: HeaderProps) {
           </div>
 
           {/* Configuración */}
-          <button className={`
-            p-2 rounded-lg transition-colors
-            ${urgentMode 
-              ? 'text-white hover:bg-white/10' 
-              : 'text-gray-600 hover:bg-gray-100'
-            }
-          `}>
+          <button 
+            aria-label="Configuración del sistema"
+            title="Configuración del sistema"
+            className={`
+              p-2 rounded-lg transition-colors
+              ${urgentMode 
+                ? 'text-white hover:bg-white/10' 
+                : 'text-gray-600 hover:bg-gray-100'
+              }
+            `}
+          >
             <Settings className="w-5 h-5" />
           </button>
 
           {/* Menú de usuario */}
           <div className="relative">
             <button
+              aria-label="Menú de usuario"
+              title="Menú de usuario"
               onClick={() => setShowUserMenu(!showUserMenu)}
               className={`
                 flex items-center space-x-2 p-2 rounded-lg transition-colors

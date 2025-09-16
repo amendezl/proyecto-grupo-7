@@ -41,7 +41,7 @@ export default function ZonasPage() {
 
   // Calcular estadísticas por zona
   const getZonaStats = (zonaId: string) => {
-    const espaciosZona = espacios.filter(espacio => espacio.zona_id === zonaId);
+    const espaciosZona = espacios.filter(espacio => espacio.zona === zonaId);
     const disponibles = espaciosZona.filter(e => e.estado === 'disponible').length;
     const ocupados = espaciosZona.filter(e => e.estado === 'ocupado').length;
     const mantenimiento = espaciosZona.filter(e => e.estado === 'mantenimiento').length;
@@ -51,8 +51,24 @@ export default function ZonasPage() {
       disponibles,
       ocupados,
       mantenimiento,
-      capacidadTotal: espaciosZona.reduce((sum, e) => sum + (e.capacidad || 0), 0)
+      porcentajeOcupacion: espaciosZona.length > 0 ? Math.round((ocupados / espaciosZona.length) * 100) : 0,
+      capacidadTotal: espaciosZona.reduce((sum: number, e) => sum + (e.capacidad || 0), 0)
     };
+  };
+
+  // Función para obtener clase de ancho basada en porcentaje
+  const getWidthClass = (percentage: number) => {
+    if (percentage === 0) return 'w-0';
+    if (percentage <= 10) return 'w-[10%]';
+    if (percentage <= 20) return 'w-[20%]';
+    if (percentage <= 30) return 'w-[30%]';
+    if (percentage <= 40) return 'w-[40%]';
+    if (percentage <= 50) return 'w-[50%]';
+    if (percentage <= 60) return 'w-[60%]';
+    if (percentage <= 70) return 'w-[70%]';
+    if (percentage <= 80) return 'w-[80%]';
+    if (percentage <= 90) return 'w-[90%]';
+    return 'w-full';
   };
 
   const clearFilters = () => {
@@ -303,14 +319,11 @@ export default function ZonasPage() {
                     <div className="mt-4">
                       <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
                         <span>Ocupación</span>
-                        <span>{Math.round((stats.ocupados / stats.total) * 100)}%</span>
+                        <span>{stats.porcentajeOcupacion}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
-                          className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300"
-                          style={{
-                            width: `${(stats.ocupados / stats.total) * 100}%`
-                          }}
+                          className={`bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300 ${getWidthClass(stats.porcentajeOcupacion)}`}
                         ></div>
                       </div>
                     </div>
@@ -403,8 +416,7 @@ export default function ZonasPage() {
                         <div className="flex items-center">
                           <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
                             <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${ocupacionPorcentaje}%` }}
+                              className={`bg-blue-600 h-2 rounded-full ${getWidthClass(Math.round(ocupacionPorcentaje))}`}
                             ></div>
                           </div>
                           <span className="text-sm text-gray-600">

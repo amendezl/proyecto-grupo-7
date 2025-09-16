@@ -21,7 +21,7 @@ export function useEspacios(filters?: {
     
     try {
       const response = await apiClient.getEspacios(filters);
-      if (response.ok) {
+      if (response.ok && response.data) {
         setEspacios(response.data.espacios);
         setTotal(response.data.total);
       } else {
@@ -35,13 +35,10 @@ export function useEspacios(filters?: {
             capacidad: 8,
             tipo: 'sala_reunion',
             estado: 'ocupado',
-            zona_id: 'zona-1',
-            zona_nombre: 'Piso 1 - Norte',
+            zona: 'Piso 1 - Norte',
+            piso: 1,
             equipamiento: ['proyector', 'pizarra', 'videoconferencia'],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            usuario_actual: 'Juan Pérez',
-            proxima_reserva: '14:30'
+            ultimaActualizacion: new Date().toISOString()
           },
           {
             id: '2',
@@ -50,11 +47,10 @@ export function useEspacios(filters?: {
             capacidad: 2,
             tipo: 'oficina',
             estado: 'disponible',
-            zona_id: 'zona-2',
-            zona_nombre: 'Piso 2',
+            zona: 'Piso 2',
+            piso: 2,
             equipamiento: ['escritorio', 'silla_ergonomica'],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            ultimaActualizacion: new Date().toISOString()
           },
           {
             id: '3',
@@ -63,11 +59,10 @@ export function useEspacios(filters?: {
             capacidad: 20,
             tipo: 'laboratorio',
             estado: 'mantenimiento',
-            zona_id: 'zona-3',
-            zona_nombre: 'Piso 3',
+            zona: 'Piso 3',
+            piso: 3,
             equipamiento: ['computadoras', 'proyector', 'aire_acondicionado'],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            ultimaActualizacion: new Date().toISOString()
           }
         ]);
         setTotal(3);
@@ -110,7 +105,7 @@ export function useReservas(filters?: {
     
     try {
       const response = await apiClient.getReservas(filters);
-      if (response.ok) {
+      if (response.ok && response.data) {
         setReservas(response.data.reservas);
         setTotal(response.data.total);
       } else {
@@ -119,29 +114,23 @@ export function useReservas(filters?: {
         setReservas([
           {
             id: '1',
-            espacio_id: '1',
-            espacio_nombre: 'Sala de Reuniones A',
-            usuario_id: 'user-1',
-            usuario_nombre: 'Juan Pérez',
-            fecha_inicio: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-            fecha_fin: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+            espacioId: '1',
+            usuarioId: 'user-1',
+            fechaInicio: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+            fechaFin: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
             estado: 'confirmada',
             proposito: 'Reunión de equipo',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            participantes: 6
           },
           {
             id: '2',
-            espacio_id: '2',
-            espacio_nombre: 'Oficina 201',
-            usuario_id: 'user-2',
-            usuario_nombre: 'María García',
-            fecha_inicio: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            fecha_fin: new Date(Date.now() + 26 * 60 * 60 * 1000).toISOString(),
+            espacioId: '2',
+            usuarioId: 'user-2',
+            fechaInicio: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            fechaFin: new Date(Date.now() + 26 * 60 * 60 * 1000).toISOString(),
             estado: 'pendiente',
             proposito: 'Trabajo individual',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            participantes: 1
           }
         ]);
         setTotal(2);
@@ -179,7 +168,7 @@ export function useZonas() {
     
     try {
       const response = await apiClient.getZonas();
-      if (response.ok) {
+      if (response.ok && response.data) {
         setZonas(response.data.zonas);
       } else {
         setError(response.error || 'Error al cargar zonas');
@@ -190,33 +179,27 @@ export function useZonas() {
             nombre: 'Piso 1 - Norte',
             descripcion: 'Área norte del primer piso',
             piso: 1,
-            edificio: 'Principal',
-            capacidad_total: 50,
-            espacios_count: 12,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            capacidadTotal: 50,
+            espaciosDisponibles: 35,
+            color: '#3B82F6'
           },
           {
             id: 'zona-2',
             nombre: 'Piso 2',
             descripcion: 'Segundo piso completo',
             piso: 2,
-            edificio: 'Principal',
-            capacidad_total: 80,
-            espacios_count: 15,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            capacidadTotal: 80,
+            espaciosDisponibles: 60,
+            color: '#10B981'
           },
           {
             id: 'zona-3',
             nombre: 'Piso 3',
             descripcion: 'Laboratorios y aulas especializadas',
             piso: 3,
-            edificio: 'Principal',
-            capacidad_total: 100,
-            espacios_count: 10,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            capacidadTotal: 100,
+            espaciosDisponibles: 75,
+            color: '#F59E0B'
           }
         ]);
       }
@@ -252,20 +235,18 @@ export function useDashboardMetrics() {
     
     try {
       const response = await apiClient.getDashboardMetrics();
-      if (response.ok) {
+      if (response.ok && response.data) {
         setMetrics(response.data);
       } else {
         setError(response.error || 'Error al cargar métricas');
         // Fallback con datos simulados
         setMetrics({
-          espacios_disponibles: 24,
-          espacios_ocupados: 18,
-          espacios_mantenimiento: 3,
-          reservas_activas: 12,
-          reservas_hoy: 89,
-          usuarios_activos: 156,
-          alertas_activas: 2,
-          ocupacion_promedio: 68
+          totalEspacios: 45,
+          espaciosDisponibles: 24,
+          espaciosOcupados: 18,
+          espaciosMantenimiento: 3,
+          reservasHoy: 89,
+          ocupacionPromedio: 68
         });
       }
     } catch (err) {
@@ -299,17 +280,30 @@ export function useRealtimeUpdates() {
 
   useEffect(() => {
     const callbacks = {
-      'space_updated': (data: any) => {
-        console.log('Espacio actualizado:', data);
+      onMessage: (data: any) => {
+        console.log('Mensaje WebSocket recibido:', data);
+        
+        // Procesar diferentes tipos de mensajes
+        switch (data.type) {
+          case 'space_updated':
+            console.log('Espacio actualizado:', data);
+            break;
+          case 'reservation_created':
+            console.log('Nueva reserva:', data);
+            break;
+          case 'system_alert':
+            console.log('Alerta del sistema:', data);
+            break;
+        }
+        
         setLastUpdate(new Date());
       },
-      'reservation_created': (data: any) => {
-        console.log('Nueva reserva:', data);
-        setLastUpdate(new Date());
+      onError: (error: Event) => {
+        console.error('Error WebSocket:', error);
       },
-      'system_alert': (data: any) => {
-        console.log('Alerta del sistema:', data);
-        setLastUpdate(new Date());
+      onClose: () => {
+        console.log('WebSocket cerrado');
+        setConnected(false);
       }
     };
 

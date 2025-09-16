@@ -144,27 +144,36 @@ class ApiClient {
     }
   }
 
-  async refreshToken(): Promise<void> {
+  async refreshToken(): Promise<ApiResponse<{ token: string }>> {
     if (!this.tokens?.refreshToken) {
       throw new Error('No refresh token available');
     }
 
-    const response = await this.client.post('/refresh', {
+    const response = await this.post<{ token: string }>('/auth/refresh', {
       refreshToken: this.tokens.refreshToken,
     });
 
-    if (response.data.ok) {
-      this.setTokens(response.data.data);
-    } else {
-      throw new Error('Token refresh failed');
+    if (response.ok && response.data) {
+      // Actualizar tokens locales
+      const newTokens = {
+        accessToken: response.data.token,
+        refreshToken: response.data.token, // En producción usar refresh token separado
+        expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 horas
+      };
+      this.setTokens(newTokens);
     }
+
+    return response;
   }
 
-  logout() {
+  async logout(): Promise<ApiResponse<{ message: string }>> {
+    const result = await this.post<{ message: string }>('/auth/logout');
+    // Limpiar tokens locales después del logout
     this.clearTokens();
     if (typeof window !== 'undefined') {
       window.location.href = '/login';
     }
+    return result;
   }
 
   // Métodos HTTP genéricos
@@ -247,6 +256,121 @@ class ApiClient {
     }
     
     return baseEndpoint;
+  }
+
+  // Métodos específicos de la API
+  async getEspacios(filters?: {
+    tipo?: string;
+    estado?: string;
+    zona_id?: string;
+  }): Promise<ApiResponse<{ espacios: Espacio[]; total: number }>> {
+    const params = new URLSearchParams();
+    if (filters?.tipo) params.append('tipo', filters.tipo);
+    if (filters?.estado) params.append('estado', filters.estado);
+    if (filters?.zona_id) params.append('zona_id', filters.zona_id);
+    
+    const endpoint = this.getOptimizedEndpoint('/espacios');
+    const queryString = params.toString();
+    return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getReservas(filters?: {
+    usuario_id?: string;
+    espacio_id?: string;
+    estado?: string;
+  }): Promise<ApiResponse<{ reservas: Reserva[]; total: number }>> {
+    const params = new URLSearchParams();
+    if (filters?.usuario_id) params.append('usuario_id', filters.usuario_id);
+    if (filters?.espacio_id) params.append('espacio_id', filters.espacio_id);
+    if (filters?.estado) params.append('estado', filters.estado);
+    
+    const endpoint = this.getOptimizedEndpoint('/reservas');
+    const queryString = params.toString();
+    return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getZonas(): Promise<ApiResponse<{ zonas: Zona[] }>> {
+    const endpoint = this.getOptimizedEndpoint('/zonas');
+    return this.get(endpoint);
+  }
+
+  async getDashboardMetrics(): Promise<ApiResponse<DashboardMetrics>> {
+    const endpoint = this.getOptimizedEndpoint('/dashboard/metrics');
+    return this.get(endpoint);
+  }
+
+  // Métodos WebSocket
+  private ws: WebSocket | null = null;
+  
+  connectWebSocket(callbacks: {
+    onMessage?: (data: any) => void;
+    onError?: (error: Event) => void;
+    onClose?: () => void;
+  }) {
+    if (this.ws) {
+      this.ws.close();
+    }
+
+    const wsUrl = API_CONFIG.baseURL.replace('http', 'ws') + '/ws';
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log('WebSocket conectado');
+    };
+
+    this.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        callbacks.onMessage?.(data);
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      callbacks.onError?.(error);
+    };
+
+    this.ws.onclose = () => {
+      console.log('WebSocket desconectado');
+      callbacks.onClose?.();
+    };
+  }
+
+  disconnectWebSocket() {
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  // Métodos de autenticación
+  async login(email: string, password: string): Promise<ApiResponse<{ user: any; token: string }>> {
+    return this.post('/auth/login', { email, password });
+  }
+
+  async register(userData: {
+    email: string;
+    password: string;
+    nombre: string;
+    apellido: string;
+    departamento?: string;
+    telefono?: string;
+  }): Promise<ApiResponse<{ message: string }>> {
+    return this.post('/auth/register', userData);
+  }
+
+  async getCurrentUser(): Promise<ApiResponse<any>> {
+    return this.get('/me');
+  }
+
+  async updateProfile(userData: any): Promise<ApiResponse<{ user: any }>> {
+    return this.put('/usuarios/perfil', userData);
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
+    return this.post('/usuarios/cambiar-password', { currentPassword, newPassword });
   }
 }
 

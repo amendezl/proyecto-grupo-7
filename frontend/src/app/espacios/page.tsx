@@ -122,6 +122,7 @@ export default function EspaciosPage() {
           {/* Filtros */}
           <div className="flex flex-col sm:flex-row gap-4">
             <select
+              aria-label="Filtrar por tipo de espacio"
               value={selectedTipo}
               onChange={(e) => setSelectedTipo(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -134,6 +135,7 @@ export default function EspaciosPage() {
             </select>
 
             <select
+              aria-label="Filtrar por estado del espacio"
               value={selectedEstado}
               onChange={(e) => setSelectedEstado(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -146,6 +148,7 @@ export default function EspaciosPage() {
             </select>
 
             <select
+              aria-label="Filtrar por zona"
               value={selectedZona}
               onChange={(e) => setSelectedZona(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -270,11 +273,11 @@ export default function EspaciosPage() {
                 <div key={espacio.id} className="group">
                   <SpaceCard
                     nombre={espacio.nombre}
-                    zona={espacio.zona_nombre || 'Sin zona'}
+                    zona={espacio.zona || 'Sin zona'}
                     capacidad={espacio.capacidad}
                     estado={espacio.estado}
-                    usuarioActual={espacio.usuario_actual}
-                    proximaReserva={espacio.proxima_reserva}
+                    usuarioActual={undefined} // No disponible en tipo Espacio
+                    proximaReserva={undefined} // No disponible en tipo Espacio
                     onClick={() => console.log(`Ver detalles de ${espacio.nombre}`)}
                   />
                   

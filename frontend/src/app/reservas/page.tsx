@@ -35,11 +35,16 @@ export default function ReservasPage() {
   const { espacios } = useEspacios();
 
   // Filtrar reservas por término de búsqueda
-  const filteredReservas = reservas.filter(reserva =>
-    reserva.usuario_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    reserva.espacio_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    reserva.proposito?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredReservas = reservas.filter(reserva => {
+    const espacio = espacios.find(e => e.id === reserva.espacioId);
+    const espacioNombre = espacio?.nombre || '';
+    
+    return (
+      espacioNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reserva.proposito?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reserva.usuarioId?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const estadosReserva = [
     { value: '', label: 'Todos los estados' },
@@ -294,8 +299,9 @@ export default function ReservasPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredReservas.map((reserva) => {
-                  const fechaInicio = formatDateTime(reserva.fecha_inicio);
-                  const fechaFin = formatDateTime(reserva.fecha_fin);
+                  const fechaInicio = formatDateTime(reserva.fechaInicio);
+                  const fechaFin = formatDateTime(reserva.fechaFin);
+                  const espacio = espacios.find(e => e.id === reserva.espacioId);
                   
                   return (
                     <tr key={reserva.id} className="hover:bg-gray-50">
@@ -308,7 +314,7 @@ export default function ReservasPage() {
                           </div>
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900">
-                              {reserva.usuario_nombre}
+                              Usuario {reserva.usuarioId}
                             </div>
                           </div>
                         </div>
@@ -317,7 +323,7 @@ export default function ReservasPage() {
                         <div className="flex items-center">
                           <MapPin className="h-4 w-4 text-gray-400 mr-2" />
                           <div className="text-sm text-gray-900">
-                            {reserva.espacio_nombre}
+                            {espacio?.nombre || `Espacio ${reserva.espacioId}`}
                           </div>
                         </div>
                       </td>
