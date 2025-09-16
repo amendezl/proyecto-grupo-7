@@ -1,0 +1,176 @@
+// Header - Sistema de Gestión de Espacios
+// Navegación principal y accesos rápidos
+
+'use client';
+
+import { useState } from 'react';
+import { Bell, Search, Settings, User, AlertTriangle, LogOut } from 'lucide-react';
+import { designSystem } from '@/lib/design-system';
+
+interface HeaderProps {
+  urgentMode?: boolean;
+}
+
+export default function Header({ urgentMode = false }: HeaderProps) {
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  return (
+    <header 
+      className={`
+        fixed top-0 left-0 right-0 z-50 h-16
+        ${urgentMode 
+          ? 'bg-red-600 text-white shadow-lg' 
+          : 'bg-white border-b border-gray-200 shadow-sm'
+        }
+      `}
+    >
+      <div className="flex items-center justify-between h-full px-4">
+        {/* Logo y título del sistema */}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
+            <div className={`
+              w-8 h-8 rounded-lg flex items-center justify-center
+              ${urgentMode ? 'bg-white/20' : 'bg-blue-600'}
+            `}>
+              <span className={`
+                text-sm font-bold
+                ${urgentMode ? 'text-white' : 'text-white'}
+              `}>
+                SM
+              </span>
+            </div>
+            <div>
+              <h1 className={`
+                text-lg font-semibold
+                ${urgentMode ? 'text-white' : 'text-gray-900'}
+              `}>
+                Sistema de Espacios
+              </h1>
+              {urgentMode && (
+                <p className="text-xs text-red-100">MODO URGENTE ACTIVO</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Área central - Búsqueda rápida */}
+        <div className="flex-1 max-w-xl mx-8">
+          <div className="relative">
+            <Search className={`
+              absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4
+              ${urgentMode ? 'text-white/70' : 'text-gray-400'}
+            `} />
+            <input
+              type="text"
+              placeholder="Buscar espacio, reserva, usuario..."
+              className={`
+                w-full pl-10 pr-4 py-2 rounded-lg border text-sm
+                ${urgentMode 
+                  ? 'bg-white/10 border-white/20 text-white placeholder-white/70' 
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-500'
+                }
+                focus:outline-none focus:ring-2 focus:ring-blue-500
+              `}
+            />
+          </div>
+        </div>
+
+        {/* Controles del usuario */}
+        <div className="flex items-center space-x-3">
+          {/* Botón de urgencia */}
+          {!urgentMode && (
+            <button className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+              <AlertTriangle className="w-5 h-5" />
+            </button>
+          )}
+
+          {/* Notificaciones */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className={`
+                p-2 rounded-lg transition-colors relative
+                ${urgentMode 
+                  ? 'text-white hover:bg-white/10' 
+                  : 'text-gray-600 hover:bg-gray-100'
+                }
+              `}
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+            </button>
+
+            {/* Dropdown de notificaciones */}
+            {showNotifications && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border max-h-96 overflow-y-auto">
+                <div className="p-4 border-b border-gray-100">
+                  <h3 className="font-semibold text-gray-900">Notificaciones</h3>
+                </div>
+                <div className="p-2">
+                  <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                    <p className="text-sm font-medium text-gray-900">Nueva reserva creada</p>
+                    <p className="text-xs text-gray-500">Sala de reuniones A - hace 5 min</p>
+                  </div>
+                  <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
+                    <p className="text-sm font-medium text-gray-900">Espacio liberado</p>
+                    <p className="text-xs text-gray-500">Oficina 201 - hace 10 min</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Configuración */}
+          <button className={`
+            p-2 rounded-lg transition-colors
+            ${urgentMode 
+              ? 'text-white hover:bg-white/10' 
+              : 'text-gray-600 hover:bg-gray-100'
+            }
+          `}>
+            <Settings className="w-5 h-5" />
+          </button>
+
+          {/* Menú de usuario */}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className={`
+                flex items-center space-x-2 p-2 rounded-lg transition-colors
+                ${urgentMode 
+                  ? 'text-white hover:bg-white/10' 
+                  : 'text-gray-600 hover:bg-gray-100'
+                }
+              `}
+            >
+              <User className="w-5 h-5" />
+              <span className="text-sm font-medium">Admin</span>
+            </button>
+
+            {/* Dropdown de usuario */}
+            {showUserMenu && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border">
+                <div className="p-2">
+                  <button className="w-full text-left p-3 hover:bg-gray-50 rounded-lg flex items-center space-x-2">
+                    <User className="w-4 h-4" />
+                    <span className="text-sm">Mi perfil</span>
+                  </button>
+                  <button className="w-full text-left p-3 hover:bg-gray-50 rounded-lg flex items-center space-x-2">
+                    <Settings className="w-4 h-4" />
+                    <span className="text-sm">Configuración</span>
+                  </button>
+                  <hr className="my-1" />
+                  <button className="w-full text-left p-3 hover:bg-gray-50 rounded-lg flex items-center space-x-2 text-red-600">
+                    <LogOut className="w-4 h-4" />
+                    <span className="text-sm">Cerrar sesión</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
