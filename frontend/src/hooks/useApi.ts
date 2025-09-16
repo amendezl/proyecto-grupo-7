@@ -2,13 +2,15 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient, ApiResponse, Espacio, Reserva, Zona, Usuario, DashboardMetrics } from '@/lib/api-client';
+import { apiClient, ApiResponse, Espacio, Reserva, Zona, Usuario, Responsable, DashboardMetrics } from '@/lib/api-client';
 
 // Hook para datos de espacios
 export function useEspacios(filters?: {
   tipo?: string;
   estado?: string;
   zona_id?: string;
+  piso?: string;
+  edificio?: string;
 }) {
   const [espacios, setEspacios] = useState<Espacio[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,12 +81,16 @@ export function useEspacios(filters?: {
     fetchEspacios();
   }, [fetchEspacios]);
 
+  const refetch = useCallback(() => {
+    fetchEspacios();
+  }, [fetchEspacios]);
+
   return {
     espacios,
     loading,
     error,
     total,
-    refetch: fetchEspacios
+    refetch
   };
 }
 
@@ -157,10 +163,14 @@ export function useReservas(filters?: {
 }
 
 // Hook para datos de zonas
-export function useZonas() {
+export function useZonas(filters?: {
+  activo?: boolean;
+  edificio?: string;
+}) {
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
 
   const fetchZonas = useCallback(async () => {
     setLoading(true);
@@ -169,7 +179,21 @@ export function useZonas() {
     try {
       const response = await apiClient.getZonas();
       if (response.ok && response.data) {
-        setZonas(response.data.zonas);
+        let zonasData = response.data.zonas;
+        
+        // Aplicar filtros localmente si no se soportan en el backend
+        if (filters?.activo !== undefined) {
+          zonasData = zonasData.filter(z => {
+            // Usar capacidadTotal > 0 como indicador de activo
+            return filters.activo ? z.capacidadTotal > 0 : z.capacidadTotal === 0;
+          });
+        }
+        if (filters?.edificio) {
+          zonasData = zonasData.filter(z => z.nombre.includes(filters.edificio!));
+        }
+        
+        setZonas(zonasData);
+        setTotal(zonasData.length);
       } else {
         setError(response.error || 'Error al cargar zonas');
         // Fallback con datos simulados
@@ -202,6 +226,7 @@ export function useZonas() {
             color: '#F59E0B'
           }
         ]);
+        setTotal(3);
       }
     } catch (err) {
       setError('Error de conexión');
@@ -209,9 +234,13 @@ export function useZonas() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   useEffect(() => {
+    fetchZonas();
+  }, [fetchZonas]);
+
+  const refetch = useCallback(() => {
     fetchZonas();
   }, [fetchZonas]);
 
@@ -219,7 +248,8 @@ export function useZonas() {
     zonas,
     loading,
     error,
-    refetch: fetchZonas
+    total,
+    refetch
   };
 }
 
@@ -319,5 +349,170 @@ export function useRealtimeUpdates() {
   return {
     connected,
     lastUpdate
+  };
+}
+
+// Hook para datos de responsables
+export function useResponsables(filters?: {
+  departamento?: string;
+  estado?: string;
+}) {
+  const [responsables, setResponsables] = useState<Responsable[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+
+  const fetchResponsables = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiClient.getResponsables(filters);
+      if (response.ok && response.data) {
+        setResponsables(response.data.responsables);
+        setTotal(response.data.total);
+      } else {
+        setError(response.error || 'Error al cargar responsables');
+        // Fallback con datos simulados para desarrollo
+        setResponsables([
+          {
+            id: '1',
+            nombre: 'Dr. Ana',
+            apellido: 'Martínez',
+            email: 'ana.martinez@hospital.com',
+            telefono: '+34 612 345 678',
+            departamento: 'Cardiología',
+            especialidad: 'Cardiología Intervencionista',
+            areas: ['Urgencias', 'Consultas Externas'],
+            espaciosAsignados: ['1', '3', '5'],
+            estado: 'activo',
+            fechaCreacion: '2024-01-15T00:00:00Z',
+            ultimoAcceso: '2024-01-15T10:30:00Z',
+            estadisticas: {
+              espaciosGestionados: 3,
+              reservasAprobadas: 45,
+              incidentesResueltos: 12
+            }
+          },
+          {
+            id: '2',
+            nombre: 'Dr. Carlos',
+            apellido: 'López',
+            email: 'carlos.lopez@hospital.com',
+            telefono: '+34 612 345 679',
+            departamento: 'Neurología',
+            especialidad: 'Neurocirugía',
+            areas: ['Quirófanos', 'UCI'],
+            espaciosAsignados: ['2', '4'],
+            estado: 'activo',
+            fechaCreacion: '2024-01-10T00:00:00Z',
+            ultimoAcceso: '2024-01-15T09:15:00Z',
+            estadisticas: {
+              espaciosGestionados: 2,
+              reservasAprobadas: 32,
+              incidentesResueltos: 8
+            }
+          }
+        ]);
+        setTotal(2);
+      }
+    } catch (err) {
+      setError('Error de conexión');
+      console.error('Error fetching responsables:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    fetchResponsables();
+  }, [fetchResponsables]);
+
+  const refetch = useCallback(() => {
+    fetchResponsables();
+  }, [fetchResponsables]);
+
+  return {
+    responsables,
+    loading,
+    error,
+    total,
+    refetch
+  };
+}
+
+// Hook para datos de usuarios
+export function useUsuarios(filters?: {
+  rol?: string;
+  activo?: boolean;
+  departamento?: string;
+}) {
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+
+  const fetchUsuarios = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await apiClient.getUsuarios(filters);
+      if (response.ok && response.data) {
+        setUsuarios(response.data.usuarios);
+        setTotal(response.data.total);
+      } else {
+        setError(response.error || 'Error al cargar usuarios');
+        // Fallback con datos simulados para desarrollo
+        setUsuarios([
+          {
+            id: '1',
+            nombre: 'Dr. Juan Pérez',
+            email: 'juan.perez@hospital.com',
+            rol: 'admin',
+            departamento: 'Administración',
+            activo: true
+          },
+          {
+            id: '2',
+            nombre: 'Dra. María García',
+            email: 'maria.garcia@hospital.com',
+            rol: 'staff',
+            departamento: 'Cardiología',
+            activo: true
+          },
+          {
+            id: '3',
+            nombre: 'Carlos López',
+            email: 'carlos.lopez@hospital.com',
+            rol: 'usuario',
+            departamento: 'Neurología',
+            activo: false
+          }
+        ]);
+        setTotal(3);
+      }
+    } catch (err) {
+      setError('Error de conexión');
+      console.error('Error fetching usuarios:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    fetchUsuarios();
+  }, [fetchUsuarios]);
+
+  const refetch = useCallback(() => {
+    fetchUsuarios();
+  }, [fetchUsuarios]);
+
+  return {
+    usuarios,
+    loading,
+    error,
+    total,
+    refetch
   };
 }

@@ -4,7 +4,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Home, MapPin, Calendar, Users, BarChart3, Settings, Building2, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, MapPin, Calendar, Users, BarChart3, Settings, Building2, Clock, Shield } from 'lucide-react';
 import { designSystem } from '@/lib/design-system';
 
 interface SidebarProps {
@@ -48,6 +48,13 @@ export default function Sidebar({ className = '' }: SidebarProps) {
       label: 'Usuarios',
       href: '/usuarios',
       count: 156,
+      active: false
+    },
+    {
+      icon: Shield,
+      label: 'Responsables',
+      href: '/responsables',
+      count: 8,
       active: false
     },
     {

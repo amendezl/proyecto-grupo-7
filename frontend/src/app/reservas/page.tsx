@@ -21,6 +21,8 @@ import {
   Alert 
 } from '@/components/ui/components';
 import { useReservas, useEspacios } from '@/hooks/useApi';
+import CancelReservaButton from '@/components/CancelReservaButton';
+import { apiClient } from '@/lib/api-client';
 
 export default function ReservasPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,6 +56,23 @@ export default function ReservasPage() {
     { value: 'completada', label: 'Completada' },
     { value: 'cancelada', label: 'Cancelada' }
   ];
+
+  // Función para manejar cancelación de reserva
+  const handleCancelReserva = async (reservaId: string) => {
+    try {
+      const result = await apiClient.cancelReserva(reservaId);
+      if (result.ok) {
+        // Refrescar la lista de reservas
+        refetch();
+      } else {
+        console.error('Error cancelando reserva:', result.error);
+        alert('Error al cancelar la reserva: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error de conexión al cancelar la reserva');
+    }
+  };
 
   const getEstadoVariant = (estado: string) => {
     switch (estado) {
@@ -355,11 +374,12 @@ export default function ReservasPage() {
                             <Edit className="h-3 w-3 mr-1" />
                             Editar
                           </Button>
-                          {reserva.estado === 'pendiente' && (
-                            <Button variant="danger" size="sm">
-                              <X className="h-3 w-3 mr-1" />
-                              Cancelar
-                            </Button>
+                          {(reserva.estado === 'pendiente' || reserva.estado === 'confirmada') && (
+                            <CancelReservaButton
+                              reservaId={reserva.id}
+                              reservaNombre={`${espacio?.nombre || 'Espacio'} - ${fechaInicio.date}`}
+                              onCancel={handleCancelReserva}
+                            />
                           )}
                         </div>
                       </td>

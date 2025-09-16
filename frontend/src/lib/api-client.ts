@@ -53,6 +53,26 @@ export interface Usuario {
   activo: boolean;
 }
 
+export interface Responsable {
+  id: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+  telefono: string;
+  departamento: string;
+  especialidad?: string;
+  areas: string[];
+  espaciosAsignados: string[];
+  estado: 'activo' | 'inactivo';
+  fechaCreacion: string;
+  ultimoAcceso?: string;
+  estadisticas: {
+    espaciosGestionados: number;
+    reservasAprobadas: number;
+    incidentesResueltos: number;
+  };
+}
+
 export interface DashboardMetrics {
   totalEspacios: number;
   espaciosDisponibles: number;
@@ -233,6 +253,18 @@ class ApiClient {
     }
   }
 
+  async patch<T>(endpoint: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    try {
+      const response: AxiosResponse<ApiResponse<T>> = await this.client.patch(endpoint, data, config);
+      return response.data;
+    } catch (error: any) {
+      return {
+        ok: false,
+        error: error.response?.data?.error || error.message || 'Error desconocido',
+      };
+    }
+  }
+
   // Detectar tipo de dispositivo para optimización de endpoints
   getDeviceType(): 'mobile' | 'tablet' | 'desktop' {
     if (typeof window === 'undefined') return 'desktop';
@@ -274,6 +306,26 @@ class ApiClient {
     return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
   }
 
+  async createEspacio(data: Omit<Espacio, 'id' | 'ultimaActualizacion'>): Promise<ApiResponse<Espacio>> {
+    const endpoint = this.getOptimizedEndpoint('/espacios');
+    return this.post(endpoint, data);
+  }
+
+  async updateEspacio(id: string, data: Partial<Espacio>): Promise<ApiResponse<Espacio>> {
+    const endpoint = this.getOptimizedEndpoint(`/espacios/${id}`);
+    return this.put(endpoint, data);
+  }
+
+  async deleteEspacio(id: string): Promise<ApiResponse<{ message: string }>> {
+    const endpoint = this.getOptimizedEndpoint(`/espacios/${id}`);
+    return this.delete(endpoint);
+  }
+
+  async toggleEspacioEstado(id: string): Promise<ApiResponse<Espacio>> {
+    const endpoint = this.getOptimizedEndpoint(`/espacios/${id}/toggle-estado`);
+    return this.patch(endpoint);
+  }
+
   async getReservas(filters?: {
     usuario_id?: string;
     espacio_id?: string;
@@ -289,14 +341,129 @@ class ApiClient {
     return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
   }
 
+  async createReserva(data: Omit<Reserva, 'id'>): Promise<ApiResponse<Reserva>> {
+    const endpoint = this.getOptimizedEndpoint('/reservas');
+    return this.post(endpoint, data);
+  }
+
+  async updateReserva(id: string, data: Partial<Reserva>): Promise<ApiResponse<Reserva>> {
+    const endpoint = this.getOptimizedEndpoint(`/reservas/${id}`);
+    return this.put(endpoint, data);
+  }
+
+  async cancelReserva(id: string): Promise<ApiResponse<{ message: string }>> {
+    const endpoint = this.getOptimizedEndpoint(`/reservas/${id}/cancel`);
+    return this.patch(endpoint);
+  }
+
+  async deleteReserva(id: string): Promise<ApiResponse<{ message: string }>> {
+    const endpoint = this.getOptimizedEndpoint(`/reservas/${id}`);
+    return this.delete(endpoint);
+  }
+
   async getZonas(): Promise<ApiResponse<{ zonas: Zona[] }>> {
     const endpoint = this.getOptimizedEndpoint('/zonas');
     return this.get(endpoint);
   }
 
+  async createZona(data: Omit<Zona, 'id'>): Promise<ApiResponse<Zona>> {
+    const endpoint = this.getOptimizedEndpoint('/zonas');
+    return this.post(endpoint, data);
+  }
+
+  async updateZona(id: string, data: Partial<Zona>): Promise<ApiResponse<Zona>> {
+    const endpoint = this.getOptimizedEndpoint(`/zonas/${id}`);
+    return this.put(endpoint, data);
+  }
+
+  async deleteZona(id: string): Promise<ApiResponse<{ message: string }>> {
+    const endpoint = this.getOptimizedEndpoint(`/zonas/${id}`);
+    return this.delete(endpoint);
+  }
+
   async getDashboardMetrics(): Promise<ApiResponse<DashboardMetrics>> {
     const endpoint = this.getOptimizedEndpoint('/dashboard/metrics');
     return this.get(endpoint);
+  }
+
+  // Métodos para Responsables
+  async getResponsables(filters?: {
+    departamento?: string;
+    estado?: string;
+  }): Promise<ApiResponse<{ responsables: Responsable[]; total: number }>> {
+    const params = new URLSearchParams();
+    if (filters?.departamento) params.append('departamento', filters.departamento);
+    if (filters?.estado) params.append('estado', filters.estado);
+    
+    const endpoint = this.getOptimizedEndpoint('/responsables');
+    const queryString = params.toString();
+    return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getResponsable(id: string): Promise<ApiResponse<Responsable>> {
+    const endpoint = this.getOptimizedEndpoint(`/responsables/${id}`);
+    return this.get(endpoint);
+  }
+
+  async createResponsable(data: Omit<Responsable, 'id' | 'fechaCreacion' | 'estadisticas'>): Promise<ApiResponse<Responsable>> {
+    const endpoint = this.getOptimizedEndpoint('/responsables');
+    return this.post(endpoint, data);
+  }
+
+  async updateResponsable(id: string, data: Partial<Responsable>): Promise<ApiResponse<Responsable>> {
+    const endpoint = this.getOptimizedEndpoint(`/responsables/${id}`);
+    return this.put(endpoint, data);
+  }
+
+  async deleteResponsable(id: string): Promise<ApiResponse<{ message: string }>> {
+    const endpoint = this.getOptimizedEndpoint(`/responsables/${id}`);
+    return this.delete(endpoint);
+  }
+
+  async toggleResponsableEstado(id: string): Promise<ApiResponse<Responsable>> {
+    const endpoint = this.getOptimizedEndpoint(`/responsables/${id}/toggle-estado`);
+    return this.patch(endpoint);
+  }
+
+  async asignarEspacios(responsableId: string, espaciosIds: string[]): Promise<ApiResponse<{ message: string }>> {
+    const endpoint = this.getOptimizedEndpoint(`/responsables/${responsableId}/asignar-espacios`);
+    return this.post(endpoint, { espaciosIds });
+  }
+
+  // Métodos para Usuarios
+  async getUsuarios(filters?: {
+    rol?: string;
+    activo?: boolean;
+    departamento?: string;
+  }): Promise<ApiResponse<{ usuarios: Usuario[]; total: number }>> {
+    const params = new URLSearchParams();
+    if (filters?.rol) params.append('rol', filters.rol);
+    if (filters?.activo !== undefined) params.append('activo', filters.activo.toString());
+    if (filters?.departamento) params.append('departamento', filters.departamento);
+    
+    const endpoint = this.getOptimizedEndpoint('/usuarios');
+    const queryString = params.toString();
+    return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async createUsuario(data: Omit<Usuario, 'id'>): Promise<ApiResponse<Usuario>> {
+    const endpoint = this.getOptimizedEndpoint('/usuarios');
+    return this.post(endpoint, data);
+  }
+
+  async updateUsuario(id: string, data: Partial<Usuario>): Promise<ApiResponse<Usuario>> {
+    const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}`);
+    return this.put(endpoint, data);
+  }
+
+  async deleteUsuario(id: string): Promise<ApiResponse<{ message: string }>> {
+    const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}`);
+    return this.delete(endpoint);
+  }
+
+  async toggleUsuarioEstado(id: string): Promise<ApiResponse<Usuario>> {
+    const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}/toggle-estado`);
+    return this.patch(endpoint);
   }
 
   // Métodos WebSocket
