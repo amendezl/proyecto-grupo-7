@@ -112,7 +112,6 @@ export const ENDPOINTS = {
     COMPLETE: '/api/health/complete-resilience',
     BULKHEAD: '/api/health/bulkhead-status',
     RESET: '/api/health/reset-resilience-metrics',
-    TEST: '/api/health/test-resilience-patterns',
     CONFIG: '/api/health/resilience-configuration',
   },
   

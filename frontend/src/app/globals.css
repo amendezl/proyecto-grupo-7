@@ -24,3 +24,43 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Toast Notifications Styles */
+@keyframes shrink {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.toast-progress-bar {
+  width: 100%;
+  animation: shrink 3s linear forwards;
+}
+
+/* Duration variations */
+.toast-duration-1 { animation-duration: 1s; }
+.toast-duration-2 { animation-duration: 2s; }
+.toast-duration-3 { animation-duration: 3s; }
+.toast-duration-4 { animation-duration: 4s; }
+.toast-duration-5 { animation-duration: 5s; }
+.toast-duration-6 { animation-duration: 6s; }
+.toast-duration-7 { animation-duration: 7s; }
+.toast-duration-8 { animation-duration: 8s; }
+.toast-duration-9 { animation-duration: 9s; }
+.toast-duration-10 { animation-duration: 10s; }
+
+/* Z-index classes for toast stacking */
+.toast-z-50 { z-index: 50; }
+.toast-z-49 { z-index: 49; }
+.toast-z-48 { z-index: 48; }
+.toast-z-47 { z-index: 47; }
+.toast-z-46 { z-index: 46; }
+.toast-z-45 { z-index: 45; }
+.toast-z-44 { z-index: 44; }
+.toast-z-43 { z-index: 43; }
+.toast-z-42 { z-index: 42; }
+.toast-z-41 { z-index: 41; }
+.toast-z-40 { z-index: 40; }

@@ -165,6 +165,8 @@ export function NotificationCenter({
                   onClick={onMarkAllAsRead}
                   className="text-blue-600 hover:text-blue-500 text-sm font-medium"
                   disabled={unreadCount === 0}
+                  aria-label={t('notifications.markAllRead')}
+                  title={t('notifications.markAllRead')}
                 >
                   <CheckCheck className="w-4 h-4" />
                 </button>
@@ -177,6 +179,8 @@ export function NotificationCenter({
                   onClick={onClearAll}
                   className="text-red-600 hover:text-red-500 text-sm font-medium"
                   disabled={notifications.length === 0}
+                  aria-label={t('notifications.clearAll')}
+                  title={t('notifications.clearAll')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -205,6 +209,8 @@ export function NotificationCenter({
               value={filter}
               onChange={(e) => setFilter(e.target.value as any)}
               className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label={t('notifications.filters.statusLabel')}
+              title={t('notifications.filters.statusLabel')}
             >
               <option value="all">{t('notifications.filters.all')}</option>
               <option value="unread">{t('notifications.filters.unread')}</option>
@@ -215,6 +221,8 @@ export function NotificationCenter({
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
               className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label={t('notifications.filters.typeLabel')}
+              title={t('notifications.filters.typeLabel')}
             >
               <option value="all">{t('notifications.types.all')}</option>
               <option value="info">{t('notifications.types.info')}</option>

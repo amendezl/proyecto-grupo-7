@@ -100,7 +100,9 @@ const resources = {
         filters: {
           all: 'Todas',
           unread: 'No leídas',
-          read: 'Leídas'
+          read: 'Leídas',
+          statusLabel: 'Filtrar por estado',
+          typeLabel: 'Filtrar por tipo'
         },
         types: {
           all: 'Todos los tipos',
@@ -250,7 +252,9 @@ const resources = {
         filters: {
           all: 'All',
           unread: 'Unread',
-          read: 'Read'
+          read: 'Read',
+          statusLabel: 'Filter by status',
+          typeLabel: 'Filter by type'
         },
         types: {
           all: 'All types',
@@ -400,7 +404,9 @@ const resources = {
         filters: {
           all: 'Todas',
           unread: 'Não lidas',
-          read: 'Lidas'
+          read: 'Lidas',
+          statusLabel: 'Filtrar por status',
+          typeLabel: 'Filtrar por tipo'
         },
         types: {
           all: 'Todos os tipos',

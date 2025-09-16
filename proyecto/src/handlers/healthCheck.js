@@ -68,63 +68,6 @@ const resetResilienceMetrics = withAuth(async (event) => {
 }, ['admin']);
 
 /**
- * Prueba los patrones de resiliencia con operaciones simuladas
- */
-const testResiliencePatterns = withAuth(async (event) => {
-    const testResults = {
-        patterns: [],
-        results: {},
-        timestamp: new Date().toISOString()
-    };
-    
-    try {
-        // Test Bulkhead High Priority Pool
-        testResults.patterns.push('bulkhead-high-priority');
-        const highPriorityResult = await resilienceManager.executeHighPriority(
-            async () => ({ test: 'high_priority', success: true }),
-            { operation: 'test_high_priority_pool' }
-        );
-        testResults.results.highPriorityPool = { success: true, data: highPriorityResult };
-        
-        // Test Bulkhead Critical Pool
-        testResults.patterns.push('bulkhead-critical');
-        const criticalResult = await resilienceManager.executeCriticalBusiness(
-            async () => ({ test: 'critical', success: true }),
-            { operation: 'test_critical_pool' }
-        );
-        testResults.results.criticalPool = { success: true, data: criticalResult };
-        
-        // Test Bulkhead Auth Pool
-        testResults.patterns.push('bulkhead-auth');
-        const authResult = await resilienceManager.executeAuthWithBulkhead(
-            async () => ({ test: 'auth', success: true }),
-            { operation: 'test_auth_pool' }
-        );
-        testResults.results.authPool = { success: true, data: authResult };
-        
-        // Test Combined Resilience (Retry + Circuit Breaker + Bulkhead)
-        testResults.patterns.push('combined-resilience');
-        const combinedResult = await resilienceManager.executeDatabase(
-            async () => ({ test: 'database', success: true }),
-            { operation: 'test_combined_resilience' }
-        );
-        testResults.results.combinedResilience = { success: true, data: combinedResult };
-        
-    } catch (error) {
-        testResults.results.error = {
-            message: error.message,
-            name: error.name,
-            timestamp: new Date().toISOString()
-        };
-    }
-    
-    return success({
-        message: 'Pruebas de patrones de resiliencia completadas',
-        ...testResults
-    });
-}, ['admin']);
-
-/**
  * Obtiene configuración actual de los patrones
  */
 const getResilienceConfiguration = withAuth(async (event) => {
@@ -153,6 +96,5 @@ module.exports = {
     getCompleteResilienceHealth,
     getBulkheadStatus,
     resetResilienceMetrics,
-    testResiliencePatterns,
     getResilienceConfiguration
 };

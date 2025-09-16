@@ -332,6 +332,8 @@ export default function ConfiguracionPage() {
                                 ? 'bg-blue-600'
                                 : 'bg-gray-200'
                             }`}
+                              aria-label={`Activar/desactivar ${label}`}
+                              title={`Activar/desactivar ${label}`}
                           >
                             <span
                               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -364,6 +366,8 @@ export default function ConfiguracionPage() {
                                 ? 'bg-blue-600'
                                 : 'bg-gray-200'
                             }`}
+                              aria-label={`Activar/desactivar ${label}`}
+                              title={`Activar/desactivar ${label}`}
                           >
                             <span
                               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -389,6 +393,8 @@ export default function ConfiguracionPage() {
                           frecuencia: e.target.value as any 
                         }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          aria-label="Frecuencia de notificaciones"
+                          title="Frecuencia de notificaciones"
                       >
                         <option value="inmediata">Inmediata</option>
                         <option value="agrupada">Agrupada (cada hora)</option>
@@ -418,6 +424,8 @@ export default function ConfiguracionPage() {
                           formatoFecha: e.target.value as any 
                         }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          aria-label="Formato de fecha"
+                          title="Formato de fecha"
                       >
                         <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                         <option value="MM/DD/YYYY">MM/DD/YYYY</option>
@@ -437,6 +445,8 @@ export default function ConfiguracionPage() {
                           formatoHora: e.target.value as any 
                         }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          aria-label="Formato de hora"
+                          title="Formato de hora"
                       >
                         <option value="12h">12 horas (AM/PM)</option>
                         <option value="24h">24 horas</option>
@@ -455,6 +465,8 @@ export default function ConfiguracionPage() {
                           zonaHoraria: e.target.value 
                         }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          aria-label="Zona horaria"
+                          title="Zona horaria"
                       >
                         <option value="America/Santiago">Santiago (GMT-3)</option>
                         <option value="America/Buenos_Aires">Buenos Aires (GMT-3)</option>
@@ -483,6 +495,8 @@ export default function ConfiguracionPage() {
                                 ? 'bg-blue-600'
                                 : 'bg-gray-200'
                             }`}
+                              aria-label={`Activar/desactivar ${label}`}
+                              title={`Activar/desactivar ${label}`}
                           >
                             <span
                               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -511,6 +525,9 @@ export default function ConfiguracionPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         min="1"
                         max="365"
+                          aria-label="Limpieza automática de logs (días)"
+                          title="Limpieza automática de logs (días)"
+                          placeholder="Días para limpieza automática"
                       />
                     </div>
                   </div>
@@ -532,16 +549,22 @@ export default function ConfiguracionPage() {
                           type="password"
                           placeholder="Contraseña actual"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="Contraseña actual"
+                            title="Contraseña actual"
                         />
                         <input
                           type="password"
                           placeholder="Nueva contraseña"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="Nueva contraseña"
+                            title="Nueva contraseña"
                         />
                         <input
                           type="password"
                           placeholder="Confirmar nueva contraseña"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            aria-label="Confirmar nueva contraseña"
+                            title="Confirmar nueva contraseña"
                         />
                         <Button variant="secondary" size="sm">
                           Cambiar contraseña

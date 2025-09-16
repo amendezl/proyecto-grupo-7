@@ -34,7 +34,7 @@ const lambdaFunctions = [
     'getZonas', 'getZona', 'createZona', 'updateZona', 'deleteZona', 'toggleZonaEstado',
     'getZonasPorPiso', 'getEspaciosZona', 'estadisticasZonas', 'getPisosDisponibles', 'getEdificiosDisponibles',
     'queueWorker', 'resilienceHealth', 'completeResilienceHealth', 'bulkheadStatus',
-    'resetResilienceMetrics', 'testResiliencePatterns', 'resilienceConfiguration',
+    'resetResilienceMetrics', 'resilienceConfiguration',
     // SNS Functions
     'sendSpaceNotification', 'sendSystemAlert', 'sendAdminNotification',
     'processSpaceNotification', 'processSystemAlert', 'processAdminNotification',

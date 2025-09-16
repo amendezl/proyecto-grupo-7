@@ -878,15 +878,6 @@ functions:
           authorizer:
             name: cognitoJwt
 
-  testResiliencePatterns:
-    handler: src/handlers/healthCheck.testResiliencePatterns
-    events:
-      - httpApi:
-          method: POST
-          path: /api/health/resilience/test
-          authorizer:
-            name: cognitoJwt
-
   resilienceConfiguration:
     handler: src/handlers/healthCheck.getResilienceConfiguration
     events:

@@ -66,7 +66,6 @@ const PERMISSIONS = {
   SYSTEM_HEALTH_CHECK: 'system:health_check',
   SYSTEM_RESILIENCE_VIEW: 'system:resilience_view',
   SYSTEM_RESILIENCE_RESET: 'system:resilience_reset',
-  SYSTEM_RESILIENCE_TEST: 'system:resilience_test',
   
   // === PERMISOS ADMINISTRATIVOS ===
   ADMIN_FULL_ACCESS: 'admin:full_access',

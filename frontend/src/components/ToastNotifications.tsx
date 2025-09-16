@@ -151,22 +151,11 @@ export function ToastNotification({
         {config.autoClose && (
           <div className="mt-3 w-full bg-gray-200 rounded-full h-1">
             <div 
-              className="bg-gray-400 h-1 rounded-full transition-all ease-linear"
-              style={{
-                width: '100%',
-                animation: `shrink ${config.autoCloseDelay}ms linear forwards`
-              }}
+              className={`bg-gray-400 h-1 rounded-full transition-all ease-linear toast-progress-bar toast-duration-${Math.min(Math.floor(config.autoCloseDelay / 1000), 10)}`}
             />
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes shrink {
-          from { width: 100%; }
-          to { width: 0%; }
-        }
-      `}</style>
     </div>
   );
 }
@@ -188,10 +177,7 @@ export function ToastContainer({ notifications, config, onClose }: ToastContaine
       {visibleNotifications.map((notification, index) => (
         <div
           key={notification.id}
-          className="pointer-events-auto"
-          style={{
-            zIndex: 50 - index, // Las más recientes encima
-          }}
+          className={`pointer-events-auto toast-container toast-z-${Math.max(50 - index, 0)}`}
         >
           <ToastNotification
             notification={notification}
