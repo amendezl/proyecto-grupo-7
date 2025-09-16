@@ -14,11 +14,10 @@ const getDashboard = withAuth(async (event) => {
     return await resilienceManager.executeDatabase(
         async () => {
             // Obtener todas las entidades necesarias
-            const [espacios, reservas, usuarios, recursos, responsables, zonas] = await Promise.all([
+            const [espacios, reservas, usuarios, responsables, zonas] = await Promise.all([
                 db.getEspacios(),
                 db.getReservas(),
                 db.getUsuarios(),
-                db.getEntities('recurso'),
                 db.getEntities('responsable'),
                 db.getEntities('zona')
             ]);
@@ -47,11 +46,6 @@ const getDashboard = withAuth(async (event) => {
                 administradores: usuarios.filter(u => u.rol === 'admin').length,
                 responsables: usuarios.filter(u => u.rol === 'responsable').length,
                 usuarios: usuarios.filter(u => u.rol === 'usuario').length
-            },
-            recursos: {
-                total: recursos.length,
-                disponibles: recursos.filter(r => r.disponible).length,
-                noDisponibles: recursos.filter(r => !r.disponible).length
             },
             responsables: {
                 total: responsables.length,
@@ -137,16 +131,6 @@ const getDashboard = withAuth(async (event) => {
                 });
             }
             
-            // Recursos no disponibles
-            const recursosNoDisponibles = recursos.filter(r => !r.disponible);
-            if (recursosNoDisponibles.length > 0) {
-                alertas.push({
-                    tipo: 'warning',
-                    mensaje: `${recursosNoDisponibles.length} recurso(s) no disponibles`,
-                    detalle: recursosNoDisponibles.map(r => r.nombre).join(', ')
-                });
-            }
-            
             // Reservas pendientes de confirmación
             const reservasPendientes = reservas.filter(r => r.estado === 'pendiente');
             if (reservasPendientes.length > 0) {
@@ -193,11 +177,10 @@ const getDashboard = withAuth(async (event) => {
  */
 const getEstadisticasDetalladas = withAuth(async (event) => {
     try {
-        const [espacios, reservas, usuarios, recursos, responsables, zonas] = await Promise.all([
+        const [espacios, reservas, usuarios, responsables, zonas] = await Promise.all([
             db.getEspacios(),
             db.getReservas(),
             db.getUsuarios(),
-            db.getEntities('recurso'),
             db.getEntities('responsable'),
             db.getEntities('zona')
         ]);
@@ -218,8 +201,7 @@ const getEstadisticasDetalladas = withAuth(async (event) => {
             resumen: {
                 totalEspacios: espacios.length,
                 totalReservas: reservas.length,
-                totalUsuarios: usuarios.length,
-                totalRecursos: recursos.length
+                totalUsuarios: usuarios.length
             },
             tendencias: {
                 reservasUltimos30Dias: reservasUltimos30Dias.length,
@@ -229,8 +211,7 @@ const getEstadisticasDetalladas = withAuth(async (event) => {
             distribucion: {
                 espaciosPorTipo: {},
                 reservasPorEstado: {},
-                usuariosPorRol: {},
-                recursosPorTipo: {}
+                usuariosPorRol: {}
             },
             ocupacion: {
                 espaciosMasReservados: {},

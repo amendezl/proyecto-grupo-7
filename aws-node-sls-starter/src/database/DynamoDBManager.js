@@ -320,7 +320,7 @@ class DynamoDBManager {
         return result.Items && result.Items.length > 0 ? result.Items[0] : null;
     }
 
-    // Métodos genéricos para otras entidades (recursos, responsables, zonas)
+    // Métodos genéricos para otras entidades (responsables, zonas)
     async createEntity(entityType, data) {
         const item = {
             PK: `${entityType.toUpperCase()}#${uuidv4()}`,

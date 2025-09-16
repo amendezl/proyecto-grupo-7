@@ -29,8 +29,6 @@ const lambdaFunctions = [
     'getReservas', 'getReserva', 'createReserva', 'updateReserva', 'cancelReserva', 'deleteReserva', 'estadisticasReservas',
     'getUsuarios', 'getUsuario', 'createUsuario', 'updateUsuario', 'deleteUsuario', 'toggleUsuarioEstado',
     'getPerfilActual', 'updatePerfilActual', 'cambiarPassword',
-    'getRecursos', 'getRecurso', 'createRecurso', 'updateRecurso', 'deleteRecurso', 'toggleDisponibilidad',
-    'getRecursosPorTipo', 'estadisticasRecursos', 'buscarRecursos',
     'getResponsables', 'getResponsable', 'createResponsable', 'updateResponsable', 'deleteResponsable',
     'toggleResponsableEstado', 'getResponsablesPorArea', 'getEspaciosAsignados', 'asignarEspacio', 'estadisticasResponsables',
     'getZonas', 'getZona', 'createZona', 'updateZona', 'deleteZona', 'toggleZonaEstado',
@@ -66,7 +64,7 @@ setTimeout(() => {
 setTimeout(() => {
     console.log('\n🎯 URLs de APIs generadas:');
     console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/espacios');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/recursos');
+    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/responsables');
     console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/responsables');
     console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/zonas');
     console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/auth/login');
@@ -77,7 +75,7 @@ setTimeout(() => {
 }, 4000);
 
 setTimeout(() => {
-    console.log('\n📊 Recursos creados en AWS:');
+    console.log('\n📊 Servicios creados en AWS:');
     console.log('   • Stack CloudFormation: sistema-gestion-espacios-dev');
     console.log('   • DynamoDB Table: sistema-gestion-espacios-dev-table');
     console.log('   • Cognito User Pool: sistema-gestion-espacios-dev-users');
@@ -93,7 +91,7 @@ setTimeout(() => {
     console.log('\n🔍 Patrones de Resiliencia Activos:');
     console.log('   ✅ Retry Pattern: Reintentos exponenciales');
     console.log('   ✅ Circuit Breaker: Prevención de fallos en cascada');
-    console.log('   ✅ Bulkhead: Aislamiento de recursos (6 pools)');
+    console.log('   ✅ Bulkhead: Aislamiento de operaciones (6 pools)');
 }, 6000);
 
 setTimeout(() => {
@@ -101,7 +99,7 @@ setTimeout(() => {
     console.log('   📚 Escuelas (aulas, laboratorios, bibliotecas)');
     console.log('   🚗 Estacionamientos (espacios, reservas, control)');
     console.log('   🏢 Oficinas (salas de reunión, espacios de trabajo)');
-    console.log('   🎪 Eventos (espacios, recursos, gestión)');
+    console.log('   🎪 Eventos (espacios, usuarios, gestión)');
     console.log('   🏭 Cualquier gestión de espacios empresarial');
 }, 7000);
 

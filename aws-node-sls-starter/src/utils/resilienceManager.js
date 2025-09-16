@@ -4,7 +4,7 @@
  * Combina los patrones Retry, Circuit Breaker y Bulkhead para máxima estabilidad:
  * - Retry para errores transitorios
  * - Circuit Breaker para prevenir cascadas de fallos
- * - Bulkhead para aislamiento de recursos por tipo de operación
+ * - Bulkhead para aislamiento de operaciones por tipo
  * - Configuraciones específicas para servicios críticos del negocio
  * - Monitoreo y métricas unificadas
  * - Fallbacks inteligentes para operaciones importantes

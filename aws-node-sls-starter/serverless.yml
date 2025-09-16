@@ -64,7 +64,33 @@ provider:
     httpApi: true
   tracing:
     lambda: true
+  timeout: 29
+  memorySize: 512
+  architecture: arm64
   httpApi:
+    cors:
+      allowOrigins:
+        - '*'
+      allowHeaders:
+        - Content-Type
+        - Authorization
+        - X-Api-Key
+        - X-Requested-With
+        - Accept
+        - Origin
+        - Access-Control-Request-Method
+        - Access-Control-Request-Headers
+        - X-User-Agent
+        - User-Agent
+      allowMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - HEAD
+      allowCredentials: false
+      maxAge: 86400
     authorizers:
       cognitoJwt:
         type: jwt
@@ -77,9 +103,11 @@ provider:
           - { Ref: CognitoUserPoolClient }
 
 functions:
-  # Autenticación con Cognito
+  # Autenticación con Cognito - Optimizado para móviles
   login:
     handler: src/handlers/cognitoAuth.login
+    timeout: 10
+    memorySize: 256
     events:
       - httpApi:
           method: POST
@@ -87,6 +115,8 @@ functions:
 
   refresh:
     handler: src/handlers/cognitoAuth.refresh
+    timeout: 8
+    memorySize: 256
     events:
       - httpApi:
           method: POST
@@ -94,6 +124,8 @@ functions:
 
   me:
     handler: src/handlers/cognitoAuth.me
+    timeout: 5
+    memorySize: 256
     events:
       - httpApi:
           method: GET
@@ -208,9 +240,11 @@ functions:
           authorizer:
             name: cognitoJwt
 
-  # Dashboard con protección Cognito
+  # Dashboard con protección Cognito - Optimizado para móviles
   dashboard:
     handler: src/handlers/dashboard.getDashboard
+    timeout: 15
+    memorySize: 1024
     events:
       - httpApi:
           method: GET
@@ -220,6 +254,8 @@ functions:
 
   estadisticasDetalladas:
     handler: src/handlers/dashboard.getEstadisticasDetalladas
+    timeout: 20
+    memorySize: 1024
     events:
       - httpApi:
           method: GET
@@ -227,9 +263,11 @@ functions:
           authorizer:
             name: cognitoJwt
 
-  # Espacios con protección Cognito
+  # Espacios con protección Cognito - Optimizado para móviles
   getEspacios:
     handler: src/handlers/espacios.getEspacios
+    timeout: 12
+    memorySize: 512
     events:
       - httpApi:
           method: GET
@@ -428,88 +466,6 @@ functions:
           authorizer:
             name: cognitoJwt
 
-  # Recursos con protección Cognito
-  getRecursos:
-    handler: src/handlers/recursos.getRecursos
-    events:
-      - httpApi:
-          method: GET
-          path: /api/recursos
-          authorizer:
-            name: cognitoJwt
-
-  getRecurso:
-    handler: src/handlers/recursos.getRecurso
-    events:
-      - httpApi:
-          method: GET
-          path: /api/recursos/{id}
-          authorizer:
-            name: cognitoJwt
-
-  createRecurso:
-    handler: src/handlers/recursos.createRecurso
-    events:
-      - httpApi:
-          method: POST
-          path: /api/recursos
-          authorizer:
-            name: cognitoJwt
-
-  updateRecurso:
-    handler: src/handlers/recursos.updateRecurso
-    events:
-      - httpApi:
-          method: PUT
-          path: /api/recursos/{id}
-          authorizer:
-            name: cognitoJwt
-
-  deleteRecurso:
-    handler: src/handlers/recursos.deleteRecurso
-    events:
-      - httpApi:
-          method: DELETE
-          path: /api/recursos/{id}
-          authorizer:
-            name: cognitoJwt
-
-  toggleDisponibilidad:
-    handler: src/handlers/recursos.toggleDisponibilidad
-    events:
-      - httpApi:
-          method: PATCH
-          path: /api/recursos/{id}/disponibilidad
-          authorizer:
-            name: cognitoJwt
-
-  getRecursosPorTipo:
-    handler: src/handlers/recursos.getRecursosPorTipo
-    events:
-      - httpApi:
-          method: GET
-          path: /api/recursos/tipo/{tipo}
-          authorizer:
-            name: cognitoJwt
-
-  estadisticasRecursos:
-    handler: src/handlers/recursos.getEstadisticasRecursos
-    events:
-      - httpApi:
-          method: GET
-          path: /api/recursos/estadisticas
-          authorizer:
-            name: cognitoJwt
-
-  buscarRecursos:
-    handler: src/handlers/recursos.buscarRecursos
-    events:
-      - httpApi:
-          method: GET
-          path: /api/recursos/buscar
-          authorizer:
-            name: cognitoJwt
-
   # Responsables con protección Cognito
   getResponsables:
     handler: src/handlers/responsables.getResponsables
@@ -698,6 +654,144 @@ functions:
       - httpApi:
           method: GET
           path: /api/zonas/edificios
+          authorizer:
+            name: cognitoJwt
+
+  # === ENDPOINTS MÓVILES OPTIMIZADOS ===
+  
+  # Dashboard móvil optimizado
+  getMobileDashboard:
+    handler: src/handlers/mobile.getMobileDashboard
+    timeout: 8
+    memorySize: 512
+    events:
+      - httpApi:
+          method: GET
+          path: /api/mobile/dashboard
+          authorizer:
+            name: cognitoJwt
+
+  # Espacios optimizados para móvil
+  getMobileSpaces:
+    handler: src/handlers/mobile.getMobileSpaces
+    timeout: 10
+    memorySize: 512
+    events:
+      - httpApi:
+          method: GET
+          path: /api/mobile/spaces
+          authorizer:
+            name: cognitoJwt
+
+  # Reservas del usuario optimizadas para móvil
+  getMobileReservations:
+    handler: src/handlers/mobile.getMobileReservations
+    timeout: 8
+    memorySize: 256
+    events:
+      - httpApi:
+          method: GET
+          path: /api/mobile/reservations
+          authorizer:
+            name: cognitoJwt
+
+  # Crear reserva optimizada para móvil
+  createMobileReservation:
+    handler: src/handlers/mobile.createMobileReservation
+    timeout: 12
+    memorySize: 512
+    events:
+      - httpApi:
+          method: POST
+          path: /api/mobile/reservations
+          authorizer:
+            name: cognitoJwt
+
+  # Tipos de espacios para filtros móviles
+  getSpaceTypes:
+    handler: src/handlers/mobile.getSpaceTypes
+    timeout: 5
+    memorySize: 256
+    events:
+      - httpApi:
+          method: GET
+          path: /api/mobile/space-types
+          authorizer:
+            name: cognitoJwt
+
+  # === ENDPOINTS ESPECÍFICOS PARA MODO VERTICAL (SIN SCROLL) ===
+  
+  # Dashboard ultra-compacto para modo vertical
+  getVerticalDashboard:
+    handler: src/handlers/vertical.getVerticalDashboard
+    timeout: 6
+    memorySize: 256
+    events:
+      - httpApi:
+          method: GET
+          path: /api/vertical/dashboard
+          authorizer:
+            name: cognitoJwt
+
+  # Espacios paginados para modo vertical (sin scroll)
+  getVerticalSpaces:
+    handler: src/handlers/vertical.getVerticalSpaces
+    timeout: 8
+    memorySize: 256
+    events:
+      - httpApi:
+          method: GET
+          path: /api/vertical/spaces
+          authorizer:
+            name: cognitoJwt
+
+  # Crear reserva optimizada para modo vertical
+  createVerticalReservation:
+    handler: src/handlers/vertical.createVerticalReservation
+    timeout: 10
+    memorySize: 256
+    events:
+      - httpApi:
+          method: POST
+          path: /api/vertical/reservations
+          authorizer:
+            name: cognitoJwt
+
+  # === ENDPOINTS ESPECÍFICOS PARA MODO HORIZONTAL (SIN SCROLL) ===
+  
+  # Dashboard en columnas para modo horizontal
+  getHorizontalDashboard:
+    handler: src/handlers/horizontal.getHorizontalDashboard
+    timeout: 10
+    memorySize: 256
+    events:
+      - httpApi:
+          method: GET
+          path: /api/horizontal/dashboard
+          authorizer:
+            name: cognitoJwt
+
+  # Grid de espacios para modo horizontal (2-3 columnas)
+  getHorizontalSpaces:
+    handler: src/handlers/horizontal.getHorizontalSpaces
+    timeout: 8
+    memorySize: 256
+    events:
+      - httpApi:
+          method: GET
+          path: /api/horizontal/spaces
+          authorizer:
+            name: cognitoJwt
+
+  # Crear reserva con layout horizontal
+  createHorizontalReservation:
+    handler: src/handlers/horizontal.createHorizontalReservation
+    timeout: 10
+    memorySize: 256
+    events:
+      - httpApi:
+          method: POST
+          path: /api/horizontal/reservations
           authorizer:
             name: cognitoJwt
 
@@ -985,6 +1079,65 @@ resources:
       Properties:
         TopicName: ${self:service}-${sls:stage}-admin-notifications
         DisplayName: Admin Notifications
+
+    # === CLOUDWATCH ALARMS PARA MONITOREO MÓVIL ===
+    
+    # Alarma para errores de autenticación móvil
+    MobileAuthErrorAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-mobile-auth-errors
+        AlarmDescription: Demasiados errores de autenticación desde móviles
+        MetricName: Errors
+        Namespace: AWS/Lambda
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 5
+        ComparisonOperator: GreaterThanThreshold
+        AlarmActions:
+          - { Ref: SystemAlertsTopic }
+        Dimensions:
+          - Name: FunctionName
+            Value: ${self:service}-${sls:stage}-login
+
+    # Alarma para latencia alta en endpoints móviles
+    MobileHighLatencyAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-mobile-high-latency
+        AlarmDescription: Latencia alta en endpoints móviles
+        MetricName: Duration
+        Namespace: AWS/Lambda
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 8000  # 8 segundos
+        ComparisonOperator: GreaterThanThreshold
+        AlarmActions:
+          - { Ref: SystemAlertsTopic }
+        Dimensions:
+          - Name: FunctionName
+            Value: ${self:service}-${sls:stage}-getMobileDashboard
+
+    # Alarma para fallos en dashboard móvil
+    MobileDashboardErrorAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-mobile-dashboard-errors
+        AlarmDescription: Errores en dashboard móvil
+        MetricName: Errors
+        Namespace: AWS/Lambda
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 3
+        ComparisonOperator: GreaterThanThreshold
+        AlarmActions:
+          - { Ref: SystemAlertsTopic }
+        Dimensions:
+          - Name: FunctionName
+            Value: ${self:service}-${sls:stage}-getMobileDashboard
         
   Outputs:
     QueueUrl:

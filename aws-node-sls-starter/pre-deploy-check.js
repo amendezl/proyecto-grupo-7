@@ -61,7 +61,7 @@ function main() {
         ['serverless.yml', 'Configuración de Serverless'],
         ['package.json', 'Configuración de NPM'],
         ['src/handlers/espacios.js', 'Handler de Espacios'],
-        ['src/handlers/recursos.js', 'Handler de Recursos'],
+        ['src/handlers/responsables.js', 'Handler de Responsables'],
         ['src/handlers/responsables.js', 'Handler de Responsables'],
         ['src/handlers/zonas.js', 'Handler de Zonas'],
         ['src/handlers/cognitoAuth.js', 'Handler de Autenticación'],

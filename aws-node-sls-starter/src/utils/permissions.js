@@ -36,14 +36,6 @@ const PERMISSIONS = {
   USUARIOS_READ_PROFILE: 'usuarios:read_profile',
   USUARIOS_UPDATE_PROFILE: 'usuarios:update_profile',
   
-  // === PERMISOS DE RECURSOS ===
-  RECURSOS_READ: 'recursos:read',
-  RECURSOS_CREATE: 'recursos:create',
-  RECURSOS_UPDATE: 'recursos:update',
-  RECURSOS_DELETE: 'recursos:delete',
-  RECURSOS_TOGGLE_AVAILABILITY: 'recursos:toggle_availability',
-  RECURSOS_STATS: 'recursos:stats',
-  
   // === PERMISOS DE RESPONSABLES ===
   RESPONSABLES_READ: 'responsables:read',
   RESPONSABLES_CREATE: 'responsables:create',
@@ -100,7 +92,6 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.USUARIOS_READ_PROFILE,
     PERMISSIONS.USUARIOS_UPDATE_PROFILE,
     PERMISSIONS.USUARIOS_CHANGE_PASSWORD,
-    PERMISSIONS.RECURSOS_READ,
     PERMISSIONS.ZONAS_READ,
     PERMISSIONS.NOTIFICATIONS_SUBSCRIBE
   ],
@@ -118,8 +109,6 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.ESPACIOS_STATS,
     PERMISSIONS.RESERVAS_READ_ALL, // Todas las reservas de sus espacios
     PERMISSIONS.RESERVAS_STATS,
-    PERMISSIONS.RECURSOS_UPDATE, // Recursos de sus espacios
-    PERMISSIONS.RECURSOS_TOGGLE_AVAILABILITY,
     PERMISSIONS.DASHBOARD_VIEW,
     PERMISSIONS.NOTIFICATIONS_SEND_SPACE
   ],
@@ -154,14 +143,6 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.USUARIOS_CHANGE_PASSWORD,
     PERMISSIONS.USUARIOS_READ_PROFILE,
     PERMISSIONS.USUARIOS_UPDATE_PROFILE,
-    
-    // Todos los permisos de recursos
-    PERMISSIONS.RECURSOS_READ,
-    PERMISSIONS.RECURSOS_CREATE,
-    PERMISSIONS.RECURSOS_UPDATE,
-    PERMISSIONS.RECURSOS_DELETE,
-    PERMISSIONS.RECURSOS_TOGGLE_AVAILABILITY,
-    PERMISSIONS.RECURSOS_STATS,
     
     // Todos los permisos de responsables
     PERMISSIONS.RESPONSABLES_READ,
@@ -282,8 +263,8 @@ const requirePermissions = (requiredPermissions) => {
 };
 
 /**
- * Verifica si un usuario puede acceder a un recurso específico
- * Implementa lógica adicional para recursos propios vs. todos los recursos
+ * Verifica si un usuario puede acceder a un espacio/reserva específico
+ * Implementa lógica adicional para ownership vs. acceso global
  */
 const canAccessResource = (user, permission, resourceOwnerId = null) => {
   // Verificar permiso básico
@@ -291,9 +272,9 @@ const canAccessResource = (user, permission, resourceOwnerId = null) => {
     return false;
   }
   
-  // Si es un recurso específico de usuario, verificar ownership
+  // Si es un espacio/reserva específico de usuario, verificar ownership
   if (resourceOwnerId && user.id !== resourceOwnerId) {
-    // Solo admins pueden acceder a recursos de otros usuarios
+    // Solo admins pueden acceder a espacios/reservas de otros usuarios
     return hasPermission(user, PERMISSIONS.ADMIN_FULL_ACCESS);
   }
   

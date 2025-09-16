@@ -218,24 +218,6 @@ const notifySpaceDeleted = async (spaceId, spaceName, userId) => {
 };
 
 /**
- * Notify resource creation
- */
-const notifyResourceCreated = async (resourceData, userId) => {
-  return sendSpaceNotificationAsync({
-    actionType: 'resource_created',
-    spaceId: resourceData.espacio_id || 'general',
-    subject: `Nuevo recurso agregado: ${resourceData.nombre}`,
-    message: `Se ha agregado el recurso '${resourceData.nombre}' de tipo ${resourceData.tipo}`,
-    userId,
-    metadata: {
-      resourceType: resourceData.tipo,
-      resourceId: resourceData.id,
-      spaceId: resourceData.espacio_id
-    }
-  });
-};
-
-/**
  * Notify system errors
  */
 const notifySystemError = async (error, component, context = {}) => {
@@ -298,7 +280,6 @@ module.exports = {
   notifySpaceCreated,
   notifySpaceUpdated,
   notifySpaceDeleted,
-  notifyResourceCreated,
   notifySystemError,
   notifyCapacityWarning,
   notifyAdminOperation,

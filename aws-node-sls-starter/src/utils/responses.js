@@ -47,7 +47,7 @@ const forbidden = (message = 'Acceso prohibido') => {
     return error(message, 403);
 };
 
-const notFound = (message = 'Recurso no encontrado') => {
+const notFound = (message = 'Elemento no encontrado') => {
     return error(message, 404);
 };
 
