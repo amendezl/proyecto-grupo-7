@@ -1,100 +1,124 @@
-// Configuración de la API backend
+// Configuración de la API backend para producción
 export const API_CONFIG = {
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://your-api-gateway-url.amazonaws.com/dev',
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    'X-Api-Version': '1.0',
   },
 };
 
-// Endpoints del sistema
+// Endpoints del sistema para producción
 export const ENDPOINTS = {
   // Autenticación
   AUTH: {
-    LOGIN: '/login',
-    REFRESH: '/refresh', 
-    LOGOUT: '/logout',
-    REGISTER: '/register',
-    ME: '/me',
+    LOGIN: '/api/auth/login',
+    REFRESH: '/api/auth/refresh', 
+    LOGOUT: '/api/auth/logout',
+    REGISTER: '/api/auth/register',
+    ME: '/api/me',
   },
   
   // Dashboard
   DASHBOARD: {
-    MAIN: '/dashboard',
-    MOBILE: '/mobile/dashboard',
-    VERTICAL: '/vertical/dashboard',
-    HORIZONTAL: '/horizontal/dashboard',
-    STATS: '/estadisticas-detalladas',
+    MAIN: '/api/dashboard',
+    MOBILE: '/api/mobile/dashboard',
+    VERTICAL: '/api/vertical/dashboard',
+    HORIZONTAL: '/api/horizontal/dashboard',
+    STATS: '/api/dashboard/estadisticas',
   },
   
   // Gestión de entidades
   ESPACIOS: {
-    LIST: '/espacios',
-    GET: (id: string) => `/espacios/${id}`,
-    CREATE: '/espacios',
-    UPDATE: (id: string) => `/espacios/${id}`,
-    DELETE: (id: string) => `/espacios/${id}`,
+    LIST: '/api/espacios',
+    GET: (id: string) => `/api/espacios/${id}`,
+    CREATE: '/api/espacios',
+    UPDATE: (id: string) => `/api/espacios/${id}`,
+    DELETE: (id: string) => `/api/espacios/${id}`,
+    STATS: '/api/espacios/estadisticas',
   },
   
   RESERVAS: {
-    LIST: '/reservas',
-    GET: (id: string) => `/reservas/${id}`,
-    CREATE: '/reservas',
-    UPDATE: (id: string) => `/reservas/${id}`,
-    DELETE: (id: string) => `/reservas/${id}`,
-    MY_RESERVAS: '/mis-reservas',
+    LIST: '/api/reservas',
+    GET: (id: string) => `/api/reservas/${id}`,
+    CREATE: '/api/reservas',
+    UPDATE: (id: string) => `/api/reservas/${id}`,
+    DELETE: (id: string) => `/api/reservas/${id}`,
+    CANCEL: (id: string) => `/api/reservas/${id}/cancel`,
+    STATS: '/api/reservas/estadisticas',
   },
   
   USUARIOS: {
-    LIST: '/usuarios',
-    GET: (id: string) => `/usuarios/${id}`,
-    CREATE: '/usuarios',
-    UPDATE: (id: string) => `/usuarios/${id}`,
-    DELETE: (id: string) => `/usuarios/${id}`,
+    LIST: '/api/usuarios',
+    GET: (id: string) => `/api/usuarios/${id}`,
+    CREATE: '/api/usuarios',
+    UPDATE: (id: string) => `/api/usuarios/${id}`,
+    DELETE: (id: string) => `/api/usuarios/${id}`,
+    TOGGLE: (id: string) => `/api/usuarios/${id}/toggle`,
+    PROFILE: '/api/usuarios/perfil',
+    CHANGE_PASSWORD: '/api/usuarios/cambiar-password',
   },
   
   RESPONSABLES: {
-    LIST: '/responsables',
-    GET: (id: string) => `/responsables/${id}`,
-    CREATE: '/responsables',
-    UPDATE: (id: string) => `/responsables/${id}`,
-    DELETE: (id: string) => `/responsables/${id}`,
+    LIST: '/api/responsables',
+    GET: (id: string) => `/api/responsables/${id}`,
+    CREATE: '/api/responsables',
+    UPDATE: (id: string) => `/api/responsables/${id}`,
+    DELETE: (id: string) => `/api/responsables/${id}`,
+    TOGGLE: (id: string) => `/api/responsables/${id}/toggle`,
+    BY_AREA: (area: string) => `/api/responsables/area/${area}`,
+    ASSIGNED_SPACES: (id: string) => `/api/responsables/${id}/espacios`,
+    ASSIGN_SPACE: (id: string) => `/api/responsables/${id}/asignar-espacio`,
+    STATS: '/api/responsables/estadisticas',
   },
   
   ZONAS: {
-    LIST: '/zonas',
-    GET: (id: string) => `/zonas/${id}`,
-    CREATE: '/zonas',
-    UPDATE: (id: string) => `/zonas/${id}`,
-    DELETE: (id: string) => `/zonas/${id}`,
+    LIST: '/api/zonas',
+    GET: (id: string) => `/api/zonas/${id}`,
+    CREATE: '/api/zonas',
+    UPDATE: (id: string) => `/api/zonas/${id}`,
+    DELETE: (id: string) => `/api/zonas/${id}`,
+    TOGGLE: (id: string) => `/api/zonas/${id}/toggle`,
+    BY_FLOOR: (floor: number) => `/api/zonas/piso/${floor}`,
+    SPACES: (id: string) => `/api/zonas/${id}/espacios`,
+    STATS: '/api/zonas/estadisticas',
+    FLOORS: '/api/pisos-disponibles',
+    BUILDINGS: '/api/edificios-disponibles',
   },
   
-  // Personalización
+  // Personalización SaaS
   PERSONALIZATION: {
-    GLOBAL_CONFIG: '/client-global-config',
-    USER_CONFIG: '/user-specific-config', 
-    COMPLETE_CONFIG: '/complete-user-config',
-    INDUSTRY_CONFIG: '/industry-config',
-    EXPORT_CONFIG: '/export-client-config',
-    LOAD_EXTERNAL: '/load-external-config',
-    CLEAR_CACHE: '/clear-configuration-cache',
+    GLOBAL_CONFIG: (clientId: string) => `/api/personalization/client/${clientId}/global`,
+    USER_CONFIG: (clientId: string, userId: string) => `/api/personalization/client/${clientId}/user/${userId}`,
+    COMPLETE_CONFIG: (clientId: string, userId: string) => `/api/personalization/client/${clientId}/user/${userId}/complete`,
+    INDUSTRY_CONFIG: (industry: string) => `/api/personalization/industries/${industry}/config`,
+    EXPORT_CONFIG: (clientId: string) => `/api/personalization/client/${clientId}/export`,
+    LOAD_EXTERNAL: (clientId: string) => `/api/personalization/client/${clientId}/load-external`,
+    CLEAR_CACHE: '/api/personalization/cache/clear',
   },
   
   // Notificaciones SNS
   NOTIFICATIONS: {
-    SEND_SPACE: '/send-space-notification',
-    SEND_SYSTEM: '/send-system-alert',
-    SEND_ADMIN: '/send-admin-notification',
+    SEND_SPACE: '/api/notifications/space',
+    SEND_SYSTEM: '/api/notifications/system',
+    SEND_ADMIN: '/api/notifications/admin',
+    SUBSCRIBE: '/api/notifications/subscribe',
+    LIST_SUBSCRIPTIONS: '/api/notifications/subscriptions',
   },
   
   // Health Check y Resiliencia
   HEALTH: {
-    RESILIENCE: '/resilience-health',
-    COMPLETE: '/complete-resilience-health',
-    BULKHEAD: '/bulkhead-status',
-    RESET: '/reset-resilience-metrics',
-    TEST: '/test-resilience-patterns',
-    CONFIG: '/resilience-configuration',
+    RESILIENCE: '/api/health/resilience',
+    COMPLETE: '/api/health/complete-resilience',
+    BULKHEAD: '/api/health/bulkhead-status',
+    RESET: '/api/health/reset-resilience-metrics',
+    TEST: '/api/health/test-resilience-patterns',
+    CONFIG: '/api/health/resilience-configuration',
+  },
+  
+  // WebSocket para producción
+  WEBSOCKET: {
+    ENDPOINT: process.env.NEXT_PUBLIC_WS_URL,
   },
 } as const;
 

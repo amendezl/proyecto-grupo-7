@@ -1,6 +1,37 @@
 service: sistema-gestion-espacios
 frameworkVersion: '3'
 
+# Configuración para despliegue unificado (backend + frontend)
+custom:
+  # Configuración para el despliegue del frontend
+  frontendDistPath: ../frontend/out
+  frontendBucketName: ${self:service}-frontend-${sls:stage}
+  # Para el plugin s3-sync
+  s3Sync:
+    - bucketName: ${self:custom.frontendBucketName}
+      localDir: ${self:custom.frontendDistPath}
+      acl: public-read
+      followSymlinks: true
+      defaultContentType: text/html
+      params:
+        - index.html:
+            CacheControl: 'no-cache'
+        - "*.js":
+            CacheControl: 'public, max-age=31536000'
+        - "*.css":
+            CacheControl: 'public, max-age=31536000'
+  # Para el plugin CloudFront
+  cloudfrontInvalidate:
+    distributionIdKey: 'WebsiteDistributionId'
+    items:
+      - '/*'
+
+# Plugins necesarios para el despliegue unificado
+plugins:
+  - serverless-s3-sync
+  - serverless-cloudfront-invalidate
+  - serverless-dotenv-plugin
+
 provider:
   name: aws
   runtime: nodejs20.x
@@ -97,29 +128,7 @@ provider:
   memorySize: 512
   architecture: arm64
   httpApi:
-    cors:
-      allowOrigins:
-        - '*'
-      allowHeaders:
-        - Content-Type
-        - Authorization
-        - X-Api-Key
-        - X-Requested-With
-        - Accept
-        - Origin
-        - Access-Control-Request-Method
-        - Access-Control-Request-Headers
-        - X-User-Agent
-        - User-Agent
-      allowMethods:
-        - GET
-        - POST
-        - PUT
-        - DELETE
-        - OPTIONS
-        - HEAD
-      allowCredentials: false
-      maxAge: 86400
+    cors: true
     authorizers:
       cognitoJwt:
         type: jwt
@@ -1103,7 +1112,7 @@ resources:
     WebSocketConnectionsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:service}-${sls:stage}-connections
+        TableName: ${self:provider.environment.CONNECTIONS_TABLE}
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
           - AttributeName: connectionId
@@ -1111,6 +1120,74 @@ resources:
         KeySchema:
           - AttributeName: connectionId
             KeyType: HASH
+            
+    # === FRONTEND RESOURCES ===
+    
+    # S3 bucket para el frontend
+    WebsiteBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.frontendBucketName}
+        AccessControl: PublicRead
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: 404.html
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ['*']
+              AllowedMethods: [GET]
+              AllowedOrigins: ['*']
+              MaxAge: 3000
+    
+    # Política de bucket para permitir acceso público
+    WebsiteBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref WebsiteBucket
+        PolicyDocument:
+          Statement:
+            - Sid: PublicReadGetObject
+              Effect: Allow
+              Principal: '*'
+              Action:
+                - s3:GetObject
+              Resource: !Sub "arn:aws:s3:::${WebsiteBucket}/*"
+    
+    # CloudFront para CDN del frontend
+    WebsiteCloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Origins:
+            - DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+              Id: S3Origin
+              CustomOriginConfig:
+                HTTPPort: 80
+                HTTPSPort: 443
+                OriginProtocolPolicy: http-only
+          Enabled: true
+          DefaultRootObject: index.html
+          DefaultCacheBehavior:
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            TargetOriginId: S3Origin
+            ForwardedValues:
+              QueryString: true
+              Cookies:
+                Forward: none
+            ViewerProtocolPolicy: redirect-to-https
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+          CustomErrorResponses:
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
         TimeToLiveSpecification:
           AttributeName: ttl
           Enabled: true
@@ -1322,3 +1399,13 @@ resources:
     WebSocketConnectionsTableArn:
       Value: { Fn::GetAtt: [ WebSocketConnectionsTable, Arn ] }
       Description: "WebSocket connections table ARN"
+    # Frontend deployment outputs
+    WebsiteBucketName:
+      Value: { Ref: WebsiteBucket }
+      Description: "S3 bucket for static website"
+    WebsiteDistributionId:
+      Value: { Ref: WebsiteCloudFrontDistribution }
+      Description: "CloudFront distribution ID"
+    WebsiteURL:
+      Value: { "Fn::GetAtt": [ WebsiteCloudFrontDistribution, DomainName ] }
+      Description: "URL of the deployed frontend website"

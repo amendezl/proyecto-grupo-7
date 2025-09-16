@@ -18,7 +18,11 @@ class RealtimeClient {
   private listeners: Map<string, Function[]> = new Map();
 
   connect() {
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'wss://your-websocket-api.amazonaws.com/dev';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    if (!wsUrl) {
+      console.error('Error: NEXT_PUBLIC_WS_URL no está definido');
+      return;
+    }
     
     this.ws = new WebSocket(wsUrl);
     

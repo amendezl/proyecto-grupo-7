@@ -4,14 +4,17 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bell, Search, Settings, User, AlertTriangle, LogOut } from 'lucide-react';
 import { designSystem } from '@/lib/design-system';
+import LanguageSelector from '@/components/LanguageSelector';
 
 interface HeaderProps {
   urgentMode?: boolean;
 }
 
 export default function Header({ urgentMode = false }: HeaderProps) {
+  const { t } = useTranslation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -45,10 +48,10 @@ export default function Header({ urgentMode = false }: HeaderProps) {
                 text-lg font-semibold
                 ${urgentMode ? 'text-white' : 'text-gray-900'}
               `}>
-                Sistema de Espacios
+                {t('nav.system')}
               </h1>
               {urgentMode && (
-                <p className="text-xs text-red-100">MODO URGENTE ACTIVO</p>
+                <p className="text-xs text-red-100">{t('nav.urgentMode')}</p>
               )}
             </div>
           </div>
@@ -64,7 +67,7 @@ export default function Header({ urgentMode = false }: HeaderProps) {
             <input
               type="text"
               aria-label="Búsqueda rápida en el sistema"
-              placeholder="Buscar espacio, reserva, usuario..."
+              placeholder={t('nav.searchPlaceholder')}
               className={`
                 w-full pl-10 pr-4 py-2 rounded-lg border text-sm
                 ${urgentMode 
@@ -79,6 +82,9 @@ export default function Header({ urgentMode = false }: HeaderProps) {
 
         {/* Controles del usuario */}
         <div className="flex items-center space-x-3">
+          {/* Selector de idioma */}
+          <LanguageSelector variant="compact" />
+
           {/* Botón de urgencia */}
           {!urgentMode && (
             <button 
@@ -112,7 +118,7 @@ export default function Header({ urgentMode = false }: HeaderProps) {
             {showNotifications && (
               <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border max-h-96 overflow-y-auto">
                 <div className="p-4 border-b border-gray-100">
-                  <h3 className="font-semibold text-gray-900">Notificaciones</h3>
+                  <h3 className="font-semibold text-gray-900">{t('nav.notifications')}</h3>
                 </div>
                 <div className="p-2">
                   <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
@@ -167,16 +173,16 @@ export default function Header({ urgentMode = false }: HeaderProps) {
                 <div className="p-2">
                   <button className="w-full text-left p-3 hover:bg-gray-50 rounded-lg flex items-center space-x-2">
                     <User className="w-4 h-4" />
-                    <span className="text-sm">Mi perfil</span>
+                    <span className="text-sm">{t('nav.profile')}</span>
                   </button>
                   <button className="w-full text-left p-3 hover:bg-gray-50 rounded-lg flex items-center space-x-2">
                     <Settings className="w-4 h-4" />
-                    <span className="text-sm">Configuración</span>
+                    <span className="text-sm">{t('nav.settings')}</span>
                   </button>
                   <hr className="my-1" />
                   <button className="w-full text-left p-3 hover:bg-gray-50 rounded-lg flex items-center space-x-2 text-red-600">
                     <LogOut className="w-4 h-4" />
-                    <span className="text-sm">Cerrar sesión</span>
+                    <span className="text-sm">{t('nav.logout')}</span>
                   </button>
                 </div>
               </div>

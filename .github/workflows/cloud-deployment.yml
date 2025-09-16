@@ -1,0 +1,115 @@
+# GitHub Actions for AWS Cloud Deployment
+name: "Unified Node.js Serverless Deployment"
+
+on:
+  push:
+    branches: [main, production]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+jobs:
+  validate:
+    name: Validate Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+      - name: Run lint
+        working-directory: ./frontend
+        run: npm run lint
+
+  deploy:
+    name: Unified Serverless Deployment
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'prod') }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      # Instalación y preparación del frontend
+      - name: Install and build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          cd ..
+          mkdir -p ./proyecto/assets/frontend
+          cp -r ./frontend/out/* ./proyecto/assets/frontend/
+          
+      # Instalar dependencias de serverless
+      - name: Install Serverless dependencies
+        working-directory: ./proyecto
+        run: |
+          npm ci
+          npm install -g serverless
+          
+      # Preparar variables de entorno
+      - name: Setup environment variables
+        working-directory: ./proyecto
+        run: |
+          # Definir stage basado en el branch o el input manual
+          STAGE="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'prod') }}"
+          
+          # Crear archivo .env para serverless
+          echo "STAGE=$STAGE" > .env
+          echo "AWS_REGION=us-east-1" >> .env
+          echo "JWT_SECRET=default-$STAGE-jwt-secret-replace-in-production" >> .env
+          
+      # Ejecutar despliegue unificado con serverless
+      - name: Execute unified deployment
+        working-directory: ./proyecto
+        run: |
+          STAGE="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'prod') }}"
+          npx serverless deploy --stage $STAGE --verbose
+          
+      # Mostrar información del despliegue  
+      - name: Show deployment info
+        working-directory: ./proyecto
+        run: |
+          STAGE="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'prod') }}"
+          echo "🚀 Despliegue completado con éxito"
+          echo "🌐 URLs del servicio:"
+          npx serverless info --stage $STAGE
+          
+  notify:
+    name: Notify Deployment Status
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Deployment successful to ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'prod') }}"
+      
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed to ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'prod') }}"
+

@@ -478,7 +478,14 @@ class ApiClient {
       this.ws.close();
     }
 
-    const wsUrl = API_CONFIG.baseURL.replace('http', 'ws') + '/ws';
+    // Usar la URL de WebSocket desde las variables de entorno
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    
+    if (!wsUrl) {
+      console.error('Error: NEXT_PUBLIC_WS_URL no está definida');
+      return;
+    }
+    
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
