@@ -9,6 +9,59 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
+// Tipos de datos del dominio
+export interface Espacio {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  capacidad: number;
+  estado: 'disponible' | 'ocupado' | 'mantenimiento';
+  tipo: string;
+  zona: string;
+  piso: number;
+  equipamiento: string[];
+  ultimaActualizacion: string;
+}
+
+export interface Zona {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  piso: number;
+  capacidadTotal: number;
+  espaciosDisponibles: number;
+  color: string;
+}
+
+export interface Reserva {
+  id: string;
+  espacioId: string;
+  usuarioId: string;
+  fechaInicio: string;
+  fechaFin: string;
+  estado: 'pendiente' | 'confirmada' | 'cancelada';
+  proposito: string;
+  participantes: number;
+}
+
+export interface Usuario {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: 'admin' | 'staff' | 'usuario';
+  departamento: string;
+  activo: boolean;
+}
+
+export interface DashboardMetrics {
+  totalEspacios: number;
+  espaciosDisponibles: number;
+  espaciosOcupados: number;
+  espaciosMantenimiento: number;
+  reservasHoy: number;
+  ocupacionPromedio: number;
+}
+
 // Tipos para autenticación
 export interface User {
   id: string;

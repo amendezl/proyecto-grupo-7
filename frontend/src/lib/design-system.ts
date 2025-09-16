@@ -164,7 +164,7 @@ export const componentTokens = {
     },
     critical: {
       background: designSystem.colors.status.error,
-      hover: designSystem.colors.status.critical,
+      hover: designSystem.colors.status.urgent,
       text: designSystem.colors.neutral[50]
     }
   },
