@@ -22,10 +22,10 @@ Sistema empresarial de gestión de espacios hospitalarios desarrollado con **Nod
 
 | **Plataforma** | **Estado** | **APIs** | **Características** |
 |----------------|------------|----------|-------------------|
-| **💻 Web Desktop** | ✅ 100% | 81 endpoints | Funcionalidad completa |
-| **📱 Móvil (iOS/Android)** | ✅ 100% | 81 + 11 específicos | Sin scroll, payloads optimizados |
-| **📟 Tablets (iPad/Android)** | ✅ 100% | 81 + 11 específicos | Grid avanzado, multi-columna |
-| **🌐 PWA** | ✅ 100% | 81 + 11 específicos | Funciona offline parcial |
+| **💻 Web Desktop** | ✅ 100% | 85 endpoints | Funcionalidad completa |
+| **📱 Móvil (iOS/Android)** | ✅ 100% | 85 + 11 específicos | Sin scroll, payloads optimizados |
+| **📟 Tablets (iPad/Android)** | ✅ 100% | 85 + 11 específicos | Grid avanzado, multi-columna |
+| **🌐 PWA** | ✅ 100% | 85 + 11 específicos | Funciona offline parcial |
 
 ### **🔄 ORIENTACIÓN DE PANTALLA - GARANTÍAS SIN SCROLL**
 
@@ -79,8 +79,8 @@ npm run deploy
 ```
 
 **Características Enterprise:**
-- ✅ **81 Lambda Functions** (100% Node.js serverless)
-- ✅ **92 APIs REST** (81 base + 11 móvil/orientación)
+- ✅ **85 Lambda Functions** (100% Node.js serverless)
+- ✅ **96 APIs REST** (85 base + 11 móvil/orientación)
 - ✅ **Arquitectura desacoplada** y orientada a componentes
 - ✅ **Infraestructura 100% cloud** (AWS)
 - ✅ **Seguridad enterprise** (IAM + JWT + RBAC)
