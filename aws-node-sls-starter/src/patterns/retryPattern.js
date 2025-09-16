@@ -1,5 +1,5 @@
 /**
- * Implementación del Patrón Retry para el Sistema Hospitalario
+ * Implementación del Patrón Retry para el Sistema de Gestión de Espacios
  * 
  * Este patrón maneja errores transitorios comunes en AWS:
  * - DynamoDB throttling
@@ -47,7 +47,7 @@ const RETRYABLE_ERRORS = {
  * Configuraciones predefinidas para diferentes servicios
  */
 const RETRY_CONFIGS = {
-  // Para operaciones críticas del hospital (reservas, emergencias)
+  // Para operaciones críticas del sistema (reservas, procesos importantes)
   CRITICAL: {
     maxAttempts: 5,
     baseDelay: 100,

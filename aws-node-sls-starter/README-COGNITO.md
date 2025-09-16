@@ -1,4 +1,4 @@
-# Sistema de Gestión de Espacios Hospitalarios con AWS Cognito
+# Sistema de Gestión de Espacios con AWS Cognito
 
 Este sistema ha sido migrado para usar AWS Cognito como proveedor de autenticación, reemplazando el sistema JWT personalizado anterior.
 
@@ -7,7 +7,7 @@ Este sistema ha sido migrado para usar AWS Cognito como proveedor de autenticaci
 - ✅ **Autenticación AWS Cognito**: Uso de User Pool para gestión segura de usuarios
 - ✅ **JWT Authorizer**: Validación automática de tokens por API Gateway
 - ✅ **Roles de usuario**: admin, responsable, usuario
-- ✅ **47 Lambda Functions**: Sistema hospitalario completo
+- ✅ **47 Lambda Functions**: Sistema de gestión de espacios completo
 - ✅ **DynamoDB**: Base de datos NoSQL con diseño single-table
 - ✅ **SQS**: Procesamiento asíncrono de tareas
 
@@ -71,19 +71,19 @@ Usa el script incluido para gestionar usuarios:
 
 ```bash
 # Crear administrador
-node scripts/cognito-users.js create admin@hospital.com Admin123! admin "Dr. Juan" "Pérez"
+node scripts/cognito-users.js create admin@empresa.com Admin123! admin "Dr. Juan" "Pérez"
 
 # Crear responsable
-node scripts/cognito-users.js create responsable@hospital.com Resp123! responsable "María" "González"
+node scripts/cognito-users.js create responsable@empresa.com Resp123! responsable "María" "González"
 
 # Crear usuario final
-node scripts/cognito-users.js create usuario@hospital.com User123! usuario "Carlos" "Martínez"
+node scripts/cognito-users.js create usuario@empresa.com User123! usuario "Carlos" "Martínez"
 
 # Listar usuarios
 node scripts/cognito-users.js list
 
 # Eliminar usuario
-node scripts/cognito-users.js delete usuario@hospital.com
+node scripts/cognito-users.js delete usuario@empresa.com
 ```
 
 ### Variables de entorno para el script
@@ -101,7 +101,7 @@ POST /api/auth/login
 Content-Type: application/json
 
 {
-  "username": "admin@hospital.com",
+  "username": "admin@empresa.com",
   "password": "Admin123!"
 }
 ```
@@ -258,7 +258,7 @@ npm run dev
 ```bash
 curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin@hospital.com","password":"Admin123!"}'
+  -d '{"username":"admin@empresa.com","password":"Admin123!"}'
 ```
 
 ### Probar endpoint protegido (reemplazar TOKEN)

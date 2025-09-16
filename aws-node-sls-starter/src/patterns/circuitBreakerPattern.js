@@ -1,5 +1,5 @@
 /**
- * Implementación del Patrón Circuit Breaker para el Sistema Hospitalario
+ * Implementación del Patrón Circuit Breaker para el Sistema de Gestión de Espacios
  * 
  * Este patrón previene cascadas de fallos en servicios críticos:
  * - DynamoDB connections
@@ -12,7 +12,7 @@
  * - OPEN: Servicio fallando, requests fallan inmediatamente
  * - HALF_OPEN: Probando si el servicio se recuperó
  * 
- * Configuraciones específicas para entorno hospitalario
+ * Configuraciones específicas para el sistema de gestión
  */
 
 const { v4: uuidv4 } = require('uuid');
@@ -30,7 +30,7 @@ const CIRCUIT_STATES = {
  * Configuraciones predefinidas para diferentes servicios críticos
  */
 const CIRCUIT_CONFIGS = {
-  // Para servicios de emergencia médica (tolerancia mínima a fallos)
+  // Para servicios de alta prioridad (tolerancia mínima a fallos)
   HIGH_PRIORITY: {
     failureThreshold: 3,        // 3 fallos consecutivos
     recoveryTimeout: 5000,      // 5 segundos para reintentar

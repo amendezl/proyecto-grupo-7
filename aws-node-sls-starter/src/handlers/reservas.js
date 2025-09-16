@@ -72,11 +72,11 @@ const createReserva = withAuth(async (event) => {
         return badRequest('Espacio, fechas de inicio y fin, y propósito son requeridos');
     }
     
-    // Determinar si es una reserva crítica (emergencia médica)
-    const esCritica = prioridad === 'emergencia' || 
-                     proposito.toLowerCase().includes('emergencia') ||
+    // Determinar si es una reserva crítica (alta prioridad)
+    const esCritica = prioridad === 'urgente' || 
                      proposito.toLowerCase().includes('urgente') ||
-                     proposito.toLowerCase().includes('crítico');
+                     proposito.toLowerCase().includes('crítico') ||
+                     prioridad === 'alta';
     
     try {
         // Ejecutar validaciones y creación con resiliencia

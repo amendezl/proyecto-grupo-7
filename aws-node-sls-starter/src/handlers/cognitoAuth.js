@@ -37,7 +37,7 @@ const login = async (event) => {
       {
         operation: 'cognitoLogin',
         username: username.substring(0, 3) + '***', // Log parcial por seguridad
-        priority: 'critical' // Login es crítico para el hospital
+        priority: 'critical' // Login es crítico para el sistema
       }
     );
 

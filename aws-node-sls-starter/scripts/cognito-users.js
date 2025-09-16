@@ -133,7 +133,7 @@ Uso: node scripts/cognito-users.js [comando] [argumentos]
 Comandos disponibles:
   create <email> <password> [rol] [nombre] [apellido]
     Crea un nuevo usuario en Cognito
-    Ejemplo: node scripts/cognito-users.js create admin@hospital.com Admin123! admin "Dr. Juan" "Pérez"
+    Ejemplo: node scripts/cognito-users.js create admin@empresa.com Admin123! admin "Dr. Juan" "Pérez"
 
   list
     Lista todos los usuarios del pool
@@ -141,7 +141,7 @@ Comandos disponibles:
 
   delete <email>
     Elimina un usuario del pool
-    Ejemplo: node scripts/cognito-users.js delete usuario@hospital.com
+    Ejemplo: node scripts/cognito-users.js delete usuario@empresa.com
 
   help
     Muestra esta ayuda
@@ -156,9 +156,9 @@ Roles disponibles:
   - usuario: Usuario final (default)
 
 Ejemplos de usuarios para pruebas:
-  node scripts/cognito-users.js create admin@hospital.com Admin123! admin "Dr. Juan" "Pérez"
-  node scripts/cognito-users.js create responsable@hospital.com Resp123! responsable "María" "González"
-  node scripts/cognito-users.js create usuario@hospital.com User123! usuario "Carlos" "Martínez"
+  node scripts/cognito-users.js create admin@empresa.com Admin123! admin "Dr. Juan" "Pérez"
+  node scripts/cognito-users.js create responsable@empresa.com Resp123! responsable "María" "González"
+  node scripts/cognito-users.js create usuario@empresa.com User123! usuario "Carlos" "Martínez"
 `);
 }
 
