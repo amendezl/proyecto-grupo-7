@@ -12,7 +12,7 @@
     "remove": "serverless remove",
     "info": "serverless info --verbose",
     "logs:worker": "serverless logs -f queueWorker -t",
-    "test": "node test-resilience-integration.js"
+    "test": "node simulate-deploy.js"
   },
   "devDependencies": {
     "serverless": "^3.38.0",

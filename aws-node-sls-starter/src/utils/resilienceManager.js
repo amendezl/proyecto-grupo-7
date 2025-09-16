@@ -10,8 +10,8 @@
  * - Fallbacks inteligentes para operaciones importantes
  */
 
-const { createRetryManager, retryOperation } = require('./retryPattern');
-const { createCircuitBreaker, circuitRegistry } = require('./circuitBreakerPattern');
+const { createRetryManager, retryOperation } = require('../patterns/retryPattern');
+const { createCircuitBreaker, circuitRegistry } = require('../patterns/circuitBreakerPattern');
 const { SpaceBulkheadManager, BulkheadRejectionError } = require('../patterns/bulkheadPattern');
 
 /**

@@ -68,8 +68,8 @@ function main() {
         ['src/handlers/healthCheck.js', 'Handler de Health Check'],
         ['src/utils/resilienceManager.js', 'Manager de Resiliencia'],
         ['src/patterns/bulkheadPattern.js', 'Patrón Bulkhead'],
-        ['src/utils/retryPattern.js', 'Patrón Retry'],
-        ['src/utils/circuitBreakerPattern.js', 'Patrón Circuit Breaker']
+        ['src/patterns/retryPattern.js', 'Patrón Retry'],
+        ['src/patterns/circuitBreakerPattern.js', 'Patrón Circuit Breaker']
     ];
 
     console.log('\n📁 Verificando archivos del proyecto:');

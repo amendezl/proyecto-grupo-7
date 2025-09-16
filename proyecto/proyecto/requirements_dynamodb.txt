@@ -1,8 +1,0 @@
-# Dependencias para DynamoDB
-boto3>=1.26.0
-botocore>=1.29.0
-
-# Dependencias existentes del proyecto Django
-Django>=4.2.0
-openpyxl>=3.0.0
-channels>=4.0.0
