@@ -6,8 +6,10 @@ custom:
   # Scripts para construir el frontend antes del despliegue
   scripts:
     hooks:
-      'package:initialize': cd ../frontend && npm install && npm run build
-      'deploy:finalize': serverless s3sync && serverless cloudfrontInvalidate
+      # Build frontend only when createWebsite=true
+      'package:initialize': ${opt:createWebsite, 'false'} == 'true' && cd ../frontend && npm install && npm run build || true
+      # Sync and invalidate only when createWebsite=true
+      'deploy:finalize': ${opt:createWebsite, 'false'} == 'true' && serverless s3sync && serverless cloudfrontInvalidate || true
   # Configuración para el despliegue del frontend
   frontendDistPath: ../frontend/.next/static
   frontendBucketName: ${self:service}-frontend-${sls:stage}
@@ -37,6 +39,10 @@ custom:
     apiUrl: https://api-url-placeholder/${sls:stage}
     stage: ${sls:stage}
     region: ${self:provider.region}
+    # By default we don't create the website (CloudFront + S3) because some
+    # deployment environments may not have permissions. Set --param createWebsite=true
+    # when you want the stack to include the frontend resources.
+    createWebsite: ${opt:createWebsite, 'false'}
     # Split stacks configuration to avoid CloudFormation resource limits
     splitStacks:
       nested: true
@@ -1068,6 +1074,12 @@ package:
 
 resources:
   Resources:
+    # Condition to control creation of frontend resources
+    CreateWebsiteCondition:
+      Type: "AWS::CloudFormation::Condition"
+      Properties:
+        Expression: !Equals [ ${self:custom.frontend.createWebsite}, 'true' ]
+
     MyQueue:
       Type: AWS::SQS::Queue
       Properties:
@@ -1125,6 +1137,7 @@ resources:
     
     # S3 bucket para el frontend
     WebsiteBucket:
+      Condition: CreateWebsiteCondition
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:custom.frontendBucketName}
@@ -1140,6 +1153,7 @@ resources:
     
     # Política de bucket para permitir acceso público
     WebsiteBucketPolicy:
+      Condition: CreateWebsiteCondition
       Type: AWS::S3::BucketPolicy
       Properties:
         Bucket: !Ref WebsiteBucket
@@ -1154,6 +1168,7 @@ resources:
     
     # CloudFront para CDN del frontend
     WebsiteCloudFrontDistribution:
+      Condition: CreateWebsiteCondition
       Type: AWS::CloudFront::Distribution
       Properties:
         DistributionConfig:
