@@ -1134,20 +1134,23 @@ resources:
     # === FRONTEND RESOURCES ===
     
     # S3 bucket para el frontend
-    WebsiteBucket:
+    WebsiteBucketName:
       Condition: CreateWebsiteCondition
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: ${self:custom.frontendBucketName}
-        WebsiteConfiguration:
-          IndexDocument: index.html
-          ErrorDocument: 404.html
-        CorsConfiguration:
-          CorsRules:
-            - AllowedHeaders: ['*']
-              AllowedMethods: [GET]
-              AllowedOrigins: ['*']
-              MaxAge: 3000
+      Value:
+        Ref: WebsiteBucket
+      Description: S3 bucket for static website
+    WebsiteDistributionId:
+      Condition: CreateWebsiteCondition
+      Value:
+        Ref: WebsiteCloudFrontDistribution
+      Description: CloudFront distribution ID
+    WebsiteURL:
+      Condition: CreateWebsiteCondition
+      Value:
+        Fn::GetAtt:
+          - WebsiteCloudFrontDistribution
+          - DomainName
+      Description: URL of the deployed frontend website
     
     # Política de bucket para permitir acceso público
     WebsiteBucketPolicy:
@@ -1201,6 +1204,21 @@ resources:
               ResponseCode: 200
               ResponsePagePath: /index.html
         # TimeToLiveSpecification removed: not a valid property for CloudFront Distribution
+
+    # S3 Bucket resource for website (was referenced but missing)
+    WebsiteBucket:
+      Condition: CreateWebsiteCondition
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.frontendBucketName}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: index.html
 
     # WebSocket API Gateway
     WebSocketApi:
@@ -1401,13 +1419,16 @@ resources:
     WebSocketConnectionsTableArn:
       Value: { Fn::GetAtt: [ WebSocketConnectionsTable, Arn ] }
       Description: "WebSocket connections table ARN"
-    # Frontend deployment outputs
+    # Frontend deployment outputs (conditional)
     WebsiteBucketName:
+      Condition: CreateWebsiteCondition
       Value: { Ref: WebsiteBucket }
       Description: "S3 bucket for static website"
     WebsiteDistributionId:
+      Condition: CreateWebsiteCondition
       Value: { Ref: WebsiteCloudFrontDistribution }
       Description: "CloudFront distribution ID"
     WebsiteURL:
+      Condition: CreateWebsiteCondition
       Value: { "Fn::GetAtt": [ WebsiteCloudFrontDistribution, DomainName ] }
       Description: "URL of the deployed frontend website"
