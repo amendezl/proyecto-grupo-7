@@ -37,6 +37,11 @@ custom:
     apiUrl: https://api-url-placeholder/${sls:stage}
     stage: ${sls:stage}
     region: ${self:provider.region}
+    # Split stacks configuration to avoid CloudFormation resource limits
+    splitStacks:
+      nested: true
+      perFunction: false
+      perType: false
 
 # Plugins necesarios para el despliegue unificado
 plugins:
@@ -44,6 +49,7 @@ plugins:
   - serverless-cloudfront-invalidate
   - serverless-dotenv-plugin
   - serverless-scriptable-plugin
+  - serverless-plugin-split-stacks
 
 provider:
   name: aws
