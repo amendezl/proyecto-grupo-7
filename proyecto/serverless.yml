@@ -937,19 +937,19 @@ functions:
     handler: src/handlers/sns.processSpaceNotification
     events:
       - sns:
-          arn: { Ref: SpaceNotificationsTopic }
+          topicName: ${self:service}-${sls:stage}-space-notifications
 
   processSystemAlert:
     handler: src/handlers/sns.processSystemAlert
     events:
       - sns:
-          arn: { Ref: SystemAlertsTopic }
+          topicName: ${self:service}-${sls:stage}-system-alerts
 
   processAdminNotification:
     handler: src/handlers/sns.processAdminNotification
     events:
       - sns:
-          arn: { Ref: AdminNotificationsTopic }
+          topicName: ${self:service}-${sls:stage}-admin-notifications
 
   # Suscripción a notificaciones
   subscribeToNotifications:
