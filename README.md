@@ -2,7 +2,7 @@
 
 **Proyecto Arquitectura de Sistemas 2025-2**
 
-**Autores**: Benjamin Bennett Ramírez, Antonio Ménd## ☁️ **Arquitectura 100% Serverless**
+**Autores**: Benjamin Bennett Ramírez, Antonio Méndez Leiva y Tomás Rodríguez Álvarez ☁️ **Arquitectura 100% Serverless**
 
 ### **🎪 Backend Serverless (AWS)**
 - **Runtime**: Node.js 20 en AWS Lambda
