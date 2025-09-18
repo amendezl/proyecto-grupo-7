@@ -1,58 +1,15 @@
 service: sistema-gestion-espacios
 frameworkVersion: '3'
 
-# Configuración para despliegue unificado (backend + frontend)
 custom:
-  # Scripts para construir el frontend antes del despliegue
-  scripts:
-    hooks:
-      # Build frontend only when createWebsite=true
-      'package:initialize': ${opt:createWebsite, 'false'} == 'true' && cd ../frontend && npm install && npm run build || true
-      # Sync and invalidate only when createWebsite=true
-      'deploy:finalize': ${opt:createWebsite, 'false'} == 'true' && serverless s3sync && serverless cloudfrontInvalidate || true
-  # Configuración para el despliegue del frontend
-  frontendDistPath: ../frontend/.next/static
-  frontendBucketName: ${self:service}-frontend-${sls:stage}
-  # Para el plugin s3-sync
-  s3Sync:
-    - bucketName: ${self:custom.frontendBucketName}
-      localDir: ${self:custom.frontendDistPath}
-      acl: public-read
-      followSymlinks: true
-      defaultContentType: text/html
-      params:
-        - index.html:
-            CacheControl: 'no-cache'
-        - "*.js":
-            CacheControl: 'public, max-age=31536000'
-        - "*.css":
-            CacheControl: 'public, max-age=31536000'
-        - "*.{png,jpg,gif}":
-            CacheControl: 'public, max-age=31536000'
-  # Para el plugin CloudFront
-  cloudfrontInvalidate:
-    distributionIdKey: 'WebsiteDistributionId'
-    items:
-      - '/*'
-  # Variables de entorno para el frontend durante el build
-  frontend:
-    apiUrl: https://api-url-placeholder/${sls:stage}
-    stage: ${sls:stage}
-    region: ${self:provider.region}
-    # By default we don't create the website (CloudFront + S3) because some
-    # deployment environments may not have permissions. Set --param createWebsite=true
-    # when you want the stack to include the frontend resources.
-    createWebsite: ${opt:createWebsite, 'false'}
-    # Split stacks configuration to avoid CloudFormation resource limits
-    splitStacks:
-      nested: true
-      perFunction: false
-      perType: false
+  # Custom variables for backend
+  splitStacks:
+    nested: true
+    perFunction: false
+    perType: false
 
 # Plugins necesarios para el despliegue unificado
 plugins:
-  - serverless-s3-sync
-  - serverless-cloudfront-invalidate
   - serverless-dotenv-plugin
   - serverless-scriptable-plugin
   - serverless-plugin-split-stacks
@@ -1131,83 +1088,7 @@ resources:
           - AttributeName: connectionId
             KeyType: HASH
             
-    # === FRONTEND RESOURCES ===
-    
-    # S3 bucket para el frontend
-    # Website outputs were accidentally duplicated under Resources; removed.
-    
-    # Política de bucket para permitir acceso público
-    WebsiteBucketPolicy:
-      Condition: CreateWebsiteCondition
-      Type: AWS::S3::BucketPolicy
-      Properties:
-        Bucket: !Ref WebsiteBucket
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-            - Sid: PublicReadGetObject
-              Effect: Allow
-              Principal: '*'
-              Action:
-                - s3:GetObject
-              Resource:
-                - Fn::Sub:
-                    - "arn:aws:s3:::${BucketName}/*"
-                    - BucketName:
-                        Ref: WebsiteBucket
-    
-    # CloudFront para CDN del frontend
-    WebsiteCloudFrontDistribution:
-      Condition: CreateWebsiteCondition
-      Type: AWS::CloudFront::Distribution
-      Properties:
-        DistributionConfig:
-          Origins:
-            - DomainName: !GetAtt WebsiteBucket.RegionalDomainName
-              Id: S3Origin
-              CustomOriginConfig:
-                HTTPPort: 80
-                HTTPSPort: 443
-                OriginProtocolPolicy: http-only
-          Enabled: true
-          DefaultRootObject: index.html
-          DefaultCacheBehavior:
-            AllowedMethods:
-              - DELETE
-              - GET
-              - HEAD
-              - OPTIONS
-              - PATCH
-              - POST
-              - PUT
-            TargetOriginId: S3Origin
-            ForwardedValues:
-              QueryString: true
-              Cookies:
-                Forward: none
-            ViewerProtocolPolicy: redirect-to-https
-          ViewerCertificate:
-            CloudFrontDefaultCertificate: true
-          CustomErrorResponses:
-            - ErrorCode: 404
-              ResponseCode: 200
-              ResponsePagePath: /index.html
-        # TimeToLiveSpecification removed: not a valid property for CloudFront Distribution
-
-    # S3 Bucket resource for website (was referenced but missing)
-    WebsiteBucket:
-      Condition: CreateWebsiteCondition
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: ${self:custom.frontendBucketName}
-        PublicAccessBlockConfiguration:
-          BlockPublicAcls: false
-          BlockPublicPolicy: false
-          IgnorePublicAcls: false
-          RestrictPublicBuckets: false
-        WebsiteConfiguration:
-          IndexDocument: index.html
-          ErrorDocument: index.html
+    # ...existing backend resources...
 
     # WebSocket API Gateway
     WebSocketApi:
@@ -1408,16 +1289,4 @@ resources:
     WebSocketConnectionsTableArn:
       Value: { Fn::GetAtt: [ WebSocketConnectionsTable, Arn ] }
       Description: "WebSocket connections table ARN"
-    # Frontend deployment outputs (conditional)
-    WebsiteBucketName:
-      Condition: CreateWebsiteCondition
-      Value: { Ref: WebsiteBucket }
-      Description: "S3 bucket for static website"
-    WebsiteDistributionId:
-      Condition: CreateWebsiteCondition
-      Value: { Ref: WebsiteCloudFrontDistribution }
-      Description: "CloudFront distribution ID"
-    WebsiteURL:
-      Condition: CreateWebsiteCondition
-      Value: { "Fn::GetAtt": [ WebsiteCloudFrontDistribution, DomainName ] }
-      Description: "URL of the deployed frontend website"
+    # ...existing backend outputs...
