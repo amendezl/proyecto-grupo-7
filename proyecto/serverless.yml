@@ -34,7 +34,7 @@ custom:
       - '/*'
   # Variables de entorno para el frontend durante el build
   frontend:
-    apiUrl: https://${self:provider.apiGateway.restApiId}.execute-api.${self:provider.region}.amazonaws.com/${sls:stage}
+  apiUrl: https://api-url-placeholder/${sls:stage}
     stage: ${sls:stage}
     region: ${self:provider.region}
 
