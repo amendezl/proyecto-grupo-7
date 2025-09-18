@@ -83,18 +83,17 @@ Sistema empresarial de gestión de espacios desarrollado con **Node.js**, **AWS 
 
 ```
 proyecto-grupo-7/
-├── backend/                # 🎯 BACKEND (Node.js Serverless)
-│   ├── src/                # Código fuente backend
-│   │   ├── handlers/       # Lambda Functions (85 endpoints)
-│   │   ├── database/       # DynamoDB Manager
-│   │   ├── utils/          # Utilidades y patrones
-│   │   └── patterns/       # Patrones de resiliencia
-│   ├── infrastructure/     # Configuración de infraestructura
-│   ├── serverless.yml     # Configuración AWS
-│   └── package.json       # Dependencias Node.js
-├── frontend/              # ✨ FRONTEND MODERNO (Next.js 14)
-│   ├── src/               # Código fuente frontend
-│   │   ├── app/           # App Router + Pages
+├── proyecto/                # 🎯 PROYECTO PRINCIPAL (Node.js Serverless)
+│   ├── src/                 # Código fuente backend
+│   │   ├── handlers/        # Lambda Functions (85 endpoints)
+│   │   ├── database/        # DynamoDB Manager
+│   │   ├── utils/           # Utilidades y patrones
+│   │   └── patterns/        # Patrones de resiliencia
+│   ├── serverless.yml      # Configuración AWS
+│   └── package.json        # Dependencias Node.js
+├── frontend/                # ✨ FRONTEND MODERNO (Next.js 14)
+│   ├── src/                 # Código fuente frontend
+│   │   ├── app/             # App Router + Pages
 │   │   ├── components/      # Componentes UI reutilizables
 │   │   └── lib/             # Cliente API + Configuración
 │   ├── next.config.js       # Configuración PWA + Optimizaciones
