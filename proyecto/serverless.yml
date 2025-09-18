@@ -1030,10 +1030,6 @@ package:
   #     - ${self:service}-${sls:stage}-queue
 
 resources:
-  # CloudFormation Conditions (must be top-level, not inside Resources)
-  Conditions:
-    CreateWebsiteCondition: !Equals [ "${self:custom.frontend.createWebsite}", "true" ]
-
   Resources:
     MyQueue:
       Type: AWS::SQS::Queue
