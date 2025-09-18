@@ -1,4 +1,4 @@
-# Sistema de Gestión de Espacios Hospitalarios - Enterprise Grade
+# Sistema de Gestión de Espacios - Enterprise Grade
 
 **Proyecto Arquitectura de Sistemas 2025-2**
 
@@ -34,7 +34,7 @@
 
 ## 🎯 Descripción
 
-Sistema empresarial de gestión de espacios hospitalarios desarrollado con **Node.js**, **AWS Serverless** y **Arquitectura Enterprise**. Sistema **100% funcional web y móvil** con garantías anti-scroll y optimizaciones para todas las orientaciones de pantalla.
+Sistema empresarial de gestión de espacios desarrollado con **Node.js**, **AWS Serverless** y **Arquitectura Enterprise**. Diseñado para la administración eficiente de espacios en organizaciones (oficinas, centros educativos, hospitales, centros de conferencias, etc.). Sistema **100% funcional web y móvil** con garantías anti-scroll y optimizaciones para todas las orientaciones de pantalla.
 
 ## 🚀 Tecnologías
 
@@ -71,11 +71,11 @@ Sistema empresarial de gestión de espacios hospitalarios desarrollado con **Nod
 
 ## � **ENTIDADES DEL SISTEMA**
 
-1. **ESPACIOS** - Gestión de espacios hospitalarios
+1. **ESPACIOS** - Gestión y administración de espacios
 2. **RESERVAS** - Sistema de reservas de espacios
 3. **USUARIOS** - Gestión de usuarios del sistema
 4. **RESPONSABLES** - Asignación de responsables a espacios
-5. **ZONAS** - Organización por zonas del hospital
+5. **ZONAS** - Organización por zonas y áreas
 6. **PERSONALIZACIÓN** - Configuración del sistema
 
 ## �📁 Estructura del Proyecto
