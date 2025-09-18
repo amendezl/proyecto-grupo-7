@@ -5,8 +5,8 @@ custom:
   # Custom variables for backend
   splitStacks:
     nested: true
-    perFunction: false
-    perType: false
+    perFunction: true
+    perType: true
 
 # Plugins necesarios para el despliegue unificado
 plugins:
