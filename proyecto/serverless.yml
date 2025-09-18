@@ -1188,9 +1188,7 @@ resources:
             - ErrorCode: 404
               ResponseCode: 200
               ResponsePagePath: /index.html
-        TimeToLiveSpecification:
-          AttributeName: ttl
-          Enabled: true
+        # TimeToLiveSpecification removed: not a valid property for CloudFront Distribution
 
     # WebSocket API Gateway
     WebSocketApi:
