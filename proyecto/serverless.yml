@@ -1134,23 +1134,7 @@ resources:
     # === FRONTEND RESOURCES ===
     
     # S3 bucket para el frontend
-    WebsiteBucketName:
-      Condition: CreateWebsiteCondition
-      Value:
-        Ref: WebsiteBucket
-      Description: S3 bucket for static website
-    WebsiteDistributionId:
-      Condition: CreateWebsiteCondition
-      Value:
-        Ref: WebsiteCloudFrontDistribution
-      Description: CloudFront distribution ID
-    WebsiteURL:
-      Condition: CreateWebsiteCondition
-      Value:
-        Fn::GetAtt:
-          - WebsiteCloudFrontDistribution
-          - DomainName
-      Description: URL of the deployed frontend website
+    # Website outputs were accidentally duplicated under Resources; removed.
     
     # Política de bucket para permitir acceso público
     WebsiteBucketPolicy:
