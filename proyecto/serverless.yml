@@ -1256,16 +1256,8 @@ resources:
           AccessToken: minutes
           IdToken: minutes
           RefreshToken: days
-        WriteAttributes:
-          - email
-          - name
-          - family_name
-          - custom:role
-        ReadAttributes:
-          - email
-          - name
-          - family_name
-          - custom:role
+        # Use Cognito defaults for Read/Write attributes (email, phone_number, etc.)
+        # ReadAttributes and WriteAttributes removed to avoid invalid attribute errors
 
     # === SNS TOPICS ===
     
