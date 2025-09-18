@@ -3,8 +3,13 @@ frameworkVersion: '3'
 
 # Configuración para despliegue unificado (backend + frontend)
 custom:
+  # Scripts para construir el frontend antes del despliegue
+  scripts:
+    hooks:
+      'package:initialize': cd ../../frontend && npm install && npm run build
+      'deploy:finalize': serverless s3sync && serverless cloudfrontInvalidate
   # Configuración para el despliegue del frontend
-  frontendDistPath: ../frontend/out
+  frontendDistPath: ../../frontend/.next/static
   frontendBucketName: ${self:service}-frontend-${sls:stage}
   # Para el plugin s3-sync
   s3Sync:
@@ -20,17 +25,25 @@ custom:
             CacheControl: 'public, max-age=31536000'
         - "*.css":
             CacheControl: 'public, max-age=31536000'
+        - "*.{png,jpg,gif}":
+            CacheControl: 'public, max-age=31536000'
   # Para el plugin CloudFront
   cloudfrontInvalidate:
     distributionIdKey: 'WebsiteDistributionId'
     items:
       - '/*'
+  # Variables de entorno para el frontend durante el build
+  frontend:
+    apiUrl: https://${self:provider.apiGateway.restApiId}.execute-api.${self:provider.region}.amazonaws.com/${sls:stage}
+    stage: ${sls:stage}
+    region: ${self:provider.region}
 
 # Plugins necesarios para el despliegue unificado
 plugins:
   - serverless-s3-sync
   - serverless-cloudfront-invalidate
   - serverless-dotenv-plugin
+  - serverless-scriptable-plugin
 
 provider:
   name: aws

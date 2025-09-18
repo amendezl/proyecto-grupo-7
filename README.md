@@ -13,13 +13,14 @@
 - **Escalado**: Automático e infinito
 - **Costo**: $0 cuando no se usa
 
-### **🌐 Frontend Serverless (Multi-plataforma)**
+### **🌐 Frontend Serverless (AWS S3 + CloudFront)**
 
-| **Plataforma** | **Características** | **Escalado** | **CDN** |
-|----------------|---------------------|--------------|---------|
-| **🔥 Vercel** | Zero-config, Edge Functions | ∞ automático | ✅ Global |
-| **⚡ AWS Amplify** | Integración AWS, Lambda@Edge | ∞ automático | ✅ CloudFront |
-| **🚀 Netlify** | Edge Functions, Forms | ∞ automático | ✅ Global |
+| **Característica** | **Implementación** | **Beneficio** |
+|-------------------|-------------------|---------------|
+| **🪣 Storage** | AWS S3 | Almacenamiento escalable y confiable |
+| **🌐 CDN** | CloudFront | Distribución global y baja latencia |
+| **🔒 HTTPS** | ACM Certificate | Seguridad de extremo a extremo |
+| **🚀 Deploy** | Automatizado | Despliegue unificado con backend |
 
 ### **🎯 Beneficios Serverless Completo**
 - ✅ **Costo**: Solo pagas por requests reales
@@ -82,17 +83,18 @@ Sistema empresarial de gestión de espacios desarrollado con **Node.js**, **AWS 
 
 ```
 proyecto-grupo-7/
-├── proyecto/                # 🎯 PROYECTO PRINCIPAL (Node.js Serverless)
-│   ├── src/                 # Código fuente backend
-│   │   ├── handlers/        # Lambda Functions (85 endpoints)
-│   │   ├── database/        # DynamoDB Manager
-│   │   ├── utils/           # Utilidades y patrones
-│   │   └── patterns/        # Patrones de resiliencia
-│   ├── serverless.yml      # Configuración AWS
-│   └── package.json        # Dependencias Node.js
-├── frontend/                # ✨ FRONTEND MODERNO (Next.js 14)
-│   ├── src/                 # Código fuente frontend
-│   │   ├── app/             # App Router + Pages
+├── backend/                # 🎯 BACKEND (Node.js Serverless)
+│   ├── src/                # Código fuente backend
+│   │   ├── handlers/       # Lambda Functions (85 endpoints)
+│   │   ├── database/       # DynamoDB Manager
+│   │   ├── utils/          # Utilidades y patrones
+│   │   └── patterns/       # Patrones de resiliencia
+│   ├── infrastructure/     # Configuración de infraestructura
+│   ├── serverless.yml     # Configuración AWS
+│   └── package.json       # Dependencias Node.js
+├── frontend/              # ✨ FRONTEND MODERNO (Next.js 14)
+│   ├── src/               # Código fuente frontend
+│   │   ├── app/           # App Router + Pages
 │   │   ├── components/      # Componentes UI reutilizables
 │   │   └── lib/             # Cliente API + Configuración
 │   ├── next.config.js       # Configuración PWA + Optimizaciones
@@ -140,6 +142,22 @@ npm install -g netlify-cli
 netlify deploy --prod
 # Deploy serverless con edge functions
 ```
+
+### **🚀 Despliegue Unificado (Backend + Frontend)**:
+
+```bash
+# Desarrollo
+npm run deploy
+
+# Producción
+npm run deploy:prod
+```
+
+El despliegue unificado:
+1. Construye el frontend (Next.js)
+2. Despliega el backend (AWS Lambda + API Gateway)
+3. Sincroniza el frontend con S3
+4. Invalida la caché de CloudFront
 
 ### **🎪 Sistema 100% Serverless**
 - **Backend**: 85 Lambda Functions + DynamoDB
