@@ -6,10 +6,10 @@ custom:
   # Scripts para construir el frontend antes del despliegue
   scripts:
     hooks:
-      'package:initialize': cd ../../frontend && npm install && npm run build
+      'package:initialize': cd ../frontend && npm install && npm run build
       'deploy:finalize': serverless s3sync && serverless cloudfrontInvalidate
   # Configuración para el despliegue del frontend
-  frontendDistPath: ../../frontend/.next/static
+  frontendDistPath: ../frontend/.next/static
   frontendBucketName: ${self:service}-frontend-${sls:stage}
   # Para el plugin s3-sync
   s3Sync:
