@@ -1078,7 +1078,7 @@ resources:
     CreateWebsiteCondition:
       Type: "AWS::CloudFormation::Condition"
       Properties:
-        Expression: !Equals [ ${self:custom.frontend.createWebsite}, 'true' ]
+        Expression: !Equals [ "${self:custom.frontend.createWebsite}", "true" ]
 
     MyQueue:
       Type: AWS::SQS::Queue
