@@ -1052,12 +1052,6 @@ package:
   patterns:
     - '!**/*.md'
     - '!**/*.test.*'
-
-custom:
-  serverless-offline:
-    httpPort: 3000
-  # serverless-offline-sqs:
-  #   autoCreate: true
   #   apiVersion: '2012-11-05'
   #   endpoint: http://localhost:4566  # LocalStack
   #   region: ${self:provider.region}
