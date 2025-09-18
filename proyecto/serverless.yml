@@ -1143,13 +1143,18 @@ resources:
       Properties:
         Bucket: !Ref WebsiteBucket
         PolicyDocument:
+          Version: '2012-10-17'
           Statement:
             - Sid: PublicReadGetObject
               Effect: Allow
               Principal: '*'
               Action:
                 - s3:GetObject
-              Resource: !Sub "arn:aws:s3:::${WebsiteBucket}/*"
+              Resource:
+                - Fn::Sub:
+                    - "arn:aws:s3:::${BucketName}/*"
+                    - BucketName:
+                        Ref: WebsiteBucket
     
     # CloudFront para CDN del frontend
     WebsiteCloudFrontDistribution:
