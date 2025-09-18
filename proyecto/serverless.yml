@@ -1046,10 +1046,6 @@ functions:
           authorizer:
             name: cognitoJwt
 
-plugins:
-  - serverless-offline
-  # Uncomment if you want to drive SQS locally with LocalStack:
-  # - serverless-offline-sqs
 
 package:
   individually: true
