@@ -22,18 +22,26 @@ provider:
   environment:
     QUEUE_URL: { Ref: MyQueue }
     DB_TYPE: dynamodb
-    DYNAMODB_TABLE: ${self:service}-${sls:stage}-table
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}-table
     USER_POOL_ID: { Ref: CognitoUserPool }
     USER_POOL_CLIENT_ID: { Ref: CognitoUserPoolClient }
     JWT_SECRET: ${env:JWT_SECRET, 'your-super-secret-jwt-key-change-in-production'}
-    NODE_ENV: ${sls:stage}
+    NODE_ENV: ${self:provider.stage}
     SNS_TOPIC_ARN: { Ref: SpaceNotificationsTopic }
     SNS_ALERTS_TOPIC_ARN: { Ref: SystemAlertsTopic }
     SNS_ADMIN_TOPIC_ARN: { Ref: AdminNotificationsTopic }
     # WebSocket configuration
     CONNECTIONS_TABLE: ${self:service}-${sls:stage}-connections
-    WEBSOCKET_ENDPOINT: 
-      Fn::Sub: "${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
+    CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
+    WEBSOCKET_ENDPOINT:
+      Fn::Join:
+        - ''
+        - - 'wss://'
+          - Ref: WebSocketApi
+          - '.execute-api.'
+          - Ref: 'AWS::Region'
+          - '.amazonaws.com/'
+          - Ref: WebSocketStage
   iam:
     role:
       statements:
@@ -1099,7 +1107,7 @@ resources:
       Type: AWS::ApiGatewayV2::Stage
       Properties:
         ApiId: !Ref WebSocketApi
-        StageName: ${sls:stage}
+        StageName: ${self:provider.stage}
         AutoDeploy: true
 
     CognitoUserPool:
@@ -1162,21 +1170,21 @@ resources:
     SpaceNotificationsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${sls:stage}-space-notifications
+        TopicName: ${self:service}-${self:provider.stage}-space-notifications
         DisplayName: Space Management Notifications
         
     # Topic para alertas del sistema (errores, mantenimiento, capacidad)
     SystemAlertsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${sls:stage}-system-alerts
+        TopicName: ${self:service}-${self:provider.stage}-system-alerts
         DisplayName: System Alerts
         
     # Topic para notificaciones de administración (reports, backups, security)
     AdminNotificationsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${sls:stage}-admin-notifications
+        TopicName: ${self:service}-${self:provider.stage}-admin-notifications
         DisplayName: Admin Notifications
 
     # === CLOUDWATCH ALARMS PARA MONITOREO MÓVIL ===
@@ -1198,7 +1206,7 @@ resources:
           - { Ref: SystemAlertsTopic }
         Dimensions:
           - Name: FunctionName
-            Value: ${self:service}-${sls:stage}-login
+            Value: ${self:service}-${self:provider.stage}-login
 
     # Alarma para latencia alta en endpoints móviles
     MobileHighLatencyAlarm:
@@ -1217,7 +1225,7 @@ resources:
           - { Ref: SystemAlertsTopic }
         Dimensions:
           - Name: FunctionName
-            Value: ${self:service}-${sls:stage}-getMobileDashboard
+            Value: ${self:service}-${self:provider.stage}-getMobileDashboard
 
     # Alarma para fallos en dashboard móvil
     MobileDashboardErrorAlarm:
@@ -1236,7 +1244,7 @@ resources:
           - { Ref: SystemAlertsTopic }
         Dimensions:
           - Name: FunctionName
-            Value: ${self:service}-${sls:stage}-getMobileDashboard
+            Value: ${self:service}-${self:provider.stage}-getMobileDashboard
         
   Outputs:
     QueueUrl:
@@ -1274,11 +1282,18 @@ resources:
       Description: SNS Topic ARN for Admin Notifications
     # WebSocket outputs
     WebSocketApiUrl:
-      Value: 
-        Fn::Sub: "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${sls:stage}"
+      Value:
+        Fn::Join:
+          - ''
+          - - 'wss://'
+            - Ref: WebSocketApi
+            - '.execute-api.'
+            - Ref: 'AWS::Region'
+            - '.amazonaws.com/'
+            - Ref: WebSocketStage
       Description: "WebSocket API Gateway URL for real-time connections"
       Export:
-        Name: ${self:service}-websocket-url-${sls:stage}
+        Name: ${self:service}-websocket-url-${self:provider.stage}
     WebSocketConnectionsTable:
       Value: { Ref: WebSocketConnectionsTable }
       Description: "WebSocket connections table"
