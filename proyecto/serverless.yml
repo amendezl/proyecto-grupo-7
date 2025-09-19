@@ -19,6 +19,7 @@ provider:
   runtime: nodejs20.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  role: arn:aws:iam::211125730443:role/LabRole
   environment:
     QUEUE_URL: { Ref: MyQueue }
     DB_TYPE: dynamodb
