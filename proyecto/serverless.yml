@@ -31,8 +31,8 @@ provider:
     SNS_ALERTS_TOPIC_ARN: { Ref: SystemAlertsTopic }
     SNS_ADMIN_TOPIC_ARN: { Ref: AdminNotificationsTopic }
     # WebSocket configuration
-    CONNECTIONS_TABLE: ${self:service}-${sls:stage}-connections
     CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
+    TABLE_NAME: ${self:service}-${self:provider.stage}-table
     WEBSOCKET_ENDPOINT:
       Fn::Join:
         - ''
@@ -41,7 +41,7 @@ provider:
           - '.execute-api.'
           - Ref: 'AWS::Region'
           - '.amazonaws.com/'
-          - Ref: WebSocketStage
+          - ${self:provider.stage}
   iam:
     role:
       statements:
@@ -914,19 +914,19 @@ functions:
     handler: src/handlers/sns.processSpaceNotification
     events:
       - sns:
-          topicName: ${self:service}-${sls:stage}-space-notifications
+          topicName: ${self:service}-${self:provider.stage}-space-notifications
 
   processSystemAlert:
     handler: src/handlers/sns.processSystemAlert
     events:
       - sns:
-          topicName: ${self:service}-${sls:stage}-system-alerts
+          topicName: ${self:service}-${self:provider.stage}-system-alerts
 
   processAdminNotification:
     handler: src/handlers/sns.processAdminNotification
     events:
       - sns:
-          topicName: ${self:service}-${sls:stage}-admin-notifications
+          topicName: ${self:service}-${self:provider.stage}-admin-notifications
 
   # Suscripción a notificaciones
   subscribeToNotifications:
@@ -1042,14 +1042,14 @@ resources:
     MyQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: ${self:service}-${sls:stage}-queue
+        QueueName: ${self:service}-${self:provider.stage}-queue
         VisibilityTimeout: 60
         MessageRetentionPeriod: 1209600
     
     DynamoDBTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:service}-${sls:stage}-table
+        TableName: ${self:service}-${self:provider.stage}-table
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
           - AttributeName: PK
@@ -1098,7 +1098,7 @@ resources:
     WebSocketApi:
       Type: AWS::ApiGatewayV2::Api
       Properties:
-        Name: ${self:service}-websocket-${sls:stage}
+        Name: ${self:service}-websocket-${self:provider.stage}
         ProtocolType: WEBSOCKET
         RouteSelectionExpression: "$request.body.action"
 
@@ -1113,7 +1113,7 @@ resources:
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:
-        UserPoolName: ${self:service}-${sls:stage}-pool
+        UserPoolName: ${self:service}-${self:provider.stage}-pool
         UsernameAttributes:
           - email
         AutoVerifiedAttributes:
@@ -1146,7 +1146,7 @@ resources:
     CognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
       Properties:
-        ClientName: ${self:service}-${sls:stage}-app
+        ClientName: ${self:service}-${self:provider.stage}-app
         GenerateSecret: false
         UserPoolId: { Ref: CognitoUserPool }
         PreventUserExistenceErrors: ENABLED
@@ -1193,7 +1193,7 @@ resources:
     MobileAuthErrorAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-mobile-auth-errors
+  AlarmName: ${self:service}-${self:provider.stage}-mobile-auth-errors
         AlarmDescription: Demasiados errores de autenticación desde móviles
         MetricName: Errors
         Namespace: AWS/Lambda
@@ -1212,7 +1212,7 @@ resources:
     MobileHighLatencyAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-mobile-high-latency
+  AlarmName: ${self:service}-${self:provider.stage}-mobile-high-latency
         AlarmDescription: Latencia alta en endpoints móviles
         MetricName: Duration
         Namespace: AWS/Lambda
@@ -1231,7 +1231,7 @@ resources:
     MobileDashboardErrorAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-mobile-dashboard-errors
+  AlarmName: ${self:service}-${self:provider.stage}-mobile-dashboard-errors
         AlarmDescription: Errores en dashboard móvil
         MetricName: Errors
         Namespace: AWS/Lambda
