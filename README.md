@@ -2,7 +2,11 @@
 
 **Proyecto Arquitectura de Sistemas 2025-2**
 
-**Autores**: Benjamin Bennett Ramírez, Antonio Méndez Leiva y Tomás Rodríguez Álvarez ☁️ **Arquitectura 100% Serverless**
+**Autores**: Benjamin Bennett Ramírez, Antonio Méndez Leiva y Tomás Rodríguez Álvarez
+
+**Docente**: Mauricio Alex Vásquez Duque
+
+☁️ **Arquitectura 100% Serverless**
 
 ### **🎪 Backend Serverless (AWS)**
 - **Runtime**: Node.js 20 en AWS Lambda
@@ -30,8 +34,7 @@
 - ✅ **Seguridad**: Managed services enterprise
 - ✅ **Deploy**: Git push = deploy automático
 
-## 🏥 Optimizaciones Móvilesz Leiva y Tomás Rodríguez Álvarez  
-**Docente**: Mauricio Alex Vásquez Duque
+## 🏥 Optimizaciones Móviles
 
 ## 🎯 Descripción
 
