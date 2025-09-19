@@ -1039,10 +1039,6 @@ package:
   #     - ${self:service}-${sls:stage}-queue
 
 resources:
-  Parameters:
-    WebSocketApiParameter:
-      Type: String
-      Default: { Ref: WebSocketApi }
   Resources:
     MyQueue:
       Type: AWS::SQS::Queue
