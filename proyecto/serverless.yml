@@ -49,6 +49,7 @@ provider:
   iam:
     role:
       statements:
+        - Effect: Allow
           Action:
             - sqs:SendMessage
             - sqs:ReceiveMessage
