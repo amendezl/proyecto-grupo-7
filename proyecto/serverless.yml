@@ -1193,7 +1193,7 @@ resources:
     MobileAuthErrorAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-  AlarmName: ${self:service}-${self:provider.stage}-mobile-auth-errors
+        AlarmName: ${self:service}-${self:provider.stage}-mobile-auth-errors
         AlarmDescription: Demasiados errores de autenticación desde móviles
         MetricName: Errors
         Namespace: AWS/Lambda
@@ -1212,7 +1212,7 @@ resources:
     MobileHighLatencyAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-  AlarmName: ${self:service}-${self:provider.stage}-mobile-high-latency
+        AlarmName: ${self:service}-${self:provider.stage}-mobile-high-latency
         AlarmDescription: Latencia alta en endpoints móviles
         MetricName: Duration
         Namespace: AWS/Lambda
@@ -1231,7 +1231,7 @@ resources:
     MobileDashboardErrorAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-  AlarmName: ${self:service}-${self:provider.stage}-mobile-dashboard-errors
+        AlarmName: ${self:service}-${self:provider.stage}-mobile-dashboard-errors
         AlarmDescription: Errores en dashboard móvil
         MetricName: Errors
         Namespace: AWS/Lambda
