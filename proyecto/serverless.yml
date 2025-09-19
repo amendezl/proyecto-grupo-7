@@ -12,7 +12,6 @@ custom:
 plugins:
   - serverless-dotenv-plugin
   - serverless-scriptable-plugin
-  - serverless-plugin-split-stacks
 
 provider:
   name: aws
