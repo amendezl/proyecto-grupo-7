@@ -7,6 +7,9 @@ custom:
     nested: true
     perFunction: true
     perType: true
+    stackType:
+      AWS::ApiGatewayV2::Api: false
+      AWS::ApiGatewayV2::Stage: false
 
 # Plugins necesarios para el despliegue unificado
 plugins:
