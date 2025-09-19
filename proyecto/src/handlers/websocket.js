@@ -3,13 +3,16 @@
  * Sistema hospital - Notificaciones instantáneas
  */
 
-const AWS = require('aws-sdk');
+const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws-sdk/client-apigatewaymanagementapi');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb');
 
-const apigateway = new AWS.ApiGatewayManagementApi({
+const apigateway = new ApiGatewayManagementApiClient({
   endpoint: process.env.WEBSOCKET_ENDPOINT
 });
 
-const dynamodb = new AWS.DynamoDB.DocumentClient();
+const dynamoClient = new DynamoDBClient({});
+const dynamodb = DynamoDBDocumentClient.from(dynamoClient);
 
 // Tabla para manejar conexiones WebSocket
 const CONNECTIONS_TABLE = process.env.CONNECTIONS_TABLE;
@@ -172,17 +175,17 @@ exports.notifyEspacioEstado = async (event) => {
 async function broadcastMessage(message) {
   try {
     // Obtener todas las conexiones activas
-    const connections = await dynamodb.scan({
-      TableName: CONNECTIONS_TABLE,
-      ProjectionExpression: 'connectionId'
-    }).promise();
+      const connections = await dynamodb.scan({
+        TableName: CONNECTIONS_TABLE,
+        ProjectionExpression: 'connectionId'
+      });
     
     console.log(`📡 Broadcasting a ${connections.Items.length} conexiones`);
     
     // Enviar mensaje a cada conexión
     const promises = connections.Items.map(async (connection) => {
       try {
-        await sendMessageToConnection(connection.connectionId, message);
+  await sendMessageToConnection(connection.connectionId, message);
       } catch (error) {
         // Si la conexión está muerta, eliminarla
         if (error.statusCode === 410) {
@@ -209,10 +212,11 @@ async function broadcastMessage(message) {
  * Envía mensaje a una conexión específica
  */
 async function sendMessageToConnection(connectionId, message) {
-  await apigateway.postToConnection({
+  const cmd = new PostToConnectionCommand({
     ConnectionId: connectionId,
-    Data: JSON.stringify(message)
-  }).promise();
+    Data: Buffer.from(JSON.stringify(message))
+  });
+  await apigateway.send(cmd);
 }
 
 /**
@@ -255,7 +259,7 @@ async function getRealtimeStats() {
   const [reservasHoy, espaciosDisponibles, usuariosActivos] = await Promise.all([
     // Contar reservas de hoy
     dynamodb.query({
-      TableName: process.env.TABLE_NAME,
+      TableName: process.env.DYNAMODB_TABLE,
       IndexName: 'TipoFechaIndex',
       KeyConditionExpression: 'tipo = :tipo AND begins_with(fecha_reserva, :fecha)',
       ExpressionAttributeValues: {
@@ -267,7 +271,7 @@ async function getRealtimeStats() {
     
     // Contar espacios disponibles
     dynamodb.query({
-      TableName: process.env.TABLE_NAME,
+      TableName: process.env.DYNAMODB_TABLE,
       IndexName: 'TipoEstadoIndex',
       KeyConditionExpression: 'tipo = :tipo AND estado = :estado',
       ExpressionAttributeValues: {
