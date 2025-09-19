@@ -18,6 +18,13 @@ custom:
    - serverless-plugin-split-stacks
    - serverless-finch
  custom:
+   splitStacks:
+     nested: true
+     perFunction: false
+     perType: true
+     stackType:
+       AWS::ApiGatewayV2::Api: false
+       AWS::ApiGatewayV2::Stage: false
    client:
      bucketName: sistema-gestion-espacios-frontend-prod # Cambia si tienes otro nombre de bucket
      distributionFolder: ../frontend/out                # Carpeta generada por next export
