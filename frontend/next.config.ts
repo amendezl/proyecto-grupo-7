@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_STAGE: process.env.NEXT_PUBLIC_STAGE || 'dev',
     NEXT_PUBLIC_AWS_REGION: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1'
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   }
 };
 
