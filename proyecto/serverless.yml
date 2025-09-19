@@ -1295,6 +1295,11 @@ resources:
       Description: "WebSocket API Gateway URL for real-time connections"
       Export:
         Name: ${self:service}-websocket-url-${self:provider.stage}
+    WebSocketApiId:
+      Value: { Ref: WebSocketApi }
+      Description: "WebSocket API Gateway ID"
+      Export:
+        Name: ${self:service}-websocket-api-id-${self:provider.stage}
     WebSocketConnectionsTable:
       Value: { Ref: WebSocketConnectionsTable }
       Description: "WebSocket connections table"
