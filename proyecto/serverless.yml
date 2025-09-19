@@ -1174,21 +1174,21 @@ resources:
     SpaceNotificationsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${self:provider.stage}-space-notifications
+        TopicName: ${self:service}-${self:provider.stage}-space-notifications-${sls:instanceId}
         DisplayName: Space Management Notifications
-        
+
     # Topic para alertas del sistema (errores, mantenimiento, capacidad)
     SystemAlertsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${self:provider.stage}-system-alerts
+        TopicName: ${self:service}-${self:provider.stage}-system-alerts-${sls:instanceId}
         DisplayName: System Alerts
-        
+
     # Topic para notificaciones de administración (reports, backups, security)
     AdminNotificationsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${self:provider.stage}-admin-notifications
+        TopicName: ${self:service}-${self:provider.stage}-admin-notifications-${sls:instanceId}
         DisplayName: Admin Notifications
 
     # === CLOUDWATCH ALARMS PARA MONITOREO MÓVIL ===
