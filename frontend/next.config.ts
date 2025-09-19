@@ -1,10 +1,9 @@
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export', // Habilita la exportación estática
   distDir: '.next',
   images: {
-    unoptimized: true, // Necesario para exportación estática
     domains: [
       `${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com`
     ]
