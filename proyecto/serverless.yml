@@ -12,10 +12,19 @@ custom:
       AWS::ApiGatewayV2::Stage: false
 
 # Plugins necesarios para el despliegue unificado
-plugins:
-  - serverless-dotenv-plugin
-  - serverless-scriptable-plugin
-  - serverless-plugin-split-stacks
+ plugins:
+   - serverless-dotenv-plugin
+   - serverless-scriptable-plugin
+   - serverless-plugin-split-stacks
+   - serverless-finch
+ custom:
+   client:
+     bucketName: sistema-gestion-espacios-frontend-prod # Cambia si tienes otro nombre de bucket
+     distributionFolder: ../frontend/out                # Carpeta generada por next export
+     indexDocument: index.html
+     errorDocument: index.html
+     region: us-east-1                                  # Cambia si usas otra región
+     createDistribution: true
 
 provider:
   name: aws
