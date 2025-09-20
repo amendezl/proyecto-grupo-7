@@ -9,12 +9,12 @@
  * Emplea mecanismo de desacople mediante configuración externa
  */
 
-const DynamoDBManager = require('../database/DynamoDBManager');
+const DynamoDBAdapter = require('../database/DynamoDBAdapter');
 const { v4: uuidv4 } = require('uuid');
 
 class PersonalizationManager {
     constructor() {
-        this.db = new DynamoDBManager();
+        this.db = new DynamoDBAdapter();
         this.cache = new Map();
         this.cacheTimeout = 5 * 60 * 1000; // 5 minutos cache
     }
