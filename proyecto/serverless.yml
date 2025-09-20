@@ -45,7 +45,7 @@ provider:
     # WebSocket configuration
     CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
     TABLE_NAME: ${self:service}-${self:provider.stage}-table
-  CIRCUIT_STATE_TABLE: ${self:service}-${self:provider.stage}-circuit-state
+    CIRCUIT_STATE_TABLE: ${self:service}-${self:provider.stage}-circuit-state
     WEBSOCKET_ENDPOINT:
       Fn::Join:
         - ''
