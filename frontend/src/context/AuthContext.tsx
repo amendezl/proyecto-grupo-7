@@ -72,6 +72,77 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading: true,
   });
 
+  
+
+  // Funciones auxiliares de autenticación
+  // Función para limpiar el storage
+  const clearAuthStorage = () => {
+    localStorage.removeItem('auth_tokens');
+    localStorage.removeItem('auth_user');
+    setAuthState({
+      user: null,
+      tokens: null,
+      isAuthenticated: false,
+      isLoading: false,
+    });
+  };
+
+  // Función para guardar en storage
+  const saveAuthToStorage = (user: User, tokens: AuthTokens) => {
+    localStorage.setItem('auth_user', JSON.stringify(user));
+    localStorage.setItem('auth_tokens', JSON.stringify(tokens));
+  };
+
+  // Función para refrescar autenticación
+  const refreshAuth = async (): Promise<boolean> => {
+    if (!authState.tokens?.refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken: authState.tokens.refreshToken }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.ok) {
+        const { token } = data.data;
+
+        const newTokens: AuthTokens = {
+          accessToken: token,
+          refreshToken: token,
+          expiresAt: Date.now() + (24 * 60 * 60 * 1000),
+        };
+
+        setAuthState(prev => ({
+          ...prev,
+          tokens: newTokens,
+          isAuthenticated: true,
+          isLoading: false,
+        }));
+
+        // Actualizar localStorage
+        if (authState.user) {
+          saveAuthToStorage(authState.user, newTokens);
+        }
+
+        return true;
+      } else {
+        clearAuthStorage();
+        return false;
+      }
+    } catch (error) {
+      console.error('Error refrescando token:', error);
+      clearAuthStorage();
+      return false;
+    }
+  };
+
   // Cargar tokens del localStorage al inicializar
   useEffect(() => {
     const loadStoredAuth = async () => {
@@ -111,23 +182,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loadStoredAuth();
   }, []);
 
-  // Función para limpiar el storage
-  const clearAuthStorage = () => {
-    localStorage.removeItem('auth_tokens');
-    localStorage.removeItem('auth_user');
-    setAuthState({
-      user: null,
-      tokens: null,
-      isAuthenticated: false,
-      isLoading: false,
-    });
-  };
-
-  // Función para guardar en storage
-  const saveAuthToStorage = (user: User, tokens: AuthTokens) => {
-    localStorage.setItem('auth_user', JSON.stringify(user));
-    localStorage.setItem('auth_tokens', JSON.stringify(tokens));
-  };
+  
 
   // Función de login
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -293,56 +348,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Función para refrescar autenticación
-  const refreshAuth = async (): Promise<boolean> => {
-    if (!authState.tokens?.refreshToken) {
-      return false;
-    }
 
-    try {
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken: authState.tokens.refreshToken }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.ok) {
-        const { token } = data.data;
-        
-        const newTokens: AuthTokens = {
-          accessToken: token,
-          refreshToken: token,
-          expiresAt: Date.now() + (24 * 60 * 60 * 1000),
-        };
-
-        setAuthState(prev => ({
-          ...prev,
-          tokens: newTokens,
-          isAuthenticated: true,
-          isLoading: false,
-        }));
-
-        // Actualizar localStorage
-        if (authState.user) {
-          saveAuthToStorage(authState.user, newTokens);
-        }
-
-        return true;
-      } else {
-        clearAuthStorage();
-        return false;
-      }
-    } catch (error) {
-      console.error('Error refrescando token:', error);
-      clearAuthStorage();
-      return false;
-    }
-  };
-
+  // Renovación automática del access token cada 4 minutos si está autenticado
+  useEffect(() => {
+    if (!authState.isAuthenticated) return;
+    const interval = setInterval(() => {
+      refreshAuth();
+    }, 4 * 60 * 1000); // 4 minutos
+    return () => clearInterval(interval);
+  }, [authState.isAuthenticated, refreshAuth]);
   const contextValue: AuthContextType = {
     ...authState,
     login,
