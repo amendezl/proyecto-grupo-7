@@ -41,9 +41,11 @@ provider:
     SNS_TOPIC_ARN: { Ref: SpaceNotificationsTopic }
     SNS_ALERTS_TOPIC_ARN: { Ref: SystemAlertsTopic }
     SNS_ADMIN_TOPIC_ARN: { Ref: AdminNotificationsTopic }
+    SNS_PERSONALIZATION_TOPIC_ARN: { Ref: PersonalizationUpdatesTopic }
     # WebSocket configuration
     CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
     TABLE_NAME: ${self:service}-${self:provider.stage}-table
+  CIRCUIT_STATE_TABLE: ${self:service}-${self:provider.stage}-circuit-state
     WEBSOCKET_ENDPOINT:
       Fn::Join:
         - ''
@@ -107,6 +109,13 @@ provider:
             - dynamodb:DeleteItem
           Resource: 
             - Fn::GetAtt: [ WebSocketConnectionsTable, Arn ]
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
+          Resource:
+            - Fn::GetAtt: [ CircuitStateTable, Arn ]
         - Effect: Allow
           Action:
             - execute-api:ManageConnections
@@ -258,6 +267,45 @@ functions:
           path: /api/personalization/client/{clientId}/export
           authorizer:
             name: cognitoJwt
+
+  # WebSocket handlers for real-time personalization updates
+  wsConnect:
+    handler: src/handlers/websocket.connect
+    events:
+      - websocket:
+          route: $connect
+  wsDisconnect:
+    handler: src/handlers/websocket.disconnect
+    events:
+      - websocket:
+          route: $disconnect
+  wsDefault:
+    handler: src/handlers/websocket.default
+    events:
+      - websocket:
+          route: $default
+
+  # SNS -> WebSocket forwarder
+  personalizationForwarder:
+    handler: src/handlers/personalizationForwarder.handler
+    events:
+      - sns:
+          topicName: PersonalizationUpdatesTopic
+          arn:
+            Ref: PersonalizationUpdatesTopic
+
+  # DynamoDB Streams processor to capture all table changes and publish personalization updates
+  dynamoStreamProcessor:
+    handler: src/handlers/dynamoStreamProcessor.handler
+    events:
+      - stream:
+          type: dynamodb
+          arn:
+            Fn::GetAtt:
+              - DynamoDBTable
+              - StreamArn
+          batchSize: 100
+          startingPosition: LATEST
 
   # Limpiar cache de configuraciones
   clearConfigurationCache:
@@ -1097,11 +1145,37 @@ resources:
         TableName: ${self:provider.environment.CONNECTIONS_TABLE}
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
+          - AttributeName: clientId
+            AttributeType: S
           - AttributeName: connectionId
             AttributeType: S
         KeySchema:
-          - AttributeName: connectionId
+          - AttributeName: clientId
             KeyType: HASH
+          - AttributeName: connectionId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: ConnectionIdIndex
+            KeySchema:
+              - AttributeName: connectionId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+    
+    # Circuit breaker state persistence (optional, small table)
+    CircuitStateTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.CIRCUIT_STATE_TABLE}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: serviceName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: serviceName
+            KeyType: HASH
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
             
     # ...existing backend resources...
 
@@ -1198,6 +1272,13 @@ resources:
         TopicName: ${self:service}-${self:provider.stage}-admin-notifications-${sls:instanceId}
         DisplayName: Admin Notifications
 
+    # Topic for personalization updates
+    PersonalizationUpdatesTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-${self:provider.stage}-personalization-updates-${sls:instanceId}
+        DisplayName: Personalization Updates
+
     # === CLOUDWATCH ALARMS PARA MONITOREO MÓVIL ===
     
     # Alarma para errores de autenticación móvil
@@ -1291,7 +1372,21 @@ resources:
     AdminNotificationsTopicArn:
       Value: { Ref: AdminNotificationsTopic }
       Description: SNS Topic ARN for Admin Notifications
+    PersonalizationUpdatesTopic:
+      Value: { Ref: PersonalizationUpdatesTopic }
+      Description: SNS Topic for Personalization Updates
     # WebSocket outputs
+    WebSocketApiEndpoint:
+      Value:
+        Fn::Join:
+          - ''
+          - - 'wss://'
+            - Ref: WebSocketApi
+            - '.execute-api.'
+            - Ref: 'AWS::Region'
+            - '.amazonaws.com/'
+            - ${self:provider.stage}
+      Description: WebSocket API endpoint
     WebSocketApiUrl:
       Value:
         Fn::Join:

@@ -13,6 +13,7 @@
 const { createRetryManager, retryOperation } = require('../patterns/retryPattern');
 const { createCircuitBreaker, circuitRegistry } = require('../patterns/circuitBreakerPattern');
 const { SpaceBulkheadManager, BulkheadRejectionError } = require('../patterns/bulkheadPattern');
+const { putMetric } = require('./metrics');
 
 /**
  * Configuraciones combinadas para diferentes niveles de criticidad
@@ -193,7 +194,7 @@ class SpaceResilienceManager {
       const bulkheadPool = this._getBulkheadPoolForConfig(config, context);
       
       // Ejecutar con Bulkhead + Circuit Breaker + Retry
-      const result = await this.bulkheadManager.executeInPool(
+          const result = await this.bulkheadManager.executeInPool(
         bulkheadPool,
         // Operación wrapped con circuit breaker y retry
         async () => {
@@ -204,15 +205,30 @@ class SpaceResilienceManager {
           
           const fallbackFn = FALLBACK_STRATEGIES[config.fallbackStrategy];
           
-          return await circuitBreaker.execute(
-            () => retryOperation(
-              operation,
-              config.retryType,
-              { ...context, serviceName: config.serviceName }
-            ),
-            fallbackFn,
-            { ...context, configKey, operation: operation.name }
-          );
+            // wrap retry operation to emit metrics on retry exhaustion
+            const op = async () => {
+              try {
+                return await retryOperation(operation, config.retryType, { ...context, serviceName: config.serviceName });
+              } catch (err) {
+                if (err && err.name === 'RetryExhaustedError') {
+                  putMetric('RetryExhausted', 1, 'Count', [{ Name: 'Service', Value: config.serviceName }]);
+                }
+                throw err;
+              }
+            };
+
+            const res = await circuitBreaker.execute(
+              op,
+              fallbackFn,
+              { ...context, configKey, operation: operation.name }
+            );
+
+            // if fallback executed, increment metric
+            if (res && res.fallback) {
+              putMetric('FallbackExecuted', 1, 'Count', [{ Name: 'Service', Value: config.serviceName }]);
+            }
+
+            return res;
         },
         {
           ...context,

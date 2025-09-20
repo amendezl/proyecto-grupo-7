@@ -10,6 +10,7 @@
  */
 
 const DynamoDBAdapter = require('../database/DynamoDBAdapter');
+const { sendPersonalizationUpdateAsync } = require('./snsNotifications');
 const { v4: uuidv4 } = require('uuid');
 
 class PersonalizationManager {
@@ -76,6 +77,19 @@ class PersonalizationManager {
         };
         
         await this.db.putItem(configData);
+
+        // Publish personalization update event (non-blocking)
+        try {
+            sendPersonalizationUpdateAsync({
+                updateType: 'client_global_update',
+                clientId,
+                updatedBy,
+                itemKey: configData.SK,
+                subject: `Actualización de configuración global para ${clientId}`
+            });
+        } catch (err) {
+            console.warn('Failed to publish personalization SNS event:', err);
+        }
         
         // Invalidar cache
         this.cache.delete(`global_${clientId}`);
@@ -147,6 +161,20 @@ class PersonalizationManager {
         };
         
         await this.db.putItem(configData);
+
+        // Publish personalization update event (non-blocking)
+        try {
+            sendPersonalizationUpdateAsync({
+                updateType: 'user_specific_update',
+                clientId,
+                userId,
+                updatedBy,
+                itemKey: configData.SK,
+                subject: `Actualización de configuración de usuario ${userId} para cliente ${clientId}`
+            });
+        } catch (err) {
+            console.warn('Failed to publish personalization SNS event:', err);
+        }
         
         // Invalidar cache
         this.cache.delete(`user_${clientId}_${userId}`);

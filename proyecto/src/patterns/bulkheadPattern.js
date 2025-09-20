@@ -110,11 +110,13 @@ class BulkheadPool {
         // Verificar límite de cola
         if (this.queue.length >= this.queueSize) {
             this.metrics.maxQueueSizeReached++;
-            throw new BulkheadRejectionError(
-                `Bulkhead ${this.name} queue full: ${this.queue.length}/${this.queueSize}`,
-                this.name,
-                'QUEUE_FULL'
-            );
+                const err = new BulkheadRejectionError(
+                    `Bulkhead ${this.name} queue full: ${this.queue.length}/${this.queueSize}`,
+                    this.name,
+                    'QUEUE_FULL'
+                );
+                try { require('../utils/metrics').putMetric('BulkheadRejection', 1, 'Count', [{ Name: 'Pool', Value: this.name }]); } catch (e) {}
+                throw err;
         }
         
         // Agregar a la cola

@@ -16,6 +16,23 @@
  */
 
 const { v4: uuidv4 } = require('uuid');
+// Optional DynamoDB persistence for circuit states
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, PutCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+
+const region = process.env.AWS_REGION || 'us-east-1';
+const circuitStateTable = process.env.CIRCUIT_STATE_TABLE || null;
+let ddbDocClient = null;
+if (circuitStateTable) {
+  try {
+    const ddbClient = new DynamoDBClient({ region });
+    ddbDocClient = DynamoDBDocumentClient.from(ddbClient);
+  } catch (err) {
+    console.warn('Circuit breaker persistence disabled: failed to init DynamoDB client', err && err.message);
+    ddbDocClient = null;
+  }
+}
+const { putMetric } = require('../utils/metrics');
 
 /**
  * Estados del Circuit Breaker
@@ -326,6 +343,16 @@ class CircuitBreaker {
       if (this.config.enableLogging) {
         console.warn(`[CIRCUIT_BREAKER] 🔴 ${this.serviceName}: Circuito ABIERTO - próximo intento en ${this.config.recoveryTimeout}ms`);
       }
+  // persist state if possible
+      if (ddbDocClient) {
+        try {
+          ddbDocClient.send(new PutCommand({ TableName: circuitStateTable, Item: { serviceName: this.serviceName, state: this.state, lastUpdated: Date.now() } }));
+        } catch (e) {
+          console.warn('Failed to persist circuit state', e && e.message);
+        }
+      }
+      // metric
+      try { putMetric('CircuitOpened', 1, 'Count', [{ Name: 'Service', Value: this.serviceName }]); } catch (e) {}
     }
   }
 
@@ -342,6 +369,14 @@ class CircuitBreaker {
       if (this.config.enableLogging) {
         console.log(`[CIRCUIT_BREAKER] 🟢 ${this.serviceName}: Circuito CERRADO - servicio recuperado`);
       }
+      if (ddbDocClient) {
+        try {
+          ddbDocClient.send(new PutCommand({ TableName: circuitStateTable, Item: { serviceName: this.serviceName, state: this.state, lastUpdated: Date.now() } }));
+        } catch (e) {
+          console.warn('Failed to persist circuit state', e && e.message);
+        }
+      }
+      try { putMetric('CircuitClosed', 1, 'Count', [{ Name: 'Service', Value: this.serviceName }]); } catch (e) {}
     }
   }
 

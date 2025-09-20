@@ -10,6 +10,9 @@ const TOPICS = {
   SYSTEM_ALERTS: process.env.SNS_ALERTS_TOPIC_ARN,
   ADMIN_NOTIFICATIONS: process.env.SNS_ADMIN_TOPIC_ARN
 };
+  
+// Personalization updates topic (optional - can reuse existing topics)
+TOPICS.PERSONALIZATION_UPDATES = process.env.SNS_PERSONALIZATION_TOPIC_ARN || process.env.SNS_TOPIC_ARN || '';
 
 /**
  * Utility to send space notifications automatically
@@ -275,6 +278,50 @@ module.exports = {
   sendSpaceNotificationAsync,
   sendSystemAlertAsync,
   sendAdminNotificationAsync,
+  
+  // Personalization
+  sendPersonalizationUpdateAsync: async (updateData) => {
+    try {
+      if (!TOPICS.PERSONALIZATION_UPDATES) {
+        console.log('SNS Topic for personalization updates not configured, skipping notification');
+        return null;
+      }
+
+      const result = await resilienceManager.executeWithFullResilience(
+        'sns-personalization-update',
+        async () => {
+          const command = new PublishCommand({
+            TopicArn: TOPICS.PERSONALIZATION_UPDATES,
+            Message: JSON.stringify({
+              ...updateData,
+              timestamp: new Date().toISOString(),
+              source: 'personalization'
+            }),
+            Subject: updateData.subject || 'Personalization Update',
+            MessageAttributes: {
+              updateType: {
+                DataType: 'String',
+                StringValue: updateData.updateType || 'config_update'
+              },
+              clientId: {
+                DataType: 'String',
+                StringValue: updateData.clientId || 'unknown'
+              }
+            }
+          });
+
+          return await snsClient.send(command);
+        },
+        'STANDARD'
+      );
+
+      console.log(`🔔 Personalization update published: ${updateData.updateType} for ${updateData.clientId || 'unknown'}`);
+      return result;
+    } catch (error) {
+      console.error('Error sending personalization update:', error);
+      return null;
+    }
+  },
   
   // Convenience functions for specific events
   notifySpaceCreated,

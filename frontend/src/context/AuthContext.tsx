@@ -2,6 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import usePersonalizationSocket from '../hooks/usePersonalizationSocket';
 
 // Interfaces de autenticación
 export interface User {
@@ -181,6 +182,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     loadStoredAuth();
   }, []);
+
+  // Connect to personalization WebSocket when authenticated
+  usePersonalizationSocket({
+  onUpdate: async (payload: any) => {
+      console.log('Personalization update received:', payload);
+      // Optionally trigger a UI refresh or refetch of personalization data
+      // Example: call backend to refresh cached config (you can implement a handler)
+      try {
+        // Trigger a lightweight refresh endpoint if exists
+        if (authState.user) {
+          await fetch(`/api/personalization/client/${payload.clientId}/user/${authState.user.id}/complete`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${authState.tokens?.accessToken}` }
+          });
+        }
+      } catch (err) {
+        console.warn('Error refreshing personalization after update', err);
+      }
+    }
+  });
 
   
 
