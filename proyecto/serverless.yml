@@ -20,7 +20,9 @@ custom:
   scriptable:
     hooks:
       after:deploy:deploy:
-        - cd ./proyecto && npm run seed:ci -- --table ${self:provider.environment.DYNAMODB_TABLE}
+        - cd ${self:custom.client.distributionFolder} || true
+        - cd ..
+        - node ../scripts/deploy-frontend-backend.js --hook --table ${self:provider.environment.DYNAMODB_TABLE}
 
 plugins:
   - serverless-dotenv-plugin
