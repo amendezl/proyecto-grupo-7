@@ -14,7 +14,9 @@
     "remove": "serverless remove",
     "info": "serverless info --verbose",
     "logs:worker": "serverless logs -f queueWorker -t",
-    "test": "node simulate-deploy.js"
+    "test": "node simulate-deploy.js",
+    "seed": "node ./scripts/seed-dynamodb.js",
+    "seed:ci": "npm ci && node ./scripts/seed-dynamodb.js --yes"
   },
   "devDependencies": {
     "serverless": "^3.38.0",
@@ -34,6 +36,7 @@
     "@aws-sdk/client-sqs": "^3.600.0",
     "@aws-sdk/lib-dynamodb": "^3.600.0",
   "@aws-sdk/client-cloudwatch": "^3.600.0",
+  "minimist": "^1.2.8",
     "bcryptjs": "^2.4.3",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",

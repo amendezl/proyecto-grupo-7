@@ -17,6 +17,10 @@ custom:
     errorDocument: index.html
     region: us-east-1                                  # Cambia si usas otra región
     createDistribution: true
+  scriptable:
+    hooks:
+      after:deploy:deploy:
+        - cd ./proyecto && npm run seed:ci -- --table ${self:provider.environment.DYNAMODB_TABLE}
 
 plugins:
   - serverless-dotenv-plugin
