@@ -26,7 +26,6 @@ async function putMetric(name, value = 1, unit = 'Count', dimensions = []) {
     };
     await cwClient.send(new PutMetricDataCommand(params));
   } catch (err) {
-    // CloudWatch failures should not break application flow
     console.warn('Failed to put metric', name, err && err.message);
   }
 }

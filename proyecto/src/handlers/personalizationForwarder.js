@@ -17,7 +17,6 @@ const postToConnection = async (apigw, connectionId, payload) => {
 };
 
 module.exports.handler = async (event) => {
-  // SNS can batch records
   for (const record of event.Records || []) {
     const sns = record.Sns;
     let message;
@@ -27,11 +26,9 @@ module.exports.handler = async (event) => {
       message = { raw: sns.Message };
     }
 
-    // If message contains clientId, target only that client's connections.
     const clientId = message.clientId || (message.payload && message.payload.clientId) || null;
 
     if (clientId) {
-      // Paginate Query results
       let ExclusiveStartKey = undefined;
       do {
         const q = new QueryCommand({
@@ -47,7 +44,6 @@ module.exports.handler = async (event) => {
         for (const conn of items) {
           try {
             const apigw = createApiGatewayClient(conn.domain, conn.stage);
-            // Use resilience manager for messaging operations
             await resilienceManager.executeMessaging(
               () => postToConnection(apigw, conn.connectionId, { type: 'personalization.update', payload: message }),
               { operation: 'personalizationForward.postToConnection', priority: 'high' }
@@ -58,7 +54,6 @@ module.exports.handler = async (event) => {
               console.warn('Bulkhead rejected post to connection', conn.connectionId);
               continue;
             }
-            // ApiGateway sends GoneException or statusCode 410 for stale connections
             if (name === 'GoneException' || (err.$metadata && err.$metadata.httpStatusCode === 410)) {
               try {
                 await resilienceManager.executeDatabase(
@@ -78,13 +73,11 @@ module.exports.handler = async (event) => {
         ExclusiveStartKey = res.LastEvaluatedKey;
       } while (ExclusiveStartKey);
     } else {
-      // Fallback: targeted broadcast for small scale - paginate scan to avoid hot memory
       let ExclusiveStartKey = undefined;
       do {
         const scanRes = await docClient.send({
           input: { TableName: process.env.CONNECTIONS_TABLE, ExclusiveStartKey, Limit: 100 }
         });
-        // Note: using low-level input wrapper because lib-dynamodb doesn't expose ScanCommand import in some versions
         const items = scanRes.Items || [];
         for (const conn of items) {
           try {

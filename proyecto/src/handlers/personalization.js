@@ -1,8 +1,3 @@
-/**
- * Handlers para Gestión de Personalización
- * Componente SaaS multi-tenant con parámetros globales y específicos por usuario
- */
-
 const PersonalizationManager = require('../utils/personalizationManager');
 const { withPermissions } = require('../utils/auth');
 const { success, badRequest, notFound, created } = require('../utils/responses');
@@ -10,10 +5,6 @@ const { PERMISSIONS } = require('../utils/permissions');
 
 const personalizationManager = new PersonalizationManager();
 
-/**
- * GET /api/personalization/client/{clientId}/global
- * Obtiene configuración global del cliente
- */
 const getClientGlobalConfig = withPermissions(async (event) => {
     const { clientId } = event.pathParameters;
     
@@ -30,10 +21,6 @@ const getClientGlobalConfig = withPermissions(async (event) => {
     });
 }, [PERMISSIONS.ADMIN_SYSTEM_CONFIG]);
 
-/**
- * PUT /api/personalization/client/{clientId}/global
- * Actualiza configuración global del cliente
- */
 const updateClientGlobalConfig = withPermissions(async (event) => {
     const { clientId } = event.pathParameters;
     const settings = JSON.parse(event.body || '{}');
@@ -59,10 +46,6 @@ const updateClientGlobalConfig = withPermissions(async (event) => {
     });
 }, [PERMISSIONS.ADMIN_SYSTEM_CONFIG]);
 
-/**
- * GET /api/personalization/client/{clientId}/user/{userId}
- * Obtiene configuración específica del usuario
- */
 const getUserSpecificConfig = withPermissions(async (event) => {
     const { clientId, userId } = event.pathParameters;
     
@@ -70,7 +53,6 @@ const getUserSpecificConfig = withPermissions(async (event) => {
         return badRequest('clientId y userId son requeridos');
     }
     
-    // Verificar que el usuario puede acceder a esta configuración
     if (event.user.id !== userId && !event.user.rol.includes('admin')) {
         return { statusCode: 403, body: JSON.stringify({ error: 'Acceso denegado a configuración de otro usuario' }) };
     }
@@ -85,10 +67,6 @@ const getUserSpecificConfig = withPermissions(async (event) => {
     });
 }, [PERMISSIONS.USUARIOS_READ_PROFILE]);
 
-/**
- * PUT /api/personalization/client/{clientId}/user/{userId}
- * Actualiza configuración específica del usuario
- */
 const updateUserSpecificConfig = withPermissions(async (event) => {
     const { clientId, userId } = event.pathParameters;
     const settings = JSON.parse(event.body || '{}');
@@ -98,7 +76,6 @@ const updateUserSpecificConfig = withPermissions(async (event) => {
         return badRequest('clientId y userId son requeridos');
     }
     
-    // Verificar que el usuario puede modificar esta configuración
     if (event.user.id !== userId && !event.user.rol.includes('admin')) {
         return { statusCode: 403, body: JSON.stringify({ error: 'No puede modificar configuración de otro usuario' }) };
     }
@@ -120,10 +97,6 @@ const updateUserSpecificConfig = withPermissions(async (event) => {
     });
 }, [PERMISSIONS.USUARIOS_UPDATE_PROFILE]);
 
-/**
- * GET /api/personalization/client/{clientId}/user/{userId}/complete
- * Obtiene configuración completa del usuario (global + específica + externa)
- */
 const getCompleteUserConfig = withPermissions(async (event) => {
     const { clientId, userId } = event.pathParameters;
     
@@ -131,7 +104,6 @@ const getCompleteUserConfig = withPermissions(async (event) => {
         return badRequest('clientId y userId son requeridos');
     }
     
-    // Verificar que el usuario puede acceder a esta configuración
     if (event.user.id !== userId && !event.user.rol.includes('admin')) {
         return { statusCode: 403, body: JSON.stringify({ error: 'Acceso denegado a configuración de otro usuario' }) };
     }
@@ -146,10 +118,6 @@ const getCompleteUserConfig = withPermissions(async (event) => {
     });
 }, [PERMISSIONS.USUARIOS_READ_PROFILE]);
 
-/**
- * POST /api/personalization/client/{clientId}/load-external
- * Carga configuración desde fuente externa (mecanismo de desacople)
- */
 const loadExternalConfig = withPermissions(async (event) => {
     const { clientId } = event.pathParameters;
     const { source } = JSON.parse(event.body || '{}');
@@ -178,10 +146,6 @@ const loadExternalConfig = withPermissions(async (event) => {
     });
 }, [PERMISSIONS.ADMIN_SYSTEM_CONFIG]);
 
-/**
- * GET /api/personalization/client/{clientId}/export
- * Exporta toda la configuración del cliente
- */
 const exportClientConfig = withPermissions(async (event) => {
     const { clientId } = event.pathParameters;
     
@@ -194,10 +158,6 @@ const exportClientConfig = withPermissions(async (event) => {
     return success(exportData);
 }, [PERMISSIONS.ADMIN_SYSTEM_CONFIG]);
 
-/**
- * POST /api/personalization/cache/clear
- * Limpia la cache de configuraciones
- */
 const clearConfigurationCache = withPermissions(async (event) => {
     personalizationManager.clearCache();
     
@@ -207,10 +167,6 @@ const clearConfigurationCache = withPermissions(async (event) => {
     });
 }, [PERMISSIONS.ADMIN_SYSTEM_CONFIG]);
 
-/**
- * GET /api/personalization/industries/{industry}/config
- * Obtiene configuración específica por industria
- */
 const getIndustryConfig = withPermissions(async (event) => {
     const { industry } = event.pathParameters;
     

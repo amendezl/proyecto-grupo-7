@@ -4,11 +4,10 @@ const { sendPersonalizationUpdateAsync } = require('../utils/snsNotifications');
 module.exports.handler = async (event) => {
   for (const record of event.Records || []) {
     try {
-      const eventName = record.eventName; // INSERT, MODIFY, REMOVE
+      const eventName = record.eventName;
       const newImage = record.dynamodb.NewImage ? unmarshall(record.dynamodb.NewImage) : null;
       const oldImage = record.dynamodb.OldImage ? unmarshall(record.dynamodb.OldImage) : null;
 
-      // Only handle CONFIG items
       const image = newImage || oldImage;
       if (!image || image.PK !== 'CONFIG') continue;
 
@@ -22,7 +21,6 @@ module.exports.handler = async (event) => {
       });
     } catch (err) {
       console.error('Error processing stream record', err);
-      // Let Lambda retry if needed
       throw err;
     }
   }

@@ -1,14 +1,3 @@
-/**
- * Sistema de Gestión de Personalización - SaaS Multi-tenant
- * 
- * Permite configuración a nivel de:
- * 1. Parámetros globales del cliente/organización
- * 2. Parámetros específicos del usuario
- * 3. Configuraciones del sistema
- * 
- * Emplea mecanismo de desacople mediante configuración externa
- */
-
 const DynamoDBAdapter = require('../database/DynamoDBAdapter');
 const { sendPersonalizationUpdateAsync } = require('./snsNotifications');
 const { v4: uuidv4 } = require('uuid');
@@ -17,7 +6,7 @@ class PersonalizationManager {
     constructor() {
         this.db = new DynamoDBAdapter();
         this.cache = new Map();
-        this.cacheTimeout = 5 * 60 * 1000; // 5 minutos cache
+        this.cacheTimeout = 5 * 60 * 1000;
     }
 
     /**
@@ -25,14 +14,12 @@ class PersonalizationManager {
      */
     
     /**
-     * Obtiene configuración global del cliente
      * @param {string} clientId - ID del cliente/organización
      * @returns {Object} Configuración global
      */
     async getClientGlobalConfig(clientId) {
         const cacheKey = `global_${clientId}`;
         
-        // Verificar cache
         if (this.cache.has(cacheKey)) {
             const cached = this.cache.get(cacheKey);
             if (Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -46,7 +33,6 @@ class PersonalizationManager {
             const defaultConfig = this.getDefaultClientConfig();
             const finalConfig = { ...defaultConfig, ...config?.settings };
             
-            // Cachear resultado
             this.cache.set(cacheKey, {
                 data: finalConfig,
                 timestamp: Date.now()
@@ -78,7 +64,6 @@ class PersonalizationManager {
         
         await this.db.putItem(configData);
 
-        // Publish personalization update event (non-blocking)
         try {
             sendPersonalizationUpdateAsync({
                 updateType: 'client_global_update',
@@ -91,7 +76,6 @@ class PersonalizationManager {
             console.warn('Failed to publish personalization SNS event:', err);
         }
         
-        // Invalidar cache
         this.cache.delete(`global_${clientId}`);
         
         return configData;
@@ -102,14 +86,12 @@ class PersonalizationManager {
      */
     
     /**
-     * Obtiene configuración específica del usuario
      * @param {string} clientId - ID del cliente
      * @param {string} userId - ID del usuario
      */
     async getUserSpecificConfig(clientId, userId) {
         const cacheKey = `user_${clientId}_${userId}`;
         
-        // Verificar cache
         if (this.cache.has(cacheKey)) {
             const cached = this.cache.get(cacheKey);
             if (Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -121,14 +103,12 @@ class PersonalizationManager {
             const userConfig = await this.db.getItem('CONFIG', `USER_SPECIFIC#${clientId}#${userId}`);
             const globalConfig = await this.getClientGlobalConfig(clientId);
             
-            // Combinar configuraciones: específicas del usuario tienen prioridad
             const finalConfig = {
                 ...globalConfig,
                 ...userConfig?.settings,
                 _userOverrides: userConfig?.settings || {}
             };
             
-            // Cachear resultado
             this.cache.set(cacheKey, {
                 data: finalConfig,
                 timestamp: Date.now()
@@ -162,7 +142,6 @@ class PersonalizationManager {
         
         await this.db.putItem(configData);
 
-        // Publish personalization update event (non-blocking)
         try {
             sendPersonalizationUpdateAsync({
                 updateType: 'user_specific_update',
@@ -176,22 +155,18 @@ class PersonalizationManager {
             console.warn('Failed to publish personalization SNS event:', err);
         }
         
-        // Invalidar cache
         this.cache.delete(`user_${clientId}_${userId}`);
         
         return configData;
     }
     
     /**
-     * CONFIGURACIONES DEL SISTEMA (DESACOPLADAS)
+     * CONFIGURACIONES DEL SISTEMA
      */
     
-    /**
-     * Obtiene configuraciones por defecto del cliente
-     */
     getDefaultClientConfig() {
         return {
-            // === CONFIGURACIONES DE UI ===
+
             ui: {
                 theme: 'light', // light, dark, auto
                 primaryColor: '#007bff',
@@ -205,9 +180,8 @@ class PersonalizationManager {
                 timeFormat: '24h'
             },
             
-            // === CONFIGURACIONES DE NEGOCIO ===
             business: {
-                industry: 'generic', // healthcare, education, office, parking, events
+                industry: 'generic',
                 timezone: 'America/Santiago',
                 currency: 'CLP',
                 workingHours: {
@@ -223,7 +197,6 @@ class PersonalizationManager {
                 }
             },
             
-            // === CONFIGURACIONES DE ESPACIOS ===
             spaces: {
                 defaultCapacity: 10,
                 requireApproval: false,
@@ -236,9 +209,8 @@ class PersonalizationManager {
                 }
             },
             
-            // === CONFIGURACIONES DE SEGURIDAD ===
             security: {
-                sessionTimeout: 240, // 4 minutos (menos de 5)
+                sessionTimeout: 240,
                 requirePasswordChange: false,
                 passwordPolicy: {
                     minLength: 8,
@@ -250,7 +222,6 @@ class PersonalizationManager {
                 enableIPRestriction: false
             },
             
-            // === CONFIGURACIONES DE INTEGRACIÓN ===
             integrations: {
                 allowExternalAPI: false,
                 webhookEndpoints: [],
@@ -261,9 +232,6 @@ class PersonalizationManager {
         };
     }
     
-    /**
-     * Obtiene configuraciones específicas por tipo de industria
-     */
     getIndustrySpecificConfig(industry) {
         const configs = {
             healthcare: {
@@ -306,11 +274,10 @@ class PersonalizationManager {
     }
     
     /**
-     * MECANISMO DE DESACOPLE - CONFIGURACIÓN EXTERNA
+     * MECANISMO DE DESACOPLE
      */
     
     /**
-     * Carga configuración desde fuente externa (archivo, API, etc.)
      * @param {string} source - Fuente de configuración
      * @param {string} clientId - ID del cliente
      */
@@ -333,7 +300,6 @@ class PersonalizationManager {
                     return {};
             }
             
-            // Aplicar configuración externa
             if (Object.keys(externalConfig).length > 0) {
                 await this.updateClientGlobalConfig(clientId, externalConfig, 'system');
             }
@@ -345,14 +311,10 @@ class PersonalizationManager {
         }
     }
     
-    /**
-     * Carga configuración desde variables de entorno
-     */
     loadFromEnvironment(clientId) {
         const envPrefix = `CLIENT_${clientId.toUpperCase()}_`;
         const config = {};
         
-        // Buscar variables de entorno con el prefijo del cliente
         for (const [key, value] of Object.entries(process.env)) {
             if (key.startsWith(envPrefix)) {
                 const configKey = key.replace(envPrefix, '').toLowerCase();
@@ -367,32 +329,14 @@ class PersonalizationManager {
         return config;
     }
     
-    /**
-     * Carga configuración desde archivo JSON
-     */
     async loadFromFile(clientId) {
-        // En un entorno real, esto cargaría desde S3 o sistema de archivos
-        // Por ahora retornamos configuración vacía
         return {};
     }
     
-    /**
-     * Carga configuración desde API externa
-     */
     async loadFromAPI(clientId) {
-        // En un entorno real, esto haría una llamada HTTP a una API externa
-        // Por ahora retornamos configuración vacía
         return {};
     }
     
-    /**
-     * UTILIDADES
-     */
-    
-    /**
-     * Obtiene configuración completa para un usuario
-     * Combina configuración global + específica del usuario + configuración externa
-     */
     async getCompleteUserConfig(clientId, userId) {
         const userConfig = await this.getUserSpecificConfig(clientId, userId);
         const externalConfig = await this.loadExternalConfig('environment', clientId);
@@ -409,16 +353,10 @@ class PersonalizationManager {
         };
     }
     
-    /**
-     * Invalida toda la cache de configuraciones
-     */
     clearCache() {
         this.cache.clear();
     }
     
-    /**
-     * Exporta configuración completa de un cliente
-     */
     async exportClientConfig(clientId) {
         const globalConfig = await this.getClientGlobalConfig(clientId);
         

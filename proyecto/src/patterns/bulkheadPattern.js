@@ -1,25 +1,9 @@
-/**
- * Bulkhead Pattern Implementation for Space Management System
- * 
- * Inspirado en compartimentos estancos navales, este patrón aísla recursos
- * para que el fallo de un tipo de operación no afecte a otras operaciones críticas.
- * 
- * Implementa pools de recursos separados para:
- * - Operaciones de alta prioridad (máxima prioridad)
- * - Operaciones críticas (importantes para el negocio)
- * - Operaciones estándar (consultas, reservas normales)
- * - Operaciones de baja prioridad (reportes, estadísticas)
- * - Operaciones administrativas
- */
-
 class BulkheadPool {
     constructor(name, maxConcurrency, queueSize = 100, timeoutMs = 30000) {
         this.name = name;
         this.maxConcurrency = maxConcurrency;
         this.queueSize = queueSize;
         this.timeoutMs = timeoutMs;
-        
-        // Estado del pool
         this.activeRequests = 0;
         this.queue = [];
         this.metrics = {
@@ -32,13 +16,9 @@ class BulkheadPool {
             maxQueueSizeReached: 0
         };
         
-        // Configuración de timeouts
         this.requestTimeouts = new Map();
     }
 
-    /**
-     * Ejecuta una operación en el pool con isolación de recursos
-     */
     async execute(operation, context = {}) {
         const requestId = this._generateRequestId();
         const startTime = Date.now();
@@ -46,12 +26,11 @@ class BulkheadPool {
         this.metrics.totalRequests++;
         
         try {
-            // Verificar si hay slots disponibles
+
             if (this.activeRequests >= this.maxConcurrency) {
                 return await this._queueRequest(operation, context, requestId, startTime);
             }
             
-            // Ejecutar inmediatamente
             return await this._executeImmediate(operation, context, requestId, startTime);
             
         } catch (error) {
@@ -66,14 +45,11 @@ class BulkheadPool {
         }
     }
 
-    /**
-     * Ejecuta operación inmediatamente
-     */
     async _executeImmediate(operation, context, requestId, startTime) {
         this.activeRequests++;
         
         try {
-            // Configurar timeout
+
             const timeoutPromise = new Promise((_, reject) => {
                 const timeoutId = setTimeout(() => {
                     reject(new Error(`Bulkhead timeout: ${this.name} operation exceeded ${this.timeoutMs}ms`));
@@ -82,13 +58,11 @@ class BulkheadPool {
                 this.requestTimeouts.set(requestId, timeoutId);
             });
             
-            // Ejecutar con timeout
             const result = await Promise.race([
                 operation(),
                 timeoutPromise
             ]);
             
-            // Limpiar timeout
             this._clearTimeout(requestId);
             
             this.metrics.successfulRequests++;
@@ -103,11 +77,8 @@ class BulkheadPool {
         }
     }
 
-    /**
-     * Encola una operación cuando el pool está lleno
-     */
     async _queueRequest(operation, context, requestId, startTime) {
-        // Verificar límite de cola
+
         if (this.queue.length >= this.queueSize) {
             this.metrics.maxQueueSizeReached++;
                 const err = new BulkheadRejectionError(
@@ -119,7 +90,6 @@ class BulkheadPool {
                 throw err;
         }
         
-        // Agregar a la cola
         return new Promise((resolve, reject) => {
             const queueItem = {
                 operation,
@@ -134,7 +104,6 @@ class BulkheadPool {
             this.queue.push(queueItem);
             this.metrics.queuedRequests++;
             
-            // Timeout para elementos en cola
             setTimeout(() => {
                 if (this.queue.includes(queueItem)) {
                     this._removeFromQueue(queueItem);
@@ -144,14 +113,10 @@ class BulkheadPool {
         });
     }
 
-    /**
-     * Procesa la cola cuando hay slots disponibles
-     */
     _processQueue() {
         while (this.queue.length > 0 && this.activeRequests < this.maxConcurrency) {
             const queueItem = this.queue.shift();
             
-            // Ejecutar elemento de la cola
             this._executeImmediate(
                 queueItem.operation,
                 queueItem.context,
@@ -163,9 +128,6 @@ class BulkheadPool {
         }
     }
 
-    /**
-     * Elimina elemento de la cola
-     */
     _removeFromQueue(itemToRemove) {
         const index = this.queue.indexOf(itemToRemove);
         if (index > -1) {
@@ -173,9 +135,6 @@ class BulkheadPool {
         }
     }
 
-    /**
-     * Limpia timeout de request
-     */
     _clearTimeout(requestId) {
         const timeoutId = this.requestTimeouts.get(requestId);
         if (timeoutId) {
@@ -184,25 +143,16 @@ class BulkheadPool {
         }
     }
 
-    /**
-     * Actualiza tiempo promedio de ejecución
-     */
     _updateAverageExecutionTime(startTime) {
         const executionTime = Date.now() - startTime;
         this.metrics.averageExecutionTime = 
             (this.metrics.averageExecutionTime + executionTime) / 2;
     }
 
-    /**
-     * Genera ID único para request
-     */
     _generateRequestId() {
         return `${this.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     }
 
-    /**
-     * Obtiene métricas del pool
-     */
     getMetrics() {
         return {
             ...this.metrics,
@@ -213,9 +163,6 @@ class BulkheadPool {
         };
     }
 
-    /**
-     * Reinicia métricas
-     */
     resetMetrics() {
         this.metrics = {
             totalRequests: 0,
@@ -229,9 +176,6 @@ class BulkheadPool {
     }
 }
 
-/**
- * Error específico para rechazo por Bulkhead
- */
 class BulkheadRejectionError extends Error {
     constructor(message, poolName, reason) {
         super(message);
@@ -242,73 +186,59 @@ class BulkheadRejectionError extends Error {
     }
 }
 
-/**
- * Manager principal del patrón Bulkhead para el sistema de gestión de espacios
- */
 class SpaceBulkheadManager {
     constructor() {
         this.pools = new Map();
         this.initializeSpacePools();
     }
 
-    /**
-     * Inicializa pools específicos para operaciones de gestión de espacios
-     */
     initializeSpacePools() {
-        // Pool para operaciones de alta prioridad (máxima prioridad)
+
         this.pools.set('HIGH_PRIORITY', new BulkheadPool(
             'HIGH_PRIORITY',
-            20,      // 20 operaciones concurrentes máximo
-            50,      // Cola de 50 operaciones
-            60000    // Timeout de 60 segundos
+            20,
+            50,
+            60000
         ));
 
-        // Pool para operaciones críticas (importantes para el negocio)
         this.pools.set('CRITICAL', new BulkheadPool(
             'CRITICAL',
-            15,      // 15 operaciones concurrentes
-            30,      // Cola de 30 operaciones
-            45000    // Timeout de 45 segundos
+            15,
+            30,
+            45000
         ));
 
-        // Pool para operaciones estándar (reservas, consultas)
         this.pools.set('STANDARD', new BulkheadPool(
             'STANDARD',
-            25,      // 25 operaciones concurrentes
-            100,     // Cola de 100 operaciones
-            30000    // Timeout de 30 segundos
+            25,
+            100,
+            30000
         ));
 
-        // Pool para operaciones de baja prioridad (reportes, estadísticas)
         this.pools.set('LOW_PRIORITY', new BulkheadPool(
             'LOW_PRIORITY',
-            10,      // 10 operaciones concurrentes
-            20,      // Cola de 20 operaciones
-            15000    // Timeout de 15 segundos
+            10,
+            20,
+            15000
         ));
 
-        // Pool para operaciones administrativas
         this.pools.set('ADMIN', new BulkheadPool(
             'ADMIN',
-            8,       // 8 operaciones concurrentes
-            15,      // Cola de 15 operaciones
-            20000    // Timeout de 20 segundos
+            8,
+            15,
+            20000
         ));
 
-        // Pool para autenticación (separado para aislar problemas de auth)
         this.pools.set('AUTHENTICATION', new BulkheadPool(
             'AUTHENTICATION',
-            30,      // 30 operaciones concurrentes (alta demanda)
-            50,      // Cola de 50 operaciones
-            10000    // Timeout de 10 segundos (rápido)
+            30,
+            50,
+            10000
         ));
 
         console.log('[BULKHEAD] Pools de gestión de espacios inicializados:', Array.from(this.pools.keys()));
     }
 
-    /**
-     * Ejecuta operación en el pool apropiado según el contexto de gestión de espacios
-     */
     async executeInPool(poolName, operation, context = {}) {
         const pool = this.pools.get(poolName);
         
@@ -319,7 +249,6 @@ class SpaceBulkheadManager {
         try {
             const result = await pool.execute(operation, context);
             
-            // Log para operaciones críticas o de alta prioridad
             if (poolName === 'HIGH_PRIORITY' || poolName === 'CRITICAL') {
                 console.log(`[BULKHEAD_${poolName}] Operación ejecutada:`, {
                     pool: poolName,
@@ -343,11 +272,6 @@ class SpaceBulkheadManager {
         }
     }
 
-    /**
-     * Métodos convenientes para tipos específicos de operaciones de gestión de espacios
-     */
-
-    // Operaciones de alta prioridad del negocio
     async executeHighPriority(operation, context = {}) {
         return this.executeInPool('HIGH_PRIORITY', operation, { 
             ...context, 
@@ -356,7 +280,6 @@ class SpaceBulkheadManager {
         });
     }
 
-    // Operaciones críticas del negocio
     async executeCritical(operation, context = {}) {
         return this.executeInPool('CRITICAL', operation, { 
             ...context, 
@@ -365,7 +288,6 @@ class SpaceBulkheadManager {
         });
     }
 
-    // Operaciones estándar
     async executeStandard(operation, context = {}) {
         return this.executeInPool('STANDARD', operation, { 
             ...context, 
@@ -373,7 +295,6 @@ class SpaceBulkheadManager {
         });
     }
 
-    // Operaciones de baja prioridad
     async executeLowPriority(operation, context = {}) {
         return this.executeInPool('LOW_PRIORITY', operation, { 
             ...context, 
@@ -381,7 +302,6 @@ class SpaceBulkheadManager {
         });
     }
 
-    // Operaciones administrativas
     async executeAdmin(operation, context = {}) {
         return this.executeInPool('ADMIN', operation, { 
             ...context, 
@@ -389,7 +309,6 @@ class SpaceBulkheadManager {
         });
     }
 
-    // Operaciones de autenticación
     async executeAuth(operation, context = {}) {
         return this.executeInPool('AUTHENTICATION', operation, { 
             ...context, 
@@ -397,9 +316,6 @@ class SpaceBulkheadManager {
         });
     }
 
-    /**
-     * Obtiene métricas de todos los pools
-     */
     getAllMetrics() {
         const metrics = {};
         
@@ -417,18 +333,12 @@ class SpaceBulkheadManager {
         };
     }
 
-    /**
-     * Reinicia métricas de todos los pools
-     */
     resetAllMetrics() {
         for (const pool of this.pools.values()) {
             pool.resetMetrics();
         }
     }
 
-    /**
-     * Obtiene estado de salud de todos los pools
-     */
     getHealthStatus() {
         const status = {};
         

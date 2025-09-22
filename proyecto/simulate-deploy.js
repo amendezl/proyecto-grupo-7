@@ -1,25 +1,19 @@
-#!/usr/bin/env node
+console.log('SIMULACIÓN DE DESPLIEGUE - Sistema de Gestión de Espacios\n');
 
-/**
- * Simulador de despliegue - Muestra lo que pasará con serverless deploy
- */
-
-console.log('🚀 SIMULACIÓN DE DESPLIEGUE - Sistema de Gestión de Espacios\n');
-
-console.log('📋 Comando que ejecutará el profesor:');
+console.log('Comando que ejecutará el profesor:');
 console.log('   serverless deploy');
 console.log('');
 
-console.log('⚡ Lo que sucederá automáticamente:\n');
+console.log('Lo que sucederá automáticamente:\n');
 
 const services = [
-    { name: '🔧 CloudFormation Stack', description: 'Crear infraestructura AWS', time: '30s' },
-    { name: '💾 DynamoDB Table', description: 'Base de datos NoSQL con índices', time: '45s' },
-    { name: '🔐 Cognito User Pool', description: 'Autenticación JWT segura', time: '30s' },
-    { name: '📨 SQS Queue', description: 'Cola de mensajes asíncronos', time: '15s' },
-    { name: '📡 SNS Topics', description: 'Notificaciones empresariales (3 topics)', time: '20s' },
-    { name: '🌐 API Gateway', description: 'Endpoints HTTP REST', time: '20s' },
-    { name: '🔑 IAM Roles', description: 'Permisos y políticas de seguridad', time: '25s' }
+    { name: 'CloudFormation Stack', description: 'Crear infraestructura AWS', time: '30s' },
+    { name: 'DynamoDB Table', description: 'Base de datos NoSQL con índices', time: '45s' },
+    { name: 'Cognito User Pool', description: 'Autenticación JWT segura', time: '30s' },
+    { name: 'SQS Queue', description: 'Cola de mensajes asíncronos', time: '15s' },
+    { name: 'SNS Topics', description: 'Notificaciones empresariales (3 topics)', time: '20s' },
+    { name: 'API Gateway', description: 'Endpoints HTTP REST', time: '20s' },
+    { name: 'IAM Roles', description: 'Permisos y políticas de seguridad', time: '25s' }
 ];
 
 const lambdaFunctions = [
@@ -35,7 +29,6 @@ const lambdaFunctions = [
     'getZonasPorPiso', 'getEspaciosZona', 'estadisticasZonas', 'getPisosDisponibles', 'getEdificiosDisponibles',
     'queueWorker', 'resilienceHealth', 'completeResilienceHealth', 'bulkheadStatus',
     'resetResilienceMetrics', 'resilienceConfiguration',
-    // SNS Functions
     'sendSpaceNotification', 'sendSystemAlert', 'sendAdminNotification',
     'processSpaceNotification', 'processSystemAlert', 'processAdminNotification',
     'subscribeToNotifications', 'listSubscriptions'
@@ -75,7 +68,7 @@ setTimeout(() => {
 }, 4000);
 
 setTimeout(() => {
-    console.log('\n📊 Servicios creados en AWS:');
+    console.log('\nServicios creados en AWS:');
     console.log('   • Stack CloudFormation: sistema-gestion-espacios-dev');
     console.log('   • DynamoDB Table: sistema-gestion-espacios-dev-table');
     console.log('   • Cognito User Pool: sistema-gestion-espacios-dev-users');
@@ -88,23 +81,23 @@ setTimeout(() => {
 }, 5000);
 
 setTimeout(() => {
-    console.log('\n🔍 Patrones de Resiliencia Activos:');
+    console.log('\nPatrones de Resiliencia Activos:');
     console.log('   ✅ Retry Pattern: Reintentos exponenciales');
     console.log('   ✅ Circuit Breaker: Prevención de fallos en cascada');
     console.log('   ✅ Bulkhead: Aislamiento de operaciones (6 pools)');
 }, 6000);
 
 setTimeout(() => {
-    console.log('\n🌍 Sistema Listo Para:');
-    console.log('   📚 Escuelas (aulas, laboratorios, bibliotecas)');
-    console.log('   🚗 Estacionamientos (espacios, reservas, control)');
-    console.log('   🏢 Oficinas (salas de reunión, espacios de trabajo)');
-    console.log('   🎪 Eventos (espacios, usuarios, gestión)');
-    console.log('   🏭 Cualquier gestión de espacios empresarial');
+    console.log('\nSistema Listo Para:');
+    console.log('Escuelas (aulas, laboratorios, bibliotecas)');
+    console.log('Estacionamientos (espacios, reservas, control)');
+    console.log('Oficinas (salas de reunión, espacios de trabajo)');
+    console.log('Eventos (espacios, usuarios, gestión)');
+    console.log('Cualquier gestión de espacios empresarial');
 }, 7000);
 
 setTimeout(() => {
-    console.log('\n💰 Costos Estimados:');
+    console.log('\nCostos Estimados:');
     console.log('   • Nivel Gratuito AWS cubre la mayoría');
     console.log('   • Lambda: Pay-per-execution');
     console.log('   • DynamoDB: Pay-per-use');
@@ -113,8 +106,8 @@ setTimeout(() => {
 }, 8000);
 
 setTimeout(() => {
-    console.log('\n🎉 ¡DESPLIEGUE COMPLETADO EXITOSAMENTE!');
-    console.log('\n📋 Resumen:');
+    console.log('\n¡DESPLIEGUE COMPLETADO EXITOSAMENTE!');
+    console.log('\nResumen:');
     console.log('   ✅ 58 Lambda Functions operativas');
     console.log('   ✅ DynamoDB configurada y lista');
     console.log('   ✅ Cognito JWT funcionando');
@@ -124,8 +117,8 @@ setTimeout(() => {
     console.log('   ✅ Patrones de resiliencia activos');
     console.log('   ✅ Sistema genérico de gestión de espacios');
     console.log('   ✅ Listo para cualquier industria');
-    console.log('\n🚀 El sistema está 100% operativo en AWS!');
-    console.log('\n💡 Para verificar el despliegue real:');
+    console.log('\nEl sistema está 100% operativo en AWS!');
+    console.log('\nPara verificar el despliegue real:');
     console.log('   1. Configura AWS CLI: aws configure');
     console.log('   2. Instala Serverless: npm install -g serverless');
     console.log('   3. Ejecuta: serverless deploy');

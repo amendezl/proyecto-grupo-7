@@ -5,15 +5,11 @@ const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
-/**
- * Obtener datos del dashboard principal
- */
 const getDashboard = withAuth(async (event) => {
     const user = event.user;
     
     return await resilienceManager.executeDatabase(
         async () => {
-            // Obtener todas las entidades necesarias
             const [espacios, reservas, usuarios, responsables, zonas] = await Promise.all([
                 db.getEspacios(),
                 db.getReservas(),
@@ -22,7 +18,6 @@ const getDashboard = withAuth(async (event) => {
                 db.getEntities('zona')
             ]);
         
-        // Estadísticas generales
         const stats = {
             espacios: {
                 total: espacios.length,
@@ -57,7 +52,6 @@ const getDashboard = withAuth(async (event) => {
             }
         };
         
-        // Datos específicos según el rol del usuario
         let dashboardData = {
             usuario: {
                 id: user.id,
@@ -69,7 +63,6 @@ const getDashboard = withAuth(async (event) => {
             timestamp: new Date().toISOString()
         };
         
-        // Para usuarios normales, agregar sus reservas
         if (user.rol === 'usuario') {
             const misReservas = reservas.filter(r => r.usuario_id === user.id);
             dashboardData.misReservas = {
@@ -85,12 +78,9 @@ const getDashboard = withAuth(async (event) => {
             };
         }
         
-        // Para administradores y responsables, agregar datos adicionales
         if (user.rol === 'admin' || user.rol === 'responsable') {
-            // Actividad reciente
             const actividad = [];
             
-            // Reservas recientes
             const reservasRecientes = reservas
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
                 .slice(0, 5)
@@ -105,7 +95,6 @@ const getDashboard = withAuth(async (event) => {
             
             dashboardData.actividadReciente = actividad;
             
-            // Espacios más utilizados
             const espaciosUtilizacion = espacios.map(espacio => {
                 const reservasEspacio = reservas.filter(r => r.espacio_id === espacio.id);
                 return {
@@ -118,10 +107,8 @@ const getDashboard = withAuth(async (event) => {
             
             dashboardData.espaciosMasUtilizados = espaciosUtilizacion;
             
-            // Alertas y notificaciones
             const alertas = [];
             
-            // Espacios en mantenimiento
             const espaciosMantenimiento = espacios.filter(e => e.estado === 'mantenimiento');
             if (espaciosMantenimiento.length > 0) {
                 alertas.push({
@@ -131,7 +118,6 @@ const getDashboard = withAuth(async (event) => {
                 });
             }
             
-            // Reservas pendientes de confirmación
             const reservasPendientes = reservas.filter(r => r.estado === 'pendiente');
             if (reservasPendientes.length > 0) {
                 alertas.push({
@@ -143,9 +129,7 @@ const getDashboard = withAuth(async (event) => {
             dashboardData.alertas = alertas;
         }
         
-        // Para responsables, agregar información específica de sus áreas
         if (user.rol === 'responsable') {
-            // Buscar datos del responsable
             const responsable = responsables.find(r => r.email === user.email);
             if (responsable) {
                 const espaciosAsignados = espacios.filter(e => e.responsable_id === responsable.id);
@@ -172,9 +156,6 @@ const getDashboard = withAuth(async (event) => {
     );
 });
 
-/**
- * Obtener estadísticas detalladas (solo para admins)
- */
 const getEstadisticasDetalladas = withAuth(async (event) => {
     try {
         const [espacios, reservas, usuarios, responsables, zonas] = await Promise.all([
@@ -185,7 +166,6 @@ const getEstadisticasDetalladas = withAuth(async (event) => {
             db.getEntities('zona')
         ]);
         
-        // Estadísticas temporales (últimos 30 días)
         const hace30Dias = new Date();
         hace30Dias.setDate(hace30Dias.getDate() - 30);
         
@@ -220,7 +200,6 @@ const getEstadisticasDetalladas = withAuth(async (event) => {
             }
         };
         
-        // Distribución por tipo de espacio
         espacios.forEach(espacio => {
             if (!estadisticasDetalladas.distribucion.espaciosPorTipo[espacio.tipo]) {
                 estadisticasDetalladas.distribucion.espaciosPorTipo[espacio.tipo] = 0;
@@ -228,7 +207,6 @@ const getEstadisticasDetalladas = withAuth(async (event) => {
             estadisticasDetalladas.distribucion.espaciosPorTipo[espacio.tipo]++;
         });
         
-        // Distribución por estado de reserva
         reservas.forEach(reserva => {
             if (!estadisticasDetalladas.distribucion.reservasPorEstado[reserva.estado]) {
                 estadisticasDetalladas.distribucion.reservasPorEstado[reserva.estado] = 0;
@@ -236,7 +214,6 @@ const getEstadisticasDetalladas = withAuth(async (event) => {
             estadisticasDetalladas.distribucion.reservasPorEstado[reserva.estado]++;
         });
         
-        // Distribución por rol de usuario
         usuarios.forEach(usuario => {
             if (!estadisticasDetalladas.distribucion.usuariosPorRol[usuario.rol]) {
                 estadisticasDetalladas.distribucion.usuariosPorRol[usuario.rol] = 0;

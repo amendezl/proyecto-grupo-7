@@ -6,10 +6,6 @@ const { notifySpaceCreated, notifySpaceUpdated, notifySpaceDeleted } = require('
 
 const db = new DynamoDBManager();
 
-/**
- * Obtener todos los espacios con filtros opcionales
- * Incluye resiliencia para consultas de espacios
- */
 const getEspacios = withErrorHandling(async (event) => {
     const queryParams = extractQueryParams(event);
     
@@ -39,7 +35,6 @@ const getEspacios = withErrorHandling(async (event) => {
         return success(result);
         
     } catch (error) {
-        // Fallback para consultas de espacios
         if (error.name === 'CircuitOpenError' || error.name === 'RetryExhaustedError') {
             return {
                 statusCode: 200,
@@ -60,10 +55,6 @@ const getEspacios = withErrorHandling(async (event) => {
     }
 });
 
-/**
- * Obtener un espacio por ID
- * Incluye resiliencia para consultas individuales
- */
 const getEspacio = withErrorHandling(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -95,7 +86,6 @@ const getEspacio = withErrorHandling(async (event) => {
             return notFound('Espacio no encontrado');
         }
         
-        // Manejo de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -112,10 +102,6 @@ const getEspacio = withErrorHandling(async (event) => {
     }
 });
 
-/**
- * Crear un nuevo espacio
- * Incluye resiliencia para creación de espacios críticos
- */
 const createEspacio = withAuth(async (event) => {
     const espacioData = parseBody(event);
     
@@ -126,7 +112,6 @@ const createEspacio = withAuth(async (event) => {
     }
     
     try {
-        // Determinar si es un espacio crítico (emergencias, quirófanos, UCI)
         const esCritico = tipo.toLowerCase().includes('emergencia') ||
                          tipo.toLowerCase().includes('quirófano') ||
                          tipo.toLowerCase().includes('uci') ||
@@ -138,7 +123,6 @@ const createEspacio = withAuth(async (event) => {
             resilienceManager.executeDatabase
         )(
             async () => {
-                // Validar que no exista otro espacio con el mismo nombre en la zona
                 if (zona_id) {
                     const espaciosExistentes = await db.getEspacios({ zona_id });
                     const nombreDuplicado = espaciosExistentes.some(e => 
@@ -170,12 +154,10 @@ const createEspacio = withAuth(async (event) => {
             }
         );
         
-        // Log para espacios críticos
         if (esCritico) {
             console.log(`[CRITICAL_SPACE] Espacio crítico creado: ${nuevoEspacio.id} - ${nombre} (${tipo})`);
         }
         
-        // Send SNS notification about space creation (async, non-blocking)
         const userId = event.requestContext?.authorizer?.jwt?.claims?.sub || 'system';
         notifySpaceCreated(nuevoEspacio, userId).catch(error => {
             console.error('Failed to send space creation notification:', error);
@@ -186,7 +168,6 @@ const createEspacio = withAuth(async (event) => {
     } catch (error) {
         console.error('[CREATE_ESPACIO] Error:', error);
         
-        // Manejo específico de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -215,10 +196,6 @@ const createEspacio = withAuth(async (event) => {
     }
 }, ['admin', 'responsable']);
 
-/**
- * Actualizar un espacio existente
- * Incluye resiliencia para modificaciones de espacios críticos
- */
 const updateEspacio = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
@@ -230,13 +207,11 @@ const updateEspacio = withAuth(async (event) => {
     try {
         const espacioActualizado = await resilienceManager.executeDatabase(
             async () => {
-                // Verificar que el espacio existe
                 const espacioExistente = await db.getEspacioById(id);
                 if (!espacioExistente) {
                     throw new Error('Espacio no encontrado');
                 }
                 
-                // Determinar si es un espacio crítico
                 const esCritico = espacioExistente.tipo?.toLowerCase().includes('emergencia') ||
                                  espacioExistente.tipo?.toLowerCase().includes('quirófano') ||
                                  espacioExistente.tipo?.toLowerCase().includes('uci') ||
@@ -255,7 +230,6 @@ const updateEspacio = withAuth(async (event) => {
             }
         );
         
-        // Send SNS notification about space update (async, non-blocking)
         const userId = event.requestContext?.authorizer?.jwt?.claims?.sub || 'system';
         notifySpaceUpdated(espacioActualizado, userId, updateData).catch(error => {
             console.error('Failed to send space update notification:', error);
@@ -267,7 +241,6 @@ const updateEspacio = withAuth(async (event) => {
             return notFound(error.message);
         }
         
-        // Manejo de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -284,10 +257,6 @@ const updateEspacio = withAuth(async (event) => {
     }
 }, ['admin', 'responsable']);
 
-/**
- * Eliminar un espacio
- * Incluye resiliencia y protección para espacios críticos
- */
 const deleteEspacio = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -298,13 +267,11 @@ const deleteEspacio = withAuth(async (event) => {
     try {
         const result = await resilienceManager.executeDatabase(
             async () => {
-                // Verificar que el espacio existe
                 const espacioExistente = await db.getEspacioById(id);
                 if (!espacioExistente) {
                     throw new Error('Espacio no encontrado');
                 }
                 
-                // Verificar si es un espacio crítico
                 const esCritico = espacioExistente.tipo?.toLowerCase().includes('emergencia') ||
                                  espacioExistente.tipo?.toLowerCase().includes('quirófano') ||
                                  espacioExistente.tipo?.toLowerCase().includes('uci');
@@ -313,7 +280,6 @@ const deleteEspacio = withAuth(async (event) => {
                     console.warn(`[CRITICAL_DELETION] Eliminando espacio crítico ${id} - ${espacioExistente.nombre}`);
                 }
                 
-                // Verificar que no tenga reservas activas
                 const reservasActivas = await db.getReservas({ 
                     espacio_id: id, 
                     estado: 'confirmada' 
@@ -325,7 +291,6 @@ const deleteEspacio = withAuth(async (event) => {
                 
                 await db.deleteEspacio(id);
                 
-                // Send SNS notification about space deletion (async, non-blocking)
                 const userId = event.requestContext?.authorizer?.jwt?.claims?.sub || 'system';
                 notifySpaceDeleted(id, espacioExistente.nombre, userId).catch(error => {
                     console.error('Failed to send space deletion notification:', error);
@@ -350,7 +315,6 @@ const deleteEspacio = withAuth(async (event) => {
             return badRequest(error.message);
         }
         
-        // Manejo de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -367,10 +331,6 @@ const deleteEspacio = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Obtener estadísticas de espacios
- * Incluye resiliencia para consultas de análisis
- */
 const getEstadisticasEspacios = withAuth(async (event) => {
     try {
         const stats = await resilienceManager.executeDatabase(
@@ -412,7 +372,6 @@ const getEstadisticasEspacios = withAuth(async (event) => {
         return success(stats);
         
     } catch (error) {
-        // Fallback con estadísticas básicas
         if (error.name === 'CircuitOpenError' || error.name === 'RetryExhaustedError') {
             return {
                 statusCode: 200,

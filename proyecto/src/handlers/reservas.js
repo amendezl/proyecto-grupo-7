@@ -5,20 +5,15 @@ const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
-/**
- * Obtener todas las reservas con filtros opcionales
- */
 const getReservas = withAuth(async (event) => {
     const queryParams = extractQueryParams(event);
     const user = event.user;
     
     const filters = {};
     
-    // Los usuarios normales solo ven sus propias reservas
     if (user.rol === 'usuario') {
         filters.usuario_id = user.id;
     } else {
-        // Admins y responsables pueden filtrar por usuario
         if (queryParams.usuario_id) filters.usuario_id = queryParams.usuario_id;
     }
     
@@ -33,9 +28,6 @@ const getReservas = withAuth(async (event) => {
     });
 });
 
-/**
- * Obtener una reserva por ID
- */
 const getReserva = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const user = event.user;
@@ -50,7 +42,6 @@ const getReserva = withAuth(async (event) => {
         return notFound('Reserva no encontrada');
     }
     
-    // Verificar permisos: usuarios normales solo pueden ver sus propias reservas
     if (user.rol === 'usuario' && reserva.usuario_id !== user.id) {
         return notFound('Reserva no encontrada');
     }
@@ -58,10 +49,6 @@ const getReserva = withAuth(async (event) => {
     return success(reserva);
 });
 
-/**
- * Crear una nueva reserva
- * Incluye resiliencia crítica para reservas de emergencia
- */
 const createReserva = withAuth(async (event) => {
     const reservaData = parseBody(event);
     const user = event.user;
@@ -72,20 +59,17 @@ const createReserva = withAuth(async (event) => {
         return badRequest('Espacio, fechas de inicio y fin, y propósito son requeridos');
     }
     
-    // Determinar si es una reserva crítica (alta prioridad)
     const esCritica = prioridad === 'urgente' || 
                      proposito.toLowerCase().includes('urgente') ||
                      proposito.toLowerCase().includes('crítico') ||
                      prioridad === 'alta';
     
     try {
-        // Ejecutar validaciones y creación con resiliencia
         const nuevaReserva = await (esCritica ? 
             resilienceManager.executeCritical : 
             resilienceManager.executeDatabase
         )(
             async () => {
-                // Validar fechas
                 const inicio = new Date(fecha_inicio);
                 const fin = new Date(fecha_fin);
                 const ahora = new Date();
@@ -98,7 +82,6 @@ const createReserva = withAuth(async (event) => {
                     throw new Error('No se pueden crear reservas en el pasado');
                 }
                 
-                // Verificar que el espacio existe y está disponible
                 const espacio = await db.getEspacioById(espacio_id);
                 if (!espacio) {
                     throw new Error('El espacio especificado no existe');
@@ -108,9 +91,7 @@ const createReserva = withAuth(async (event) => {
                     throw new Error('El espacio no está disponible para reservas');
                 }
                 
-                // Para reservas críticas, verificar disponibilidad más rápido
                 if (esCritica) {
-                    // Verificación rápida solo de conflictos directos
                     const reservasActivas = await db.getReservas({ 
                         espacio_id, 
                         estado: 'confirmada' 
@@ -126,7 +107,6 @@ const createReserva = withAuth(async (event) => {
                         throw new Error('CRITICAL_CONFLICT: Espacio ocupado en horario crítico');
                     }
                 } else {
-                    // Verificación completa para reservas normales
                     const reservasExistentes = await db.getReservas({ espacio_id });
                     const hayConflicto = reservasExistentes.some(reserva => {
                         if (reserva.estado === 'cancelada') return false;
@@ -142,10 +122,8 @@ const createReserva = withAuth(async (event) => {
                     }
                 }
                 
-                // Los usuarios normales solo pueden reservar para sí mismos
                 const usuario_id = user.rol === 'usuario' ? user.id : (reservaData.usuario_id || user.id);
                 
-                // Crear la reserva
                 return await db.createReserva({
                     espacio_id,
                     usuario_id,
@@ -154,7 +132,7 @@ const createReserva = withAuth(async (event) => {
                     proposito,
                     notas,
                     prioridad: esCritica ? 'emergencia' : (prioridad || 'normal'),
-                    estado: esCritica ? 'confirmada' : 'pendiente', // Emergencias se confirman automáticamente
+                    estado: esCritica ? 'confirmada' : 'pendiente',
                 });
             },
             {
@@ -163,7 +141,6 @@ const createReserva = withAuth(async (event) => {
                 espacioId: espacio_id,
                 userId: user.id,
                 esCritica,
-                // Datos para fallback de emergencia
                 priorityData: esCritica ? {
                     espacio_id,
                     usuario_id: user.id,
@@ -173,7 +150,6 @@ const createReserva = withAuth(async (event) => {
             }
         );
         
-        // Log especial para reservas críticas
         if (esCritica) {
             console.log(`[CRITICAL_RESERVATION] Reserva de emergencia creada: ${nuevaReserva.id} para espacio ${espacio_id}`);
         }
@@ -183,7 +159,6 @@ const createReserva = withAuth(async (event) => {
     } catch (error) {
         console.error('[CREATE_RESERVA] Error:', error);
         
-        // Manejo específico de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -209,7 +184,6 @@ const createReserva = withAuth(async (event) => {
             };
         }
         
-        // Errores de validación normales
         if (error.message.includes('CRITICAL_CONFLICT')) {
             return conflict('Espacio ocupado - En emergencias contacte supervisión para liberación');
         }
@@ -218,10 +192,6 @@ const createReserva = withAuth(async (event) => {
     }
 });
 
-/**
- * Actualizar una reserva existente
- * Incluye resiliencia para modificaciones críticas
- */
 const updateReserva = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
@@ -239,18 +209,15 @@ const updateReserva = withAuth(async (event) => {
                     throw new Error('Reserva no encontrada');
                 }
                 
-                // Verificar permisos
                 if (user.rol === 'usuario' && reservaExistente.usuario_id !== user.id) {
-                    throw new Error('Reserva no encontrada'); // Por seguridad, no revelar existencia
+                    throw new Error('Reserva no encontrada');
                 }
                 
-                // Determinar si es una actualización crítica
                 const esCritica = reservaExistente.prioridad === 'emergencia' ||
                                  updateData.prioridad === 'emergencia' ||
                                  (updateData.proposito && 
                                   updateData.proposito.toLowerCase().includes('emergencia'));
                 
-                // Los usuarios normales solo pueden actualizar ciertas propiedades
                 let finalUpdateData = updateData;
                 if (user.rol === 'usuario') {
                     const allowedFields = ['proposito', 'notas'];
@@ -263,7 +230,6 @@ const updateReserva = withAuth(async (event) => {
                     finalUpdateData = filteredData;
                 }
                 
-                // Si es una reserva crítica y hay cambios de horario, registrar
                 if (esCritica && (finalUpdateData.fecha_inicio || finalUpdateData.fecha_fin)) {
                     console.log(`[CRITICAL_UPDATE] Modificando horario de reserva crítica ${id}`);
                 }
@@ -285,7 +251,6 @@ const updateReserva = withAuth(async (event) => {
             return notFound('Reserva no encontrada');
         }
         
-        // Manejo de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -315,10 +280,6 @@ const updateReserva = withAuth(async (event) => {
     }
 });
 
-/**
- * Cancelar una reserva
- * Incluye resiliencia y manejo especial para reservas críticas
- */
 const cancelReserva = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const user = event.user;
@@ -335,18 +296,15 @@ const cancelReserva = withAuth(async (event) => {
                     throw new Error('Reserva no encontrada');
                 }
                 
-                // Verificar permisos
                 if (user.rol === 'usuario' && reservaExistente.usuario_id !== user.id) {
-                    throw new Error('Reserva no encontrada'); // Por seguridad
+                    throw new Error('Reserva no encontrada');
                 }
                 
-                // Verificar si es una reserva crítica
                 const esCritica = reservaExistente.prioridad === 'emergencia';
                 
                 if (esCritica) {
                     console.warn(`[CRITICAL_CANCELLATION] Cancelando reserva crítica ${id} por usuario ${user.id}`);
                     
-                    // Para reservas críticas, requerir confirmación adicional
                     if (user.rol === 'usuario') {
                         throw new Error('Las reservas de emergencia requieren autorización de supervisión para cancelar');
                     }
@@ -377,7 +335,6 @@ const cancelReserva = withAuth(async (event) => {
             return forbidden(error.message);
         }
         
-        // Manejo de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -395,10 +352,6 @@ const cancelReserva = withAuth(async (event) => {
     }
 });
 
-/**
- * Eliminar una reserva (solo admins)
- * Incluye resiliencia para operaciones de eliminación
- */
 const deleteReserva = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -409,13 +362,11 @@ const deleteReserva = withAuth(async (event) => {
     try {
         const result = await resilienceManager.executeDatabase(
             async () => {
-                // Verificar que la reserva existe antes de eliminar
                 const reservaExistente = await db.getReservaById(id);
                 if (!reservaExistente) {
                     throw new Error('Reserva no encontrada');
                 }
                 
-                // Verificar si es una reserva crítica
                 if (reservaExistente.prioridad === 'emergencia') {
                     console.warn(`[CRITICAL_DELETION] Eliminando reserva crítica ${id}`);
                 }
@@ -436,7 +387,6 @@ const deleteReserva = withAuth(async (event) => {
             return notFound('Reserva no encontrada');
         }
         
-        // Manejo de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -453,10 +403,6 @@ const deleteReserva = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Obtener estadísticas de reservas
- * Incluye resiliencia para consultas de análisis
- */
 const getEstadisticasReservas = withAuth(async (event) => {
     try {
         const stats = await resilienceManager.executeDatabase(
@@ -489,7 +435,6 @@ const getEstadisticasReservas = withAuth(async (event) => {
         return success(stats);
         
     } catch (error) {
-        // Manejo de errores de resiliencia con fallback de estadísticas básicas
         if (error.name === 'CircuitOpenError' || error.name === 'RetryExhaustedError') {
             return {
                 statusCode: 200,

@@ -1,7 +1,3 @@
-/**
- * Utilidades para crear respuestas HTTP estandarizadas en Lambda
- */
-
 const createResponse = (statusCode, data, headers = {}) => {
     return {
         statusCode,

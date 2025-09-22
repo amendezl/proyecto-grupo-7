@@ -1,10 +1,3 @@
-#!/usr/bin/env node
-
-/**
- * Script de verificación pre-despliegue
- * Verifica que todo esté listo para serverless deploy
- */
-
 const fs = require('fs');
 const path = require('path');
 
@@ -50,13 +43,10 @@ function main() {
 
     let allChecksPass = true;
 
-    // Check 1: AWS Credentials
     allChecksPass = checkAWSCredentials() && allChecksPass;
 
-    // Check 2: Serverless Framework
     allChecksPass = checkServerlessInstalled() && allChecksPass;
 
-    // Check 3: Archivos esenciales
     const requiredFiles = [
         ['serverless.yml', 'Configuración de Serverless'],
         ['package.json', 'Configuración de NPM'],
@@ -77,8 +67,7 @@ function main() {
         allChecksPass = checkFile(file, description) && allChecksPass;
     });
 
-    // Check 4: Verificar que node_modules existe
-    console.log('\n📦 Verificando dependencias:');
+    console.log('\nVerificando dependencias:');
     if (fs.existsSync('node_modules')) {
         console.log('✅ Node modules instalados');
     } else {
@@ -87,8 +76,7 @@ function main() {
         allChecksPass = false;
     }
 
-    // Check 5: Verificar configuración del service name
-    console.log('\n⚙️ Verificando configuración:');
+    console.log('\nVerificando configuración:');
     const serverlessConfig = fs.readFileSync('serverless.yml', 'utf8');
     if (serverlessConfig.includes('sistema-gestion-espacios')) {
         console.log('✅ Service name actualizado a genérico');
@@ -97,11 +85,10 @@ function main() {
         allChecksPass = false;
     }
 
-    // Resultado final
     console.log('\n' + '='.repeat(60));
     if (allChecksPass) {
-        console.log('🎉 ¡TODO LISTO PARA DESPLIEGUE!');
-        console.log('\n🚀 Ejecuta ahora:');
+        console.log('¡TODO LISTO PARA DESPLIEGUE!');
+        console.log('\nEjecuta ahora:');
         console.log('   serverless deploy');
         console.log('\n   Este comando desplegará:');
         console.log('   ✅ 50 Lambda Functions');
@@ -114,7 +101,7 @@ function main() {
         process.exit(0);
     } else {
         console.log('❌ HAY PROBLEMAS QUE RESOLVER ANTES DEL DESPLIEGUE');
-        console.log('\n🔧 Resuelve los errores marcados arriba y vuelve a ejecutar este script');
+        console.log('\nResuelve los errores marcados arriba y vuelve a ejecutar este script');
         process.exit(1);
     }
 }

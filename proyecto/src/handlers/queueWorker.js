@@ -10,29 +10,26 @@ module.exports.process = async (event) => {
           const body = JSON.parse(record.body || "{}");
           console.log("🔧 Processing message:", body);
           
-          // Determinar tipo de mensaje para asignar prioridad correcta
           const messageType = body.type || 'general';
           const isHighPriority = body.priority === 'high' || messageType === 'high_priority';
           
-          // TODO: Add your business logic here
-          // Ejemplo de procesamiento basado en tipo de mensaje
           switch (messageType) {
             case 'high_priority':
-              console.log('🚨 Processing high priority message:', body);
+              console.log('Processing high priority message:', body);
               break;
             case 'notification':
-              console.log('📱 Processing notification:', body);
+              console.log('Processing notification:', body);
               break;
             case 'report':
-              console.log('📊 Processing report:', body);
+              console.log('Processing report:', body);
               break;
             default:
-              console.log('📝 Processing general message:', body);
+              console.log('Processing general message:', body);
           }
           
           return { success: true, messageId: record.messageId, messageType };
         } catch (err) {
-          console.error("❌ Error parsing/processing:", err);
+          console.error("Error parsing/processing:", err);
           throw err;
         }
       },

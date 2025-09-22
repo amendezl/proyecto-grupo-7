@@ -1,22 +1,16 @@
 const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
 const { resilienceManager } = require('./resilienceManager');
 
-// Initialize SNS client
 const snsClient = new SNSClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-// Topic ARNs from environment variables
 const TOPICS = {
   SPACE_NOTIFICATIONS: process.env.SNS_TOPIC_ARN,
   SYSTEM_ALERTS: process.env.SNS_ALERTS_TOPIC_ARN,
   ADMIN_NOTIFICATIONS: process.env.SNS_ADMIN_TOPIC_ARN
 };
   
-// Personalization updates topic (optional - can reuse existing topics)
 TOPICS.PERSONALIZATION_UPDATES = process.env.SNS_PERSONALIZATION_TOPIC_ARN || process.env.SNS_TOPIC_ARN || '';
 
-/**
- * Utility to send space notifications automatically
- */
 const sendSpaceNotificationAsync = async (notificationData) => {
   try {
     if (!TOPICS.SPACE_NOTIFICATIONS) {
@@ -61,14 +55,10 @@ const sendSpaceNotificationAsync = async (notificationData) => {
 
   } catch (error) {
     console.error('Error sending automatic space notification:', error);
-    // Don't throw - notifications are not critical for main operations
     return null;
   }
 };
 
-/**
- * Send system alert automatically
- */
 const sendSystemAlertAsync = async (alertData) => {
   try {
     if (!TOPICS.SYSTEM_ALERTS) {
@@ -117,9 +107,6 @@ const sendSystemAlertAsync = async (alertData) => {
   }
 };
 
-/**
- * Send admin notification automatically
- */
 const sendAdminNotificationAsync = async (notificationData) => {
   try {
     if (!TOPICS.ADMIN_NOTIFICATIONS) {
@@ -168,9 +155,6 @@ const sendAdminNotificationAsync = async (notificationData) => {
   }
 };
 
-/**
- * Notify space creation
- */
 const notifySpaceCreated = async (spaceData, userId) => {
   return sendSpaceNotificationAsync({
     actionType: 'created',
@@ -186,9 +170,6 @@ const notifySpaceCreated = async (spaceData, userId) => {
   });
 };
 
-/**
- * Notify space update
- */
 const notifySpaceUpdated = async (spaceData, userId, changes) => {
   return sendSpaceNotificationAsync({
     actionType: 'updated',
@@ -204,9 +185,6 @@ const notifySpaceUpdated = async (spaceData, userId, changes) => {
   });
 };
 
-/**
- * Notify space deletion
- */
 const notifySpaceDeleted = async (spaceId, spaceName, userId) => {
   return sendSpaceNotificationAsync({
     actionType: 'deleted',
@@ -220,9 +198,6 @@ const notifySpaceDeleted = async (spaceId, spaceName, userId) => {
   });
 };
 
-/**
- * Notify system errors
- */
 const notifySystemError = async (error, component, context = {}) => {
   return sendSystemAlertAsync({
     alertLevel: 'critical',
@@ -238,9 +213,6 @@ const notifySystemError = async (error, component, context = {}) => {
   });
 };
 
-/**
- * Notify capacity warnings
- */
 const notifyCapacityWarning = async (component, currentUsage, limit) => {
   return sendSystemAlertAsync({
     alertLevel: 'warning',
@@ -255,9 +227,6 @@ const notifyCapacityWarning = async (component, currentUsage, limit) => {
   });
 };
 
-/**
- * Notify admin operations
- */
 const notifyAdminOperation = async (operation, details, userId) => {
   return sendAdminNotificationAsync({
     notificationType: 'operation',
@@ -274,12 +243,10 @@ const notifyAdminOperation = async (operation, details, userId) => {
 };
 
 module.exports = {
-  // Core functions
   sendSpaceNotificationAsync,
   sendSystemAlertAsync,
   sendAdminNotificationAsync,
   
-  // Personalization
   sendPersonalizationUpdateAsync: async (updateData) => {
     try {
       if (!TOPICS.PERSONALIZATION_UPDATES) {
@@ -323,7 +290,6 @@ module.exports = {
     }
   },
   
-  // Convenience functions for specific events
   notifySpaceCreated,
   notifySpaceUpdated,
   notifySpaceDeleted,
@@ -331,6 +297,5 @@ module.exports = {
   notifyCapacityWarning,
   notifyAdminOperation,
   
-  // Topic ARNs for direct use
   TOPICS
 };

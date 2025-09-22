@@ -1,15 +1,6 @@
-/**
- * Handler para monitoreo de salud del sistema de resiliencia
- * Proporciona métricas completas de Retry + Circuit Breaker + Bulkhead
- */
-
 const { resilienceManager } = require('../utils/resilienceManager');
 const { withAuth, withErrorHandling } = require('../utils/auth');
 const { success } = require('../utils/responses');
-
-/**
- * Obtiene métricas básicas del sistema de resiliencia
- */
 const getResilienceHealth = withErrorHandling(async (event) => {
     const metrics = resilienceManager.getSystemMetrics();
     
@@ -20,9 +11,6 @@ const getResilienceHealth = withErrorHandling(async (event) => {
     });
 });
 
-/**
- * Obtiene métricas completas incluyendo Bulkhead
- */
 const getCompleteResilienceHealth = withErrorHandling(async (event) => {
     const completeMetrics = resilienceManager.getCompleteSystemMetrics();
     
@@ -33,9 +21,6 @@ const getCompleteResilienceHealth = withErrorHandling(async (event) => {
     });
 });
 
-/**
- * Obtiene estado detallado de los pools de Bulkhead
- */
 const getBulkheadStatus = withAuth(async (event) => {
     const bulkheadMetrics = resilienceManager.bulkheadManager.getAllMetrics();
     const bulkheadHealth = resilienceManager.bulkheadManager.getHealthStatus();
@@ -54,9 +39,6 @@ const getBulkheadStatus = withAuth(async (event) => {
     });
 }, ['admin', 'responsable']);
 
-/**
- * Reinicia todas las métricas del sistema
- */
 const resetResilienceMetrics = withAuth(async (event) => {
     resilienceManager.resetMetrics();
     
@@ -67,13 +49,9 @@ const resetResilienceMetrics = withAuth(async (event) => {
     });
 }, ['admin']);
 
-/**
- * Obtiene configuración actual de los patrones
- */
 const getResilienceConfiguration = withAuth(async (event) => {
     const { RESILIENCE_CONFIGS } = require('../utils/resilienceManager');
     
-    // Métricas actuales de pools
     const bulkheadMetrics = resilienceManager.bulkheadManager.getAllMetrics();
     
     return success({

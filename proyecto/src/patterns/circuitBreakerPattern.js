@@ -1,22 +1,4 @@
-/**
- * Implementación del Patrón Circuit Breaker para el Sistema de Gestión de Espacios
- * 
- * Este patrón previene cascadas de fallos en servicios críticos:
- * - DynamoDB connections
- * - Cognito authentication
- * - SQS messaging
- * - External APIs
- * 
- * Estados:
- * - CLOSED: Todo funciona normalmente
- * - OPEN: Servicio fallando, requests fallan inmediatamente
- * - HALF_OPEN: Probando si el servicio se recuperó
- * 
- * Configuraciones específicas para el sistema de gestión
- */
-
 const { v4: uuidv4 } = require('uuid');
-// Optional DynamoDB persistence for circuit states
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 
@@ -34,92 +16,82 @@ if (circuitStateTable) {
 }
 const { putMetric } = require('../utils/metrics');
 
-/**
- * Estados del Circuit Breaker
- */
 const CIRCUIT_STATES = {
-  CLOSED: 'CLOSED',     // Funcionamiento normal
-  OPEN: 'OPEN',         // Circuito abierto, fallos inmediatos
-  HALF_OPEN: 'HALF_OPEN' // Probando recuperación
+  CLOSED: 'CLOSED',
+  OPEN: 'OPEN',
+  HALF_OPEN: 'HALF_OPEN'
 };
 
-/**
- * Configuraciones predefinidas para diferentes servicios críticos
- */
 const CIRCUIT_CONFIGS = {
-  // Para servicios de alta prioridad (tolerancia mínima a fallos)
+
+  // Para servicios de alta prioridad
   HIGH_PRIORITY: {
-    failureThreshold: 3,        // 3 fallos consecutivos
-    recoveryTimeout: 5000,      // 5 segundos para reintentar
-    successThreshold: 2,        // 2 éxitos para cerrar circuito
-    timeout: 3000,              // 3 segundos timeout por request
-    monitoringWindow: 60000,    // 1 minuto de ventana de monitoreo
+    failureThreshold: 3,
+    recoveryTimeout: 5000,
+    successThreshold: 2,
+    timeout: 3000,
+    monitoringWindow: 60000,
     enableLogging: true,
     fallbackEnabled: true
   },
   
-  // Para DynamoDB (base de datos crítica)
+  // Para DynamoDB
   DATABASE: {
-    failureThreshold: 5,        // 5 fallos en ventana de tiempo
-    recoveryTimeout: 10000,     // 10 segundos para reintentar
-    successThreshold: 3,        // 3 éxitos consecutivos
-    timeout: 5000,              // 5 segundos timeout
-    monitoringWindow: 120000,   // 2 minutos de ventana
+    failureThreshold: 5,
+    recoveryTimeout: 10000,
+    successThreshold: 3,
+    timeout: 5000,
+    monitoringWindow: 120000,
     enableLogging: true,
     fallbackEnabled: true
   },
   
   // Para autenticación Cognito
   AUTH: {
-    failureThreshold: 4,        // 4 fallos
-    recoveryTimeout: 15000,     // 15 segundos
-    successThreshold: 2,        // 2 éxitos
-    timeout: 2000,              // 2 segundos timeout
-    monitoringWindow: 90000,    // 1.5 minutos
+    failureThreshold: 4,
+    recoveryTimeout: 15000,
+    successThreshold: 2,
+    timeout: 2000,
+    monitoringWindow: 90000,
     enableLogging: true,
-    fallbackEnabled: false      // Auth no tiene fallback
+    fallbackEnabled: false
   },
   
-  // Para servicios externos (APIs médicas, laboratorios)
+  // Para servicios externos
   EXTERNAL_API: {
-    failureThreshold: 3,        // 3 fallos
-    recoveryTimeout: 30000,     // 30 segundos
-    successThreshold: 3,        // 3 éxitos
-    timeout: 10000,             // 10 segundos timeout
-    monitoringWindow: 300000,   // 5 minutos
+    failureThreshold: 3,
+    recoveryTimeout: 30000,
+    successThreshold: 3,
+    timeout: 10000,
+    monitoringWindow: 300000,
     enableLogging: true,
     fallbackEnabled: true
   },
   
-  // Para SQS (mensajería)
+  // Para SQS
   MESSAGING: {
-    failureThreshold: 7,        // 7 fallos (más tolerante)
-    recoveryTimeout: 20000,     // 20 segundos
-    successThreshold: 3,        // 3 éxitos
-    timeout: 8000,              // 8 segundos timeout
-    monitoringWindow: 180000,   // 3 minutos
+    failureThreshold: 7,
+    recoveryTimeout: 20000,
+    successThreshold: 3,
+    timeout: 8000,
+    monitoringWindow: 180000,
     enableLogging: true,
     fallbackEnabled: true
   }
 };
 
-/**
- * Clase principal del Circuit Breaker
- */
 class CircuitBreaker {
   constructor(config = CIRCUIT_CONFIGS.DATABASE, serviceName = 'unknown') {
     this.config = config;
     this.serviceName = serviceName;
     this.circuitId = uuidv4();
     
-    // Estado interno
     this.state = CIRCUIT_STATES.CLOSED;
     this.failureCount = 0;
     this.successCount = 0;
     this.lastFailureTime = null;
     this.nextAttemptTime = null;
     
-    // Estadísticas
     this.stats = {
       totalRequests: 0,
       totalFailures: 0,
@@ -132,7 +104,6 @@ class CircuitBreaker {
       lastResetTime: Date.now()
     };
     
-    // Ventana deslizante para monitoreo
     this.requestWindow = [];
     
     if (this.config.enableLogging) {
@@ -141,7 +112,6 @@ class CircuitBreaker {
   }
 
   /**
-   * Ejecuta una operación protegida por el circuit breaker
    * @param {Function} operation - Función async a ejecutar
    * @param {Function} fallback - Función fallback opcional
    * @param {Object} context - Contexto para logging
@@ -154,7 +124,6 @@ class CircuitBreaker {
     this.stats.totalRequests++;
     this.cleanRequestWindow();
     
-    // Verificar estado del circuito
     if (this.state === CIRCUIT_STATES.OPEN) {
       if (this.shouldAttemptReset()) {
         this.state = CIRCUIT_STATES.HALF_OPEN;
@@ -164,7 +133,7 @@ class CircuitBreaker {
           console.log(`[CIRCUIT_BREAKER] ${this.serviceName}: Transición a HALF_OPEN para probar recuperación`);
         }
       } else {
-        // Circuito abierto, ejecutar fallback si está disponible
+
         if (fallback && this.config.fallbackEnabled) {
           this.stats.fallbackExecuted++;
           
@@ -180,13 +149,12 @@ class CircuitBreaker {
     }
 
     try {
-      // Ejecutar operación con timeout
+
       const result = await this.executeWithTimeout(operation, this.config.timeout);
       
       const responseTime = Date.now() - startTime;
       this.recordSuccess(responseTime);
       
-      // Si estamos en HALF_OPEN y la operación fue exitosa
       if (this.state === CIRCUIT_STATES.HALF_OPEN) {
         this.successCount++;
         
@@ -205,16 +173,13 @@ class CircuitBreaker {
       const responseTime = Date.now() - startTime;
       this.recordFailure(error, responseTime);
       
-      // Si estamos en HALF_OPEN y falló, volver a OPEN
       if (this.state === CIRCUIT_STATES.HALF_OPEN) {
         this.openCircuit();
       }
       
-      // Si superamos el umbral de fallos, abrir circuito
       if (this.shouldOpenCircuit()) {
         this.openCircuit();
         
-        // Intentar fallback si está disponible
         if (fallback && this.config.fallbackEnabled) {
           this.stats.fallbackExecuted++;
           
@@ -230,9 +195,6 @@ class CircuitBreaker {
     }
   }
 
-  /**
-   * Ejecuta operación con timeout
-   */
   async executeWithTimeout(operation, timeoutMs) {
     return new Promise(async (resolve, reject) => {
       const timer = setTimeout(() => {
@@ -251,9 +213,6 @@ class CircuitBreaker {
     });
   }
 
-  /**
-   * Ejecuta función fallback con manejo de errores
-   */
   async executeFallback(fallback, context) {
     try {
       return await fallback(context);
@@ -266,11 +225,8 @@ class CircuitBreaker {
     }
   }
 
-  /**
-   * Registra un éxito en las estadísticas
-   */
   recordSuccess(responseTime) {
-    this.failureCount = Math.max(0, this.failureCount - 1); // Decrementar contador gradualmente
+    this.failureCount = Math.max(0, this.failureCount - 1);
     this.stats.totalSuccesses++;
     this.updateAverageResponseTime(responseTime);
     
@@ -281,9 +237,6 @@ class CircuitBreaker {
     });
   }
 
-  /**
-   * Registra un fallo en las estadísticas
-   */
   recordFailure(error, responseTime) {
     this.failureCount++;
     this.stats.totalFailures++;
@@ -298,32 +251,22 @@ class CircuitBreaker {
     });
   }
 
-  /**
-   * Actualiza el tiempo promedio de respuesta
-   */
   updateAverageResponseTime(responseTime) {
     const total = this.stats.totalRequests;
     this.stats.averageResponseTime = 
       ((this.stats.averageResponseTime * (total - 1)) + responseTime) / total;
   }
 
-  /**
-   * Verifica si debe abrir el circuito
-   */
   shouldOpenCircuit() {
     if (this.state === CIRCUIT_STATES.OPEN) return false;
     
     this.cleanRequestWindow();
     
-    // Contar fallos en la ventana de tiempo
     const recentFailures = this.requestWindow.filter(req => !req.success).length;
     
     return recentFailures >= this.config.failureThreshold;
   }
 
-  /**
-   * Verifica si debe intentar resetear el circuito
-   */
   shouldAttemptReset() {
     if (!this.lastFailureTime) return false;
     
@@ -331,9 +274,6 @@ class CircuitBreaker {
     return timeElapsed >= this.config.recoveryTimeout;
   }
 
-  /**
-   * Abre el circuito
-   */
   openCircuit() {
     if (this.state !== CIRCUIT_STATES.OPEN) {
       this.state = CIRCUIT_STATES.OPEN;
@@ -343,7 +283,7 @@ class CircuitBreaker {
       if (this.config.enableLogging) {
         console.warn(`[CIRCUIT_BREAKER] 🔴 ${this.serviceName}: Circuito ABIERTO - próximo intento en ${this.config.recoveryTimeout}ms`);
       }
-  // persist state if possible
+
       if (ddbDocClient) {
         try {
           ddbDocClient.send(new PutCommand({ TableName: circuitStateTable, Item: { serviceName: this.serviceName, state: this.state, lastUpdated: Date.now() } }));
@@ -351,14 +291,10 @@ class CircuitBreaker {
           console.warn('Failed to persist circuit state', e && e.message);
         }
       }
-      // metric
       try { putMetric('CircuitOpened', 1, 'Count', [{ Name: 'Service', Value: this.serviceName }]); } catch (e) {}
     }
   }
 
-  /**
-   * Cierra el circuito
-   */
   closeCircuit() {
     if (this.state !== CIRCUIT_STATES.CLOSED) {
       this.state = CIRCUIT_STATES.CLOSED;
@@ -380,17 +316,11 @@ class CircuitBreaker {
     }
   }
 
-  /**
-   * Limpia la ventana de requests antiguos
-   */
   cleanRequestWindow() {
     const cutoff = Date.now() - this.config.monitoringWindow;
     this.requestWindow = this.requestWindow.filter(req => req.timestamp > cutoff);
   }
 
-  /**
-   * Crea error específico cuando el circuito está abierto
-   */
   createCircuitOpenError(context) {
     const error = new Error(
       `[CIRCUIT_OPEN] Servicio ${this.serviceName} no disponible. ` +
@@ -407,9 +337,6 @@ class CircuitBreaker {
     return error;
   }
 
-  /**
-   * Crea error cuando falla el fallback
-   */
   createFallbackFailedError(originalError, context) {
     const error = new Error(
       `[FALLBACK_FAILED] Fallback para ${this.serviceName} también falló. ` +
@@ -425,9 +352,6 @@ class CircuitBreaker {
     return error;
   }
 
-  /**
-   * Obtiene estadísticas actuales del circuit breaker
-   */
   getStats() {
     this.cleanRequestWindow();
     
@@ -449,9 +373,6 @@ class CircuitBreaker {
     };
   }
 
-  /**
-   * Calcula un score de salud del servicio (0-100)
-   */
   calculateHealthScore() {
     if (this.stats.totalRequests === 0) return 100;
     
@@ -461,9 +382,6 @@ class CircuitBreaker {
     return Math.round(successRate * stateModifier);
   }
 
-  /**
-   * Resetea estadísticas
-   */
   resetStats() {
     this.stats = {
       totalRequests: 0,
@@ -485,52 +403,21 @@ class CircuitBreaker {
   }
 }
 
-/**
- * Factory functions para crear circuit breakers específicos
- */
 const createCircuitBreaker = {
-  /**
-   * Para servicios de emergencia médica
-   */
+
   high_priority: (serviceName) => new CircuitBreaker(CIRCUIT_CONFIGS.HIGH_PRIORITY, serviceName),
-  
-  /**
-   * Para DynamoDB
-   */
   database: (serviceName) => new CircuitBreaker(CIRCUIT_CONFIGS.DATABASE, serviceName),
-  
-  /**
-   * Para autenticación Cognito
-   */
   auth: (serviceName) => new CircuitBreaker(CIRCUIT_CONFIGS.AUTH, serviceName),
-  
-  /**
-   * Para APIs externas
-   */
   externalApi: (serviceName) => new CircuitBreaker(CIRCUIT_CONFIGS.EXTERNAL_API, serviceName),
-  
-  /**
-   * Para SQS messaging
-   */
   messaging: (serviceName) => new CircuitBreaker(CIRCUIT_CONFIGS.MESSAGING, serviceName),
-  
-  /**
-   * Configuración personalizada
-   */
   custom: (config, serviceName) => new CircuitBreaker(config, serviceName)
 };
 
-/**
- * Registry global para circuit breakers reutilizables
- */
 class CircuitBreakerRegistry {
   constructor() {
     this.circuits = new Map();
   }
 
-  /**
-   * Obtiene o crea un circuit breaker
-   */
   getOrCreate(serviceName, type = 'database') {
     if (!this.circuits.has(serviceName)) {
       this.circuits.set(serviceName, createCircuitBreaker[type](serviceName));
@@ -538,9 +425,6 @@ class CircuitBreakerRegistry {
     return this.circuits.get(serviceName);
   }
 
-  /**
-   * Obtiene estadísticas de todos los circuits
-   */
   getAllStats() {
     const stats = {};
     for (const [name, circuit] of this.circuits) {
@@ -549,17 +433,12 @@ class CircuitBreakerRegistry {
     return stats;
   }
 
-  /**
-   * Resetea todos los circuits
-   */
   resetAll() {
     for (const circuit of this.circuits.values()) {
       circuit.resetStats();
     }
   }
 }
-
-// Instancia global del registry
 const circuitRegistry = new CircuitBreakerRegistry();
 
 module.exports = {

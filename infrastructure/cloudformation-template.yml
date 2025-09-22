@@ -17,7 +17,6 @@ Parameters:
     Description: Nombre de dominio para el frontend
 
 Resources:
-  # S3 bucket para el frontend
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -37,7 +36,6 @@ Resources:
         - Key: Project
           Value: HospitalEspacios
 
-  # Política de bucket para permitir acceso a CloudFront
   FrontendBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -53,7 +51,6 @@ Resources:
               StringEquals:
                 AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
 
-  # CloudFront para distribución del frontend
   CloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -100,7 +97,6 @@ Resources:
           - Key: Project
             Value: HospitalEspacios
 
-  # CloudFront OAC (Origin Access Control)
   CloudFrontOriginAccessControl:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
@@ -110,7 +106,6 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
-  # DynamoDB para almacenamiento de datos
   EspaciosTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -137,7 +132,6 @@ Resources:
         - Key: Project
           Value: HospitalEspacios
 
-  # DynamoDB para conexiones WebSocket
   WebSocketConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -155,7 +149,6 @@ Resources:
         - Key: Project
           Value: HospitalEspacios
 
-  # Rol IAM para las funciones Lambda
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:

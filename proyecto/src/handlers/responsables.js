@@ -5,9 +5,6 @@ const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
-/**
- * Obtener todos los responsables
- */
 const getResponsables = withErrorHandling(async (event) => {
     const queryParams = extractQueryParams(event);
     
@@ -15,7 +12,6 @@ const getResponsables = withErrorHandling(async (event) => {
         async () => {
             let responsables = await db.getEntities('responsable');
             
-            // Aplicar filtros si existen
             if (queryParams.area) {
                 responsables = responsables.filter(resp => resp.area === queryParams.area);
             }
@@ -36,9 +32,6 @@ const getResponsables = withErrorHandling(async (event) => {
     );
 });
 
-/**
- * Obtener un responsable por ID
- */
 const getResponsable = withErrorHandling(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -64,9 +57,6 @@ const getResponsable = withErrorHandling(async (event) => {
     );
 });
 
-/**
- * Crear un nuevo responsable
- */
 const createResponsable = withAuth(async (event) => {
     const responsableData = parseBody(event);
     
@@ -76,7 +66,6 @@ const createResponsable = withAuth(async (event) => {
         return badRequest('Nombre, apellido, email y área son requeridos');
     }
     
-    // Determinar criticidad según el área
     const esCritico = ['critical', 'high_priority', 'management', 'security'].includes(area);
     
     return await resilienceManager.executeWithFullResilience(
@@ -108,9 +97,6 @@ const createResponsable = withAuth(async (event) => {
     );
 }, ['admin']);
 
-/**
- * Actualizar un responsable existente
- */
 const updateResponsable = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
@@ -119,7 +105,6 @@ const updateResponsable = withAuth(async (event) => {
         return badRequest('ID del responsable es requerido');
     }
     
-    // Determinar criticidad según el área si se está actualizando
     const esCritico = updateData.area && 
         ['critical', 'high_priority', 'management', 'security'].includes(updateData.area);
     
@@ -146,9 +131,6 @@ const updateResponsable = withAuth(async (event) => {
     );
 }, ['admin']);
 
-/**
- * Eliminar un responsable
- */
 const deleteResponsable = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -157,7 +139,6 @@ const deleteResponsable = withAuth(async (event) => {
     }
     
     try {
-        // Verificar si el responsable tiene espacios asignados
         const espacios = await db.getEspacios({ responsable_id: id });
         if (espacios.length > 0) {
             return badRequest('No se puede eliminar el responsable porque tiene espacios asignados');
@@ -173,9 +154,6 @@ const deleteResponsable = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Cambiar estado de un responsable (activar/desactivar)
- */
 const toggleResponsableEstado = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const { activo } = parseBody(event);
@@ -199,9 +177,6 @@ const toggleResponsableEstado = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Obtener responsables por área
- */
 const getResponsablesPorArea = withErrorHandling(async (event) => {
     const { area } = extractPathParams(event);
     
@@ -219,9 +194,6 @@ const getResponsablesPorArea = withErrorHandling(async (event) => {
     });
 });
 
-/**
- * Obtener espacios asignados a un responsable
- */
 const getEspaciosAsignados = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -229,7 +201,6 @@ const getEspaciosAsignados = withAuth(async (event) => {
         return badRequest('ID del responsable es requerido');
     }
     
-    // Verificar que el responsable existe
     const responsable = await db.getEntityById('responsable', id);
     if (!responsable) {
         return notFound('Responsable no encontrado');
@@ -249,9 +220,6 @@ const getEspaciosAsignados = withAuth(async (event) => {
     });
 }, ['admin', 'responsable']);
 
-/**
- * Asignar espacio a responsable
- */
 const asignarEspacio = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const { espacio_id } = parseBody(event);
@@ -261,19 +229,16 @@ const asignarEspacio = withAuth(async (event) => {
     }
     
     try {
-        // Verificar que el responsable existe
         const responsable = await db.getEntityById('responsable', id);
         if (!responsable) {
             return notFound('Responsable no encontrado');
         }
         
-        // Verificar que el espacio existe
         const espacio = await db.getEspacioById(espacio_id);
         if (!espacio) {
             return notFound('Espacio no encontrado');
         }
         
-        // Asignar responsable al espacio
         const espacioActualizado = await db.updateEspacio(espacio_id, { responsable_id: id });
         
         return success({
@@ -290,9 +255,6 @@ const asignarEspacio = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Obtener estadísticas de responsables
- */
 const getEstadisticasResponsables = withAuth(async (event) => {
     const responsables = await db.getEntities('responsable');
     const espacios = await db.getEspacios();
@@ -305,7 +267,6 @@ const getEstadisticasResponsables = withAuth(async (event) => {
         espaciosAsignados: 0
     };
     
-    // Estadísticas por área
     responsables.forEach(responsable => {
         if (!stats.porArea[responsable.area]) {
             stats.porArea[responsable.area] = { total: 0, activos: 0 };
@@ -316,7 +277,6 @@ const getEstadisticasResponsables = withAuth(async (event) => {
         }
     });
     
-    // Contar espacios con responsable asignado
     stats.espaciosAsignados = espacios.filter(e => e.responsable_id).length;
     
     return success(stats);

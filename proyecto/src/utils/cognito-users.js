@@ -1,10 +1,3 @@
-#!/usr/bin/env node
-
-/**
- * Script de utilidades para gestionar usuarios de Cognito
- * Uso: node src/utils/cognito-users.js [comando] [argumentos]
- */
-
 const {
   CognitoIdentityProviderClient,
   AdminCreateUserCommand,
@@ -19,7 +12,6 @@ const client = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION || 'us-east-1'
 });
 
-// Configurar desde variables de entorno o parámetros del stack
 const USER_POOL_ID = process.env.USER_POOL_ID;
 
 async function createUser(email, password, role = 'usuario', nombre = '', apellido = '') {
@@ -31,7 +23,6 @@ async function createUser(email, password, role = 'usuario', nombre = '', apelli
   try {
     console.log(`Creando usuario: ${email}`);
     
-    // Crear usuario
     const createCmd = new AdminCreateUserCommand({
       UserPoolId: USER_POOL_ID,
       Username: email,
@@ -42,13 +33,12 @@ async function createUser(email, password, role = 'usuario', nombre = '', apelli
         { Name: 'family_name', Value: apellido },
         { Name: 'custom:role', Value: role }
       ],
-      MessageAction: 'SUPPRESS' // No enviar email de bienvenida
+      MessageAction: 'SUPPRESS'
     });
 
     await client.send(createCmd);
     console.log('✅ Usuario creado exitosamente');
 
-    // Establecer contraseña permanente
     const passwordCmd = new AdminSetUserPasswordCommand({
       UserPoolId: USER_POOL_ID,
       Username: email,
@@ -126,7 +116,7 @@ async function deleteUser(email) {
 
 function showHelp() {
   console.log(`
-🏥 Script de gestión de usuarios de Cognito
+Script de gestión de usuarios de Cognito
 
 Uso: node src/utils/cognito-users.js [comando] [argumentos]
 
@@ -162,7 +152,6 @@ Ejemplos de usuarios para pruebas:
 `);
 }
 
-// Procesamiento de comandos
 const args = process.argv.slice(2);
 const command = args[0];
 

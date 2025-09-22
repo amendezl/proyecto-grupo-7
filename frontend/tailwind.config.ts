@@ -9,9 +9,7 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      // Colores del Sistema de Gestión de Espacios
       colors: {
-        // Colores principales - Profesional y moderno
         primary: {
           50: '#f0f9ff',   // Azul muy claro - backgrounds sutiles
           100: '#e0f2fe',  // Azul claro - hover states
@@ -20,7 +18,6 @@ const config: Config = {
           900: '#0c4a6e'   // Azul oscuro - textos importantes
         },
         
-        // Estados de espacios y reservas
         status: {
           success: '#10b981',   // Verde - operaciones exitosas
           warning: '#f59e0b',   // Ámbar - alertas importantes
@@ -29,7 +26,6 @@ const config: Config = {
           urgent: '#dc2626'     // Rojo intenso - urgente
         },
         
-        // Disponibilidad de espacios
         availability: {
           available: '#22c55e',    // Verde - espacio disponible
           occupied: '#ef4444',     // Rojo - espacio ocupado
@@ -38,20 +34,17 @@ const config: Config = {
         }
       },
       
-      // Tipografía empresarial
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Courier New', 'monospace']
       },
       
-      // Espaciado empresarial
       spacing: {
-        '18': '4.5rem',   // 72px
-        '88': '22rem',    // 352px
-        '280': '70rem',   // Sidebar width
+        '18': '4.5rem',
+        '88': '22rem',
+        '280': '70rem',
       },
       
-      // Bordes y sombras
       borderRadius: {
         '4xl': '2rem',
       },
@@ -61,7 +54,6 @@ const config: Config = {
         'space': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
       },
       
-      // Animaciones
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'bounce-gentle': 'bounce 2s infinite',
@@ -75,7 +67,6 @@ const config: Config = {
         }
       },
       
-      // Breakpoints personalizados
       screens: {
         'xs': '475px',
         '3xl': '1600px',

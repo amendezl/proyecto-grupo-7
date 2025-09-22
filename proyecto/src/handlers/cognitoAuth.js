@@ -7,11 +7,6 @@ const { resilienceManager } = require('../utils/resilienceManager');
 
 const client = new CognitoIdentityProviderClient({});
 
-/**
- * POST /auth/login
- * Body: { "username": "email@dominio.com", "password": "Passw0rd!" }
- * Respuesta: { idToken, accessToken, refreshToken, expiresIn }
- */
 const login = async (event) => {
   try {
     const { username, password } = JSON.parse(event.body || "{}");
@@ -20,7 +15,6 @@ const login = async (event) => {
       return response(400, { ok: false, error: "username y password son obligatorios" });
     }
 
-    // Ejecutar login con resiliencia (Retry + Circuit Breaker)
     const authResult = await resilienceManager.executeAuth(
       async () => {
         const cmd = new InitiateAuthCommand({
@@ -36,13 +30,12 @@ const login = async (event) => {
       },
       {
         operation: 'cognitoLogin',
-        username: username.substring(0, 3) + '***', // Log parcial por seguridad
-        priority: 'critical' // Login es crítico para el sistema
+        username: username.substring(0, 3) + '***',
+        priority: 'critical'
       }
     );
 
     if (authResult.ChallengeName) {
-      // Manejo de desafíos como NEW_PASSWORD_REQUIRED se podría agregar aquí
       return response(403, { ok: false, challenge: authResult.ChallengeName });
     }
 
@@ -58,7 +51,6 @@ const login = async (event) => {
   } catch (error) {
     console.error('[COGNITO_LOGIN] Error:', error);
     
-    // Manejar errores específicos de resiliencia
     if (error.name === 'CircuitOpenError') {
       return response(503, { 
         ok: false, 
@@ -78,10 +70,6 @@ const login = async (event) => {
   }
 };
 
-/**
- * POST /auth/refresh
- * Body: { "refreshToken": "..." }
- */
 const refresh = async (event) => {
   try {
     const { refreshToken } = JSON.parse(event.body || "{}");
@@ -90,7 +78,6 @@ const refresh = async (event) => {
       return response(400, { ok: false, error: "refreshToken es obligatorio" });
     }
 
-    // Ejecutar refresh con resiliencia
     const authResult = await resilienceManager.executeAuth(
       async () => {
         const cmd = new InitiateAuthCommand({
@@ -122,7 +109,6 @@ const refresh = async (event) => {
   } catch (error) {
     console.error('[COGNITO_REFRESH] Error:', error);
     
-    // Manejar errores específicos de resiliencia
     if (error.name === 'CircuitOpenError') {
       return response(503, { 
         ok: false, 
@@ -134,14 +120,8 @@ const refresh = async (event) => {
   }
 };
 
-/**
- * GET /me
- * Endpoint protegido que devuelve información del usuario autenticado
- * API Gateway valida automáticamente el JWT antes de llegar aquí
- */
 const me = async (event) => {
   try {
-    // API Gateway JWT authorizer coloca las claims en event.requestContext.authorizer.jwt.claims
     const claims = event.requestContext?.authorizer?.jwt?.claims || {};
     
     return response(200, {

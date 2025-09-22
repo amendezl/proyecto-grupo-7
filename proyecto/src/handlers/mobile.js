@@ -1,8 +1,3 @@
-/**
- * Handlers optimizados para aplicaciones móviles
- * Respuestas más ligeras, timeouts más cortos, payload reducido
- */
-
 const DynamoDBManager = require('../database/DynamoDBManager');
 const { withAuth, withErrorHandling } = require('../utils/auth');
 const { success, badRequest } = require('../utils/responses');
@@ -10,21 +5,16 @@ const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
-/**
- * Dashboard móvil optimizado - Solo datos esenciales
- */
 const getMobileDashboard = withAuth(async (event) => {
     const user = event.user;
     
     return await resilienceManager.executeDatabase(
         async () => {
-            // Solo obtener datos esenciales para móviles
             const [espacios, reservas] = await Promise.all([
                 db.getEspacios(),
                 db.getReservas({ usuario_id: user.id })
             ]);
             
-            // Estadísticas mínimas para móvil
             const stats = {
                 espacios: {
                     disponibles: espacios.filter(e => e.estado === 'disponible').length,
@@ -37,7 +27,7 @@ const getMobileDashboard = withAuth(async (event) => {
                         const ahora = new Date();
                         const unaSemana = new Date(ahora.getTime() + (7 * 24 * 60 * 60 * 1000));
                         return fechaReserva >= ahora && fechaReserva <= unaSemana && r.estado !== 'cancelada';
-                    }).slice(0, 3) // Solo 3 próximas para móvil
+                    }).slice(0, 3)
                 }
             };
             
@@ -60,9 +50,6 @@ const getMobileDashboard = withAuth(async (event) => {
     );
 });
 
-/**
- * Lista de espacios optimizada para móvil - Solo campos esenciales
- */
 const getMobileSpaces = withAuth(async (event) => {
     const { limit = 20, offset = 0, tipo } = event.queryStringParameters || {};
     
@@ -70,20 +57,16 @@ const getMobileSpaces = withAuth(async (event) => {
         async () => {
             let espacios = await db.getEspacios();
             
-            // Aplicar filtros
             if (tipo) {
                 espacios = espacios.filter(e => e.tipo === tipo);
             }
             
-            // Solo mostrar espacios disponibles para móvil
             espacios = espacios.filter(e => e.estado === 'disponible');
             
-            // Paginación para móvil
             const startIndex = parseInt(offset);
             const endIndex = startIndex + parseInt(limit);
             const espaciosPaginados = espacios.slice(startIndex, endIndex);
             
-            // Campos reducidos para móvil
             const espaciosOptimizados = espaciosPaginados.map(espacio => ({
                 id: espacio.id,
                 nombre: espacio.nombre,
@@ -112,9 +95,6 @@ const getMobileSpaces = withAuth(async (event) => {
     );
 });
 
-/**
- * Reservas del usuario optimizadas para móvil
- */
 const getMobileReservations = withAuth(async (event) => {
     const user = event.user;
     const { estado, limit = 10 } = event.queryStringParameters || {};
@@ -123,18 +103,14 @@ const getMobileReservations = withAuth(async (event) => {
         async () => {
             let reservas = await db.getReservas({ usuario_id: user.id });
             
-            // Filtrar por estado si se especifica
             if (estado) {
                 reservas = reservas.filter(r => r.estado === estado);
             }
             
-            // Ordenar por fecha más reciente
             reservas.sort((a, b) => new Date(b.fecha_inicio) - new Date(a.fecha_inicio));
             
-            // Limitar resultados para móvil
             reservas = reservas.slice(0, parseInt(limit));
             
-            // Obtener información de espacios
             const espaciosIds = [...new Set(reservas.map(r => r.espacio_id))];
             const espacios = await Promise.all(
                 espaciosIds.map(id => db.getEspacioById(id))
@@ -144,7 +120,6 @@ const getMobileReservations = withAuth(async (event) => {
                 return map;
             }, {});
             
-            // Enriquecer reservas con datos de espacio (solo campos esenciales)
             const reservasOptimizadas = reservas.map(reserva => ({
                 id: reserva.id,
                 fecha_inicio: reserva.fecha_inicio,
@@ -171,9 +146,6 @@ const getMobileReservations = withAuth(async (event) => {
     );
 });
 
-/**
- * Crear reserva optimizado para móvil
- */
 const createMobileReservation = withAuth(async (event) => {
     const user = event.user;
     const { espacio_id, fecha_inicio, fecha_fin, proposito } = JSON.parse(event.body || '{}');
@@ -184,7 +156,7 @@ const createMobileReservation = withAuth(async (event) => {
     
     return await resilienceManager.executeDatabase(
         async () => {
-            // Verificar que el espacio existe y está disponible
+
             const espacio = await db.getEspacioById(espacio_id);
             if (!espacio) {
                 return badRequest('Espacio no encontrado');
@@ -194,7 +166,6 @@ const createMobileReservation = withAuth(async (event) => {
                 return badRequest('Espacio no disponible');
             }
             
-            // Crear reserva
             const nuevaReserva = await db.createReserva({
                 espacio_id,
                 usuario_id: user.id,
@@ -228,9 +199,6 @@ const createMobileReservation = withAuth(async (event) => {
     );
 });
 
-/**
- * Obtener tipos de espacios disponibles (para filtros móviles)
- */
 const getSpaceTypes = withAuth(async (event) => {
     return await resilienceManager.executeDatabase(
         async () => {

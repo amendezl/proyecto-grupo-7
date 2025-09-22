@@ -5,10 +5,6 @@ const { success, badRequest, notFound, created, conflict } = require('../utils/r
 
 const db = new DynamoDBManager();
 
-/**
- * Obtener todos los usuarios (solo admins)
- * Incluye resiliencia para consultas de usuarios
- */
 const getUsuarios = withAuth(async (event) => {
     const queryParams = extractQueryParams(event);
     
@@ -20,8 +16,6 @@ const getUsuarios = withAuth(async (event) => {
                 if (queryParams.activo !== undefined) filters.activo = queryParams.activo === 'true';
                 
                 const usuarios = await db.getUsuarios(filters);
-                
-                // Remover contraseñas de la respuesta
                 const usuariosSinPassword = usuarios.map(({ password, ...usuario }) => usuario);
                 
                 return {
@@ -40,7 +34,6 @@ const getUsuarios = withAuth(async (event) => {
         return success(result);
         
     } catch (error) {
-        // Fallback para consultas de usuarios
         if (error.name === 'CircuitOpenError' || error.name === 'RetryExhaustedError') {
             return {
                 statusCode: 200,
@@ -61,10 +54,6 @@ const getUsuarios = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Obtener un usuario por ID
- * Incluye resiliencia para consultas individuales
- */
 const getUsuario = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const user = event.user;
@@ -73,7 +62,6 @@ const getUsuario = withAuth(async (event) => {
         return badRequest('ID del usuario es requerido');
     }
     
-    // Los usuarios normales solo pueden ver su propio perfil
     if (user.rol === 'usuario' && user.id !== id) {
         return notFound('Usuario no encontrado');
     }
@@ -86,7 +74,6 @@ const getUsuario = withAuth(async (event) => {
                     throw new Error('Usuario no encontrado');
                 }
                 
-                // Remover contraseña de la respuesta
                 const { password, ...usuarioSinPassword } = resultado;
                 return usuarioSinPassword;
             },
@@ -105,7 +92,6 @@ const getUsuario = withAuth(async (event) => {
             return notFound('Usuario no encontrado');
         }
         
-        // Manejo de errores de resiliencia
         if (error.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
@@ -122,9 +108,6 @@ const getUsuario = withAuth(async (event) => {
     }
 });
 
-/**
- * Crear un nuevo usuario (solo admins)
- */
 const createUsuario = withAuth(async (event) => {
     const userData = parseBody(event);
     
@@ -134,13 +117,11 @@ const createUsuario = withAuth(async (event) => {
         return badRequest('Nombre, apellido, email y contraseña son requeridos');
     }
     
-    // Verificar si el usuario ya existe
     const existingUser = await db.getUsuarioByEmail(email);
     if (existingUser) {
         return conflict('Ya existe un usuario con ese email');
     }
     
-    // Hash de la contraseña
     const hashedPassword = await hashPassword(password);
     
     const nuevoUsuario = await db.createUsuario({
@@ -155,15 +136,11 @@ const createUsuario = withAuth(async (event) => {
         activo: activo !== false
     });
     
-    // Remover contraseña de la respuesta
     const { password: _, ...usuarioSinPassword } = nuevoUsuario;
     
     return created(usuarioSinPassword);
 }, ['admin']);
 
-/**
- * Actualizar un usuario existente
- */
 const updateUsuario = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
@@ -173,13 +150,12 @@ const updateUsuario = withAuth(async (event) => {
         return badRequest('ID del usuario es requerido');
     }
     
-    // Los usuarios normales solo pueden actualizar su propio perfil
     if (user.rol === 'usuario' && user.id !== id) {
         return notFound('Usuario no encontrado');
     }
     
     try {
-        // Si es un usuario normal, limitar los campos que puede actualizar
+
         if (user.rol === 'usuario') {
             const allowedFields = ['nombre', 'apellido', 'telefono'];
             const filteredData = {};
@@ -191,14 +167,12 @@ const updateUsuario = withAuth(async (event) => {
             updateData = filteredData;
         }
         
-        // Si se está actualizando la contraseña, hashearla
         if (updateData.password) {
             updateData.password = await hashPassword(updateData.password);
         }
         
         const usuarioActualizado = await db.updateEntity('usuario', id, updateData);
         
-        // Remover contraseña de la respuesta
         const { password, ...usuarioSinPassword } = usuarioActualizado;
         
         return success(usuarioSinPassword);
@@ -210,9 +184,6 @@ const updateUsuario = withAuth(async (event) => {
     }
 });
 
-/**
- * Eliminar un usuario (solo admins)
- */
 const deleteUsuario = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -231,9 +202,6 @@ const deleteUsuario = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Cambiar estado de usuario (activar/desactivar) - solo admins
- */
 const toggleUsuarioEstado = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const { activo } = parseBody(event);
@@ -249,7 +217,6 @@ const toggleUsuarioEstado = withAuth(async (event) => {
     try {
         const usuarioActualizado = await db.updateEntity('usuario', id, { activo });
         
-        // Remover contraseña de la respuesta
         const { password, ...usuarioSinPassword } = usuarioActualizado;
         
         return success(usuarioSinPassword);
@@ -261,9 +228,6 @@ const toggleUsuarioEstado = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Obtener perfil del usuario actual
- */
 const getPerfilActual = withAuth(async (event) => {
     const user = event.user;
     
@@ -273,20 +237,15 @@ const getPerfilActual = withAuth(async (event) => {
         return notFound('Usuario no encontrado');
     }
     
-    // Remover contraseña de la respuesta
     const { password, ...usuarioSinPassword } = usuario;
     
     return success(usuarioSinPassword);
 });
 
-/**
- * Actualizar perfil del usuario actual
- */
 const updatePerfilActual = withAuth(async (event) => {
     const user = event.user;
     const updateData = parseBody(event);
     
-    // Limitar los campos que puede actualizar un usuario en su propio perfil
     const allowedFields = ['nombre', 'apellido', 'telefono'];
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
@@ -297,8 +256,6 @@ const updatePerfilActual = withAuth(async (event) => {
     
     try {
         const usuarioActualizado = await db.updateEntity('usuario', user.id, filteredData);
-        
-        // Remover contraseña de la respuesta
         const { password, ...usuarioSinPassword } = usuarioActualizado;
         
         return success(usuarioSinPassword);
@@ -310,9 +267,6 @@ const updatePerfilActual = withAuth(async (event) => {
     }
 });
 
-/**
- * Cambiar contraseña del usuario actual
- */
 const cambiarPassword = withAuth(async (event) => {
     const user = event.user;
     const { passwordActual, passwordNuevo } = parseBody(event);
@@ -331,14 +285,12 @@ const cambiarPassword = withAuth(async (event) => {
             return notFound('Usuario no encontrado');
         }
         
-        // Verificar contraseña actual
         const bcrypt = require('bcryptjs');
         const isValidPassword = await bcrypt.compare(passwordActual, usuario.password);
         if (!isValidPassword) {
             return badRequest('La contraseña actual es incorrecta');
         }
         
-        // Hash de la nueva contraseña
         const hashedPassword = await hashPassword(passwordNuevo);
         
         await db.updateEntity('usuario', user.id, { password: hashedPassword });

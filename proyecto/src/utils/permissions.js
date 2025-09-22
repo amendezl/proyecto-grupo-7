@@ -1,32 +1,19 @@
-/**
- * Repositorio de Permisos - Sistema de Gestión de Espacios
- * 
- * Define todos los permisos disponibles en el sistema y gestiona
- * la asignación de roles siguiendo el principio de mínimo privilegio
- */
-
-/**
- * REPOSITORIO DE PERMISOS DISPONIBLES
- * Cada permiso representa una acción específica en el sistema
- */
 const PERMISSIONS = {
-  // === PERMISOS DE ESPACIOS ===
+
   ESPACIOS_READ: 'espacios:read',
   ESPACIOS_CREATE: 'espacios:create',
   ESPACIOS_UPDATE: 'espacios:update',
   ESPACIOS_DELETE: 'espacios:delete',
   ESPACIOS_STATS: 'espacios:stats',
   
-  // === PERMISOS DE RESERVAS ===
   RESERVAS_READ: 'reservas:read',
   RESERVAS_CREATE: 'reservas:create',
   RESERVAS_UPDATE: 'reservas:update',
   RESERVAS_DELETE: 'reservas:delete',
   RESERVAS_CANCEL: 'reservas:cancel',
   RESERVAS_STATS: 'reservas:stats',
-  RESERVAS_READ_ALL: 'reservas:read_all', // Ver todas las reservas
+  RESERVAS_READ_ALL: 'reservas:read_all',
   
-  // === PERMISOS DE USUARIOS ===
   USUARIOS_READ: 'usuarios:read',
   USUARIOS_CREATE: 'usuarios:create',
   USUARIOS_UPDATE: 'usuarios:update',
@@ -36,7 +23,6 @@ const PERMISSIONS = {
   USUARIOS_READ_PROFILE: 'usuarios:read_profile',
   USUARIOS_UPDATE_PROFILE: 'usuarios:update_profile',
   
-  // === PERMISOS DE RESPONSABLES ===
   RESPONSABLES_READ: 'responsables:read',
   RESPONSABLES_CREATE: 'responsables:create',
   RESPONSABLES_UPDATE: 'responsables:update',
@@ -44,7 +30,6 @@ const PERMISSIONS = {
   RESPONSABLES_ASSIGN_SPACE: 'responsables:assign_space',
   RESPONSABLES_STATS: 'responsables:stats',
   
-  // === PERMISOS DE ZONAS ===
   ZONAS_READ: 'zonas:read',
   ZONAS_CREATE: 'zonas:create',
   ZONAS_UPDATE: 'zonas:update',
@@ -52,42 +37,31 @@ const PERMISSIONS = {
   ZONAS_TOGGLE_STATUS: 'zonas:toggle_status',
   ZONAS_STATS: 'zonas:stats',
   
-  // === PERMISOS DE DASHBOARD Y REPORTES ===
   DASHBOARD_VIEW: 'dashboard:view',
   DASHBOARD_STATS_DETAILED: 'dashboard:stats_detailed',
   
-  // === PERMISOS DE NOTIFICACIONES ===
   NOTIFICATIONS_SEND_SPACE: 'notifications:send_space',
   NOTIFICATIONS_SEND_SYSTEM: 'notifications:send_system',
   NOTIFICATIONS_SEND_ADMIN: 'notifications:send_admin',
   NOTIFICATIONS_SUBSCRIBE: 'notifications:subscribe',
   
-  // === PERMISOS DE SISTEMA ===
   SYSTEM_HEALTH_CHECK: 'system:health_check',
   SYSTEM_RESILIENCE_VIEW: 'system:resilience_view',
   SYSTEM_RESILIENCE_RESET: 'system:resilience_reset',
   
-  // === PERMISOS ADMINISTRATIVOS ===
   ADMIN_FULL_ACCESS: 'admin:full_access',
   ADMIN_USER_MANAGEMENT: 'admin:user_management',
   ADMIN_SYSTEM_CONFIG: 'admin:system_config'
 };
 
-/**
- * DEFINICIÓN DE ROLES CON PRINCIPIO DE MÍNIMO PRIVILEGIO
- * Cada rol tiene solo los permisos necesarios para sus funciones
- */
 const ROLE_PERMISSIONS = {
-  /**
-   * USUARIO - Rol básico con permisos mínimos
-   * Puede: Ver espacios, crear/gestionar sus propias reservas, ver su perfil
-   */
+
   usuario: [
     PERMISSIONS.ESPACIOS_READ,
-    PERMISSIONS.RESERVAS_READ, // Solo sus propias reservas
+    PERMISSIONS.RESERVAS_READ,
     PERMISSIONS.RESERVAS_CREATE,
-    PERMISSIONS.RESERVAS_UPDATE, // Solo sus propias reservas
-    PERMISSIONS.RESERVAS_CANCEL, // Solo sus propias reservas
+    PERMISSIONS.RESERVAS_UPDATE,
+    PERMISSIONS.RESERVAS_CANCEL,
     PERMISSIONS.USUARIOS_READ_PROFILE,
     PERMISSIONS.USUARIOS_UPDATE_PROFILE,
     PERMISSIONS.USUARIOS_CHANGE_PASSWORD,
@@ -95,36 +69,25 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.NOTIFICATIONS_SUBSCRIBE
   ],
   
-  /**
-   * RESPONSABLE - Gestión de espacios asignados
-   * Puede: Gestionar espacios asignados, ver todas las reservas de sus espacios
-   */
   responsable: [
-    // Permisos de usuario base
     ...ROLE_PERMISSIONS.usuario || [],
     
-    // Permisos adicionales para responsables
-    PERMISSIONS.ESPACIOS_UPDATE, // Solo espacios asignados
+    PERMISSIONS.ESPACIOS_UPDATE,
     PERMISSIONS.ESPACIOS_STATS,
-    PERMISSIONS.RESERVAS_READ_ALL, // Todas las reservas de sus espacios
+    PERMISSIONS.RESERVAS_READ_ALL,
     PERMISSIONS.RESERVAS_STATS,
     PERMISSIONS.DASHBOARD_VIEW,
     PERMISSIONS.NOTIFICATIONS_SEND_SPACE
   ],
   
-  /**
-   * ADMIN - Control total del sistema
-   * Puede: Acceso completo a todas las funcionalidades
-   */
   admin: [
-    // Todos los permisos de espacios
+
     PERMISSIONS.ESPACIOS_READ,
     PERMISSIONS.ESPACIOS_CREATE,
     PERMISSIONS.ESPACIOS_UPDATE,
     PERMISSIONS.ESPACIOS_DELETE,
     PERMISSIONS.ESPACIOS_STATS,
     
-    // Todos los permisos de reservas
     PERMISSIONS.RESERVAS_READ,
     PERMISSIONS.RESERVAS_CREATE,
     PERMISSIONS.RESERVAS_UPDATE,
@@ -133,7 +96,6 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.RESERVAS_STATS,
     PERMISSIONS.RESERVAS_READ_ALL,
     
-    // Todos los permisos de usuarios
     PERMISSIONS.USUARIOS_READ,
     PERMISSIONS.USUARIOS_CREATE,
     PERMISSIONS.USUARIOS_UPDATE,
@@ -143,7 +105,6 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.USUARIOS_READ_PROFILE,
     PERMISSIONS.USUARIOS_UPDATE_PROFILE,
     
-    // Todos los permisos de responsables
     PERMISSIONS.RESPONSABLES_READ,
     PERMISSIONS.RESPONSABLES_CREATE,
     PERMISSIONS.RESPONSABLES_UPDATE,
@@ -151,7 +112,6 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.RESPONSABLES_ASSIGN_SPACE,
     PERMISSIONS.RESPONSABLES_STATS,
     
-    // Todos los permisos de zonas
     PERMISSIONS.ZONAS_READ,
     PERMISSIONS.ZONAS_CREATE,
     PERMISSIONS.ZONAS_UPDATE,
@@ -159,23 +119,19 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.ZONAS_TOGGLE_STATUS,
     PERMISSIONS.ZONAS_STATS,
     
-    // Permisos de dashboard
     PERMISSIONS.DASHBOARD_VIEW,
     PERMISSIONS.DASHBOARD_STATS_DETAILED,
     
-    // Permisos de notificaciones
     PERMISSIONS.NOTIFICATIONS_SEND_SPACE,
     PERMISSIONS.NOTIFICATIONS_SEND_SYSTEM,
     PERMISSIONS.NOTIFICATIONS_SEND_ADMIN,
     PERMISSIONS.NOTIFICATIONS_SUBSCRIBE,
     
-    // Permisos de sistema
     PERMISSIONS.SYSTEM_HEALTH_CHECK,
     PERMISSIONS.SYSTEM_RESILIENCE_VIEW,
     PERMISSIONS.SYSTEM_RESILIENCE_RESET,
     PERMISSIONS.SYSTEM_RESILIENCE_TEST,
     
-    // Permisos administrativos
     PERMISSIONS.ADMIN_FULL_ACCESS,
     PERMISSIONS.ADMIN_USER_MANAGEMENT,
     PERMISSIONS.ADMIN_SYSTEM_CONFIG
@@ -183,7 +139,6 @@ const ROLE_PERMISSIONS = {
 };
 
 /**
- * Verifica si un usuario tiene un permiso específico
  * @param {Object} user - Usuario con rol
  * @param {string} permission - Permiso a verificar
  * @returns {boolean}
@@ -206,7 +161,6 @@ const hasPermission = (user, permission) => {
 };
 
 /**
- * Verifica si un usuario tiene alguno de los permisos especificados
  * @param {Object} user - Usuario con rol
  * @param {Array<string>} permissions - Lista de permisos
  * @returns {boolean}
@@ -216,7 +170,6 @@ const hasAnyPermission = (user, permissions) => {
 };
 
 /**
- * Verifica si un usuario tiene todos los permisos especificados
  * @param {Object} user - Usuario con rol
  * @param {Array<string>} permissions - Lista de permisos
  * @returns {boolean}
@@ -226,7 +179,6 @@ const hasAllPermissions = (user, permissions) => {
 };
 
 /**
- * Obtiene todos los permisos de un usuario basado en sus roles
  * @param {Object} user - Usuario con rol
  * @returns {Array<string>}
  */
@@ -247,8 +199,7 @@ const getUserPermissions = (user) => {
 };
 
 /**
- * Middleware para verificar permisos específicos
- * @param {string|Array<string>} requiredPermissions - Permisos requeridos
+ * @param {string|Array<string>} requiredPermissions
  * @returns {Function}
  */
 const requirePermissions = (requiredPermissions) => {
@@ -261,19 +212,12 @@ const requirePermissions = (requiredPermissions) => {
   };
 };
 
-/**
- * Verifica si un usuario puede acceder a un espacio/reserva específico
- * Implementa lógica adicional para ownership vs. acceso global
- */
 const canAccessResource = (user, permission, resourceOwnerId = null) => {
-  // Verificar permiso básico
   if (!hasPermission(user, permission)) {
     return false;
   }
   
-  // Si es un espacio/reserva específico de usuario, verificar ownership
   if (resourceOwnerId && user.id !== resourceOwnerId) {
-    // Solo admins pueden acceder a espacios/reservas de otros usuarios
     return hasPermission(user, PERMISSIONS.ADMIN_FULL_ACCESS);
   }
   

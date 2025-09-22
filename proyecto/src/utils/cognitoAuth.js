@@ -1,15 +1,9 @@
 /**
- * Utilitarios para trabajar con autenticación de Cognito
- */
-
-/**
- * Extrae información del usuario desde los claims de Cognito JWT
  * @param {Object} event - Event de Lambda con autorización de API Gateway
  * @returns {Object} - Información del usuario
  */
 const getUserFromCognito = (event) => {
   try {
-    // API Gateway JWT authorizer coloca las claims en event.requestContext.authorizer.jwt.claims
     const claims = event.requestContext?.authorizer?.jwt?.claims;
     
     if (!claims) {
@@ -21,11 +15,9 @@ const getUserFromCognito = (event) => {
       email: claims.email,
       cognitoUsername: claims['cognito:username'],
       emailVerified: claims.email_verified === 'true',
-      // Atributos personalizados
       rol: claims['custom:role'] || 'usuario',
       nombre: claims.name || '',
       apellido: claims.family_name || '',
-      // Información del token
       tokenUse: claims.token_use,
       audience: claims.aud,
       issuer: claims.iss,
@@ -39,7 +31,6 @@ const getUserFromCognito = (event) => {
 };
 
 /**
- * Verifica si el usuario tiene el rol requerido
  * @param {Object} user - Usuario de Cognito
  * @param {string|Array} requiredRole - Rol(es) requerido(s)
  * @returns {boolean} - Si el usuario tiene autorización
@@ -55,7 +46,6 @@ const hasRole = (user, requiredRole) => {
 };
 
 /**
- * Verifica si el usuario es administrador
  * @param {Object} user - Usuario de Cognito
  * @returns {boolean}
  */
@@ -64,7 +54,6 @@ const isAdmin = (user) => {
 };
 
 /**
- * Verifica si el usuario es responsable
  * @param {Object} user - Usuario de Cognito
  * @returns {boolean}
  */
@@ -73,7 +62,6 @@ const isResponsable = (user) => {
 };
 
 /**
- * Middleware para verificar roles
  * @param {string|Array} requiredRoles - Roles requeridos
  * @returns {Function} - Función middleware
  */
@@ -97,7 +85,6 @@ const requireRole = (requiredRoles) => {
           };
         }
         
-        // Agregar usuario al event para uso posterior
         event.cognitoUser = user;
         
         return await handler(event);

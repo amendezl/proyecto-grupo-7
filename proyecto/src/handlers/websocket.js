@@ -1,8 +1,3 @@
-/* 
- * WEBSOCKET HANDLERS - Tiempo Real
- * Sistema hospital - Notificaciones instantáneas
- */
-
 const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws-sdk/client-apigatewaymanagementapi');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient } = require('@aws-sdk/lib-dynamodb');
@@ -14,18 +9,14 @@ const apigateway = new ApiGatewayManagementApiClient({
 const dynamoClient = new DynamoDBClient({});
 const dynamodb = DynamoDBDocumentClient.from(dynamoClient);
 
-// Tabla para manejar conexiones WebSocket
 const CONNECTIONS_TABLE = process.env.CONNECTIONS_TABLE;
 
-/**
- * Maneja nuevas conexiones WebSocket
- */
 exports.connect = async (event) => {
   const connectionId = event.requestContext.connectionId;
   const timestamp = new Date().toISOString();
   
   try {
-    // Guardar conexión en DynamoDB
+
     await dynamodb.put({
       TableName: CONNECTIONS_TABLE,
       Item: {
@@ -53,14 +44,11 @@ exports.connect = async (event) => {
   }
 };
 
-/**
- * Maneja desconexiones WebSocket
- */
 exports.disconnect = async (event) => {
   const connectionId = event.requestContext.connectionId;
   
   try {
-    // Eliminar conexión de DynamoDB
+
     await dynamodb.delete({
       TableName: CONNECTIONS_TABLE,
       Key: { connectionId }
@@ -81,16 +69,12 @@ exports.disconnect = async (event) => {
   }
 };
 
-/**
- * Maneja mensajes por defecto
- */
 exports.message = async (event) => {
   const connectionId = event.requestContext.connectionId;
   const message = JSON.parse(event.body || '{}');
   
   console.log(`💬 Mensaje recibido de ${connectionId}:`, message);
   
-  // Echo del mensaje (opcional)
   await sendMessageToConnection(connectionId, {
     type: 'ack',
     originalMessage: message,
@@ -103,10 +87,6 @@ exports.message = async (event) => {
   };
 };
 
-/**
- * TRIGGER: Notifica cuando se crea una nueva reserva
- * Se ejecuta automáticamente desde DynamoDB Streams
- */
 exports.notifyReserva = async (event) => {
   console.log('🔄 DynamoDB Stream - Reservas:', JSON.stringify(event, null, 2));
   
@@ -135,9 +115,6 @@ exports.notifyReserva = async (event) => {
   return { statusCode: 200 };
 };
 
-/**
- * TRIGGER: Notifica cuando cambia el estado de un espacio
- */
 exports.notifyEspacioEstado = async (event) => {
   console.log('🔄 DynamoDB Stream - Espacios:', JSON.stringify(event, null, 2));
   
@@ -146,7 +123,6 @@ exports.notifyEspacioEstado = async (event) => {
       const espacioData = record.dynamodb.NewImage;
       const oldData = record.dynamodb.OldImage;
       
-      // Solo notificar si cambió el estado
       if (espacioData.estado?.S !== oldData.estado?.S) {
         const notificationMessage = {
           type: 'espacio_estado_cambiado',
@@ -169,12 +145,9 @@ exports.notifyEspacioEstado = async (event) => {
   return { statusCode: 200 };
 };
 
-/**
- * Envía mensaje a todas las conexiones activas
- */
 async function broadcastMessage(message) {
   try {
-    // Obtener todas las conexiones activas
+
       const connections = await dynamodb.scan({
         TableName: CONNECTIONS_TABLE,
         ProjectionExpression: 'connectionId'
@@ -182,12 +155,11 @@ async function broadcastMessage(message) {
     
     console.log(`📡 Broadcasting a ${connections.Items.length} conexiones`);
     
-    // Enviar mensaje a cada conexión
     const promises = connections.Items.map(async (connection) => {
       try {
   await sendMessageToConnection(connection.connectionId, message);
       } catch (error) {
-        // Si la conexión está muerta, eliminarla
+
         if (error.statusCode === 410) {
           console.log(`🗑️ Eliminando conexión muerta: ${connection.connectionId}`);
           await dynamodb.delete({
@@ -208,9 +180,6 @@ async function broadcastMessage(message) {
   }
 }
 
-/**
- * Envía mensaje a una conexión específica
- */
 async function sendMessageToConnection(connectionId, message) {
   const cmd = new PostToConnectionCommand({
     ConnectionId: connectionId,
@@ -219,13 +188,9 @@ async function sendMessageToConnection(connectionId, message) {
   await apigateway.send(cmd);
 }
 
-/**
- * TRIGGER MANUAL: Envía estadísticas en tiempo real
- * Puede ser llamado desde otros handlers
- */
 exports.sendStats = async (event) => {
   try {
-    // Obtener estadísticas actuales de la base de datos
+
     const stats = await getRealtimeStats();
     
     const message = {
@@ -249,15 +214,11 @@ exports.sendStats = async (event) => {
   }
 };
 
-/**
- * Obtiene estadísticas en tiempo real de la base de datos
- */
 async function getRealtimeStats() {
   const hoy = new Date().toISOString().split('T')[0];
   
-  // Estas consultas deberían optimizarse según tu estructura de datos
   const [reservasHoy, espaciosDisponibles, usuariosActivos] = await Promise.all([
-    // Contar reservas de hoy
+
     dynamodb.query({
       TableName: process.env.DYNAMODB_TABLE,
       IndexName: 'TipoFechaIndex',
@@ -269,7 +230,6 @@ async function getRealtimeStats() {
       Select: 'COUNT'
     }).promise(),
     
-    // Contar espacios disponibles
     dynamodb.query({
       TableName: process.env.DYNAMODB_TABLE,
       IndexName: 'TipoEstadoIndex',
@@ -281,7 +241,6 @@ async function getRealtimeStats() {
       Select: 'COUNT'
     }).promise(),
     
-    // Contar conexiones activas (usuarios conectados)
     dynamodb.scan({
       TableName: CONNECTIONS_TABLE,
       Select: 'COUNT'

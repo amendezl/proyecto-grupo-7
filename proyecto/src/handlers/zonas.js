@@ -5,9 +5,6 @@ const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
-/**
- * Obtener todas las zonas
- */
 const getZonas = withErrorHandling(async (event) => {
     const queryParams = extractQueryParams(event);
     
@@ -15,7 +12,6 @@ const getZonas = withErrorHandling(async (event) => {
         async () => {
             let zonas = await db.getEntities('zona');
             
-            // Aplicar filtros si existen
             if (queryParams.piso) {
                 zonas = zonas.filter(zona => zona.piso === queryParams.piso);
             }
@@ -36,9 +32,6 @@ const getZonas = withErrorHandling(async (event) => {
     );
 });
 
-/**
- * Obtener una zona por ID
- */
 const getZona = withErrorHandling(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -64,9 +57,6 @@ const getZona = withErrorHandling(async (event) => {
     );
 });
 
-/**
- * Crear una nueva zona
- */
 const createZona = withAuth(async (event) => {
     const zonaData = parseBody(event);
     
@@ -76,7 +66,6 @@ const createZona = withAuth(async (event) => {
         return badRequest('Nombre, piso y edificio son requeridos');
     }
     
-    // Determinar criticidad según el tipo de zona
     const esCritica = zonaData.tipoZona && 
         ['critical', 'high_priority', 'priority', 'security', 'management'].includes(zonaData.tipoZona);
     
@@ -109,9 +98,6 @@ const createZona = withAuth(async (event) => {
     );
 }, ['admin']);
 
-/**
- * Actualizar una zona existente
- */
 const updateZona = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
@@ -120,7 +106,6 @@ const updateZona = withAuth(async (event) => {
         return badRequest('ID de la zona es requerido');
     }
     
-    // Determinar criticidad según el tipo de zona si se está actualizando
     const esCritica = updateData.tipoZona && 
         ['critical', 'high_priority', 'priority', 'security', 'management'].includes(updateData.tipoZona);
     
@@ -147,9 +132,6 @@ const updateZona = withAuth(async (event) => {
     );
 }, ['admin']);
 
-/**
- * Eliminar una zona
- */
 const deleteZona = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -158,7 +140,7 @@ const deleteZona = withAuth(async (event) => {
     }
     
     try {
-        // Verificar si la zona tiene espacios asignados
+
         const espacios = await db.getEspacios({ zona_id: id });
         if (espacios.length > 0) {
             return badRequest('No se puede eliminar la zona porque tiene espacios asignados');
@@ -174,9 +156,6 @@ const deleteZona = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Cambiar estado de una zona (activar/desactivar)
- */
 const toggleZonaEstado = withAuth(async (event) => {
     const { id } = extractPathParams(event);
     const { activa } = parseBody(event);
@@ -200,9 +179,6 @@ const toggleZonaEstado = withAuth(async (event) => {
     }
 }, ['admin']);
 
-/**
- * Obtener zonas por piso
- */
 const getZonasPorPiso = withErrorHandling(async (event) => {
     const { piso } = extractPathParams(event);
     
@@ -220,9 +196,6 @@ const getZonasPorPiso = withErrorHandling(async (event) => {
     });
 });
 
-/**
- * Obtener espacios de una zona
- */
 const getEspaciosZona = withErrorHandling(async (event) => {
     const { id } = extractPathParams(event);
     
@@ -230,7 +203,6 @@ const getEspaciosZona = withErrorHandling(async (event) => {
         return badRequest('ID de la zona es requerido');
     }
     
-    // Verificar que la zona existe
     const zona = await db.getEntityById('zona', id);
     if (!zona) {
         return notFound('Zona no encontrada');
@@ -250,9 +222,6 @@ const getEspaciosZona = withErrorHandling(async (event) => {
     });
 });
 
-/**
- * Obtener estadísticas de zonas
- */
 const getEstadisticasZonas = withAuth(async (event) => {
     const zonas = await db.getEntities('zona');
     const espacios = await db.getEspacios();
@@ -266,9 +235,8 @@ const getEstadisticasZonas = withAuth(async (event) => {
         espaciosPorZona: {}
     };
     
-    // Estadísticas por piso
     zonas.forEach(zona => {
-        // Por piso
+
         if (!stats.porPiso[zona.piso]) {
             stats.porPiso[zona.piso] = { total: 0, activas: 0 };
         }
@@ -277,7 +245,6 @@ const getEstadisticasZonas = withAuth(async (event) => {
             stats.porPiso[zona.piso].activas++;
         }
         
-        // Por edificio
         if (!stats.porEdificio[zona.edificio]) {
             stats.porEdificio[zona.edificio] = { total: 0, activas: 0 };
         }
@@ -286,7 +253,6 @@ const getEstadisticasZonas = withAuth(async (event) => {
             stats.porEdificio[zona.edificio].activas++;
         }
         
-        // Espacios por zona
         const espaciosEnZona = espacios.filter(e => e.zona_id === zona.id);
         stats.espaciosPorZona[zona.id] = {
             zona: zona.nombre,
@@ -298,9 +264,6 @@ const getEstadisticasZonas = withAuth(async (event) => {
     return success(stats);
 }, ['admin', 'responsable']);
 
-/**
- * Obtener pisos disponibles
- */
 const getPisosDisponibles = withErrorHandling(async (event) => {
     const zonas = await db.getEntities('zona');
     
@@ -321,9 +284,6 @@ const getPisosDisponibles = withErrorHandling(async (event) => {
     });
 });
 
-/**
- * Obtener edificios disponibles
- */
 const getEdificiosDisponibles = withErrorHandling(async (event) => {
     const zonas = await db.getEntities('zona');
     

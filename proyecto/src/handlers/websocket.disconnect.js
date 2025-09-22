@@ -9,7 +9,6 @@ module.exports.disconnect = async (event) => {
   const connectionId = event.requestContext.connectionId;
 
   try {
-    // We don't know clientId here; query the GSI to find the item by connectionId
     const { QueryCommand } = require('@aws-sdk/lib-dynamodb');
     const q = new QueryCommand({
       TableName: process.env.CONNECTIONS_TABLE,

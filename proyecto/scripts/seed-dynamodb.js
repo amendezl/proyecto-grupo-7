@@ -1,14 +1,7 @@
-#!/usr/bin/env node
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, BatchWriteCommand } = require('@aws-sdk/lib-dynamodb');
 const path = require('path');
 
-// Usage: set environment var DYNAMODB_TABLE (or TABLE_NAME) and run:
-//   DYNAMODB_TABLE=<table> node scripts/seed-dynamodb.js
-// Example (PowerShell):
-//   $env:DYNAMODB_TABLE='sistema-gestion-espacios-dev-table'; node .\scripts\seed-dynamodb.js
-
-// Accept table via --table argument or env var
 const argv = require('minimist')(process.argv.slice(2));
 const TABLE = argv.table || argv.t || process.env.DYNAMODB_TABLE || process.env.TABLE_NAME;
 if (!TABLE) {
@@ -105,7 +98,6 @@ async function seed() {
     });
   }
 
-  // reservas (randomized, each links a user and a space)
   const reservas = [];
   for (let i = 1; i <= 200; i++) {
     const id = `reserva${pad(i,3)}`;
@@ -130,7 +122,6 @@ async function seed() {
 
   console.log('Total items to insert:', items.length);
 
-  // Confirmation: require SEED=true in env or interactive 'yes' to proceed
   if (process.env.SEED !== 'true' && !argv.yes) {
     if (process.stdin.isTTY) {
       const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
@@ -145,7 +136,7 @@ async function seed() {
     }
   }
 
-  const chunkSize = 25; // BatchWrite limit
+  const chunkSize = 25;
   for (let i = 0; i < items.length; i += chunkSize) {
     let chunk = items.slice(i, i + chunkSize);
     let attempt = 0;

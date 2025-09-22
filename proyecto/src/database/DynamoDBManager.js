@@ -12,9 +12,6 @@ class DynamoDBManager {
         this.tableName = process.env.DYNAMODB_TABLE;
     }
 
-    /**
-     * Ejecuta comandos DynamoDB con resiliencia completa (Retry + Circuit Breaker)
-     */
     async executeCommand(command, context = {}) {
         return resilienceManager.executeDatabase(
             () => this.docClient.send(command),
@@ -26,7 +23,6 @@ class DynamoDBManager {
         );
     }
 
-    // Espacios
     async createEspacio(espacioData) {
         const item = {
             PK: `ESPACIO#${uuidv4()}`,
@@ -76,7 +72,6 @@ class DynamoDBManager {
         });
         let items = result.Items || [];
 
-        // Aplicar filtros si existen
         if (filters.tipo) {
             items = items.filter(item => item.tipo === filters.tipo);
         }
@@ -162,7 +157,6 @@ class DynamoDBManager {
         return { success: true };
     }
 
-    // Reservas
     async createReserva(reservaData) {
         const item = {
             PK: `RESERVA#${uuidv4()}`,
@@ -204,7 +198,6 @@ class DynamoDBManager {
         const result = await this.docClient.send(command);
         let items = result.Items || [];
 
-        // Aplicar filtros
         if (filters.espacio_id) {
             items = items.filter(item => item.espacio_id === filters.espacio_id);
         }
@@ -234,7 +227,6 @@ class DynamoDBManager {
         return result.Items && result.Items.length > 0 ? result.Items[0] : null;
     }
 
-    // Usuarios
     async createUsuario(usuarioData) {
         const item = {
             PK: `USUARIO#${uuidv4()}`,
@@ -278,7 +270,6 @@ class DynamoDBManager {
         const result = await this.docClient.send(command);
         let items = result.Items || [];
 
-        // Aplicar filtros
         if (filters.rol) {
             items = items.filter(item => item.rol === filters.rol);
         }
@@ -320,7 +311,6 @@ class DynamoDBManager {
         return result.Items && result.Items.length > 0 ? result.Items[0] : null;
     }
 
-    // Métodos genéricos para otras entidades (responsables, zonas)
     async createEntity(entityType, data) {
         const item = {
             PK: `${entityType.toUpperCase()}#${uuidv4()}`,

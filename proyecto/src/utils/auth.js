@@ -5,16 +5,10 @@ const { hasPermission, requirePermissions, PERMISSIONS } = require('./permission
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 
-/**
- * Genera un token JWT con validez inferior a 5 minutos
- */
 const generateToken = (payload, expiresIn = '4m') => {
     return jwt.sign(payload, JWT_SECRET, { expiresIn });
 };
 
-/**
- * Verifica un token JWT
- */
 const verifyToken = (token) => {
     try {
         return jwt.verify(token, JWT_SECRET);
@@ -23,9 +17,6 @@ const verifyToken = (token) => {
     }
 };
 
-/**
- * Extrae el token del header Authorization
- */
 const extractTokenFromHeader = (authHeader) => {
     if (!authHeader) {
         return null;
@@ -39,9 +30,6 @@ const extractTokenFromHeader = (authHeader) => {
     return parts[1];
 };
 
-/**
- * Middleware de autenticación para Lambda
- */
 const authenticateToken = (event) => {
     const authHeader = event.headers.Authorization || event.headers.authorization;
     const token = extractTokenFromHeader(authHeader);
@@ -58,24 +46,15 @@ const authenticateToken = (event) => {
     }
 };
 
-/**
- * Hash de contraseña
- */
 const hashPassword = async (password) => {
     const saltRounds = 12;
     return await bcrypt.hash(password, saltRounds);
 };
 
-/**
- * Verificar contraseña
- */
 const verifyPassword = async (password, hashedPassword) => {
     return await bcrypt.compare(password, hashedPassword);
 };
 
-/**
- * Middleware para verificar roles (DEPRECATED - Usar requirePermissions)
- */
 const requireRole = (requiredRoles) => {
     return (user) => {
         if (!user || !user.rol) {
@@ -93,9 +72,6 @@ const requireRole = (requiredRoles) => {
     };
 };
 
-/**
- * Middleware para verificar permisos específicos (NUEVO - Principio de mínimo privilegio)
- */
 const requireMinimumPermissions = (requiredPermissions) => {
     return (user) => {
         if (!user || !user.rol) {
@@ -114,23 +90,14 @@ const requireMinimumPermissions = (requiredPermissions) => {
     };
 };
 
-/**
- * Extrae parámetros de la query string
- */
 const extractQueryParams = (event) => {
     return event.queryStringParameters || {};
 };
 
-/**
- * Extrae parámetros de la ruta
- */
 const extractPathParams = (event) => {
     return event.pathParameters || {};
 };
 
-/**
- * Parsea el body del request
- */
 const parseBody = (event) => {
     try {
         return event.body ? JSON.parse(event.body) : {};
@@ -139,9 +106,6 @@ const parseBody = (event) => {
     }
 };
 
-/**
- * Wrapper para handlers con manejo de errores automático
- */
 const withErrorHandling = (handler) => {
     return async (event, context) => {
         try {
@@ -168,9 +132,6 @@ const withErrorHandling = (handler) => {
     };
 };
 
-/**
- * Wrapper para handlers que requieren autenticación con roles (DEPRECATED)
- */
 const withAuth = (handler, requiredRoles = []) => {
     return withErrorHandling(async (event, context) => {
         const user = authenticateToken(event);
@@ -179,17 +140,12 @@ const withAuth = (handler, requiredRoles = []) => {
             requireRole(requiredRoles)(user);
         }
         
-        // Agregar usuario al evento para uso en el handler
         event.user = user;
         
         return await handler(event, context);
     });
 };
 
-/**
- * Wrapper para handlers que requieren permisos específicos (NUEVO)
- * Implementa el principio de mínimo privilegio
- */
 const withPermissions = (handler, requiredPermissions = []) => {
     return withErrorHandling(async (event, context) => {
         const user = authenticateToken(event);
@@ -198,7 +154,6 @@ const withPermissions = (handler, requiredPermissions = []) => {
             requireMinimumPermissions(requiredPermissions)(user);
         }
         
-        // Agregar usuario al evento para uso en el handler
         event.user = user;
         
         return await handler(event, context);

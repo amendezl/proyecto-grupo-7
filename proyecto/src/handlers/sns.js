@@ -2,25 +2,18 @@ const { SNSClient, PublishCommand, SubscribeCommand, ListSubscriptionsByTopicCom
 const { resilienceManager } = require('../utils/resilienceManager');
 const authUtils = require('../utils/authUtils');
 
-// Initialize SNS client
 const snsClient = new SNSClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
-// Topic ARNs from environment variables
 const TOPICS = {
   SPACE_NOTIFICATIONS: process.env.SNS_TOPIC_ARN,
   SYSTEM_ALERTS: process.env.SNS_ALERTS_TOPIC_ARN,
   ADMIN_NOTIFICATIONS: process.env.SNS_ADMIN_TOPIC_ARN
 };
 
-/**
- * Send Space Notification
- * Notifica sobre eventos relacionados con espacios (creación, actualización, asignación)
- */
 const sendSpaceNotification = async (event) => {
   try {
     console.log('Event:', JSON.stringify(event, null, 2));
     
-    // Authenticate user
     const user = await authUtils.authenticateUser(event);
     if (!user || !user.userId) {
       return {
@@ -41,7 +34,6 @@ const sendSpaceNotification = async (event) => {
       };
     }
 
-    // Create notification message with metadata
     const notificationData = {
       userId: user.userId,
       userRole: user.role,
@@ -52,7 +44,6 @@ const sendSpaceNotification = async (event) => {
       metadata: metadata || {}
     };
 
-    // Execute with resilience patterns
     const result = await resilienceManager.executeWithFullResilience(
       'sns-space-notification',
       async () => {
@@ -104,10 +95,6 @@ const sendSpaceNotification = async (event) => {
   }
 };
 
-/**
- * Send System Alert
- * Envía alertas críticas del sistema (errores, mantenimiento, capacidad)
- */
 const sendSystemAlert = async (event) => {
   try {
     console.log('Event:', JSON.stringify(event, null, 2));
@@ -135,7 +122,7 @@ const sendSystemAlert = async (event) => {
     const alertData = {
       userId: user.userId,
       userRole: user.role,
-      alertLevel: alertLevel, // 'critical', 'warning', 'info'
+      alertLevel: alertLevel,
       component: component || 'system',
       message,
       timestamp: new Date().toISOString(),
@@ -193,10 +180,6 @@ const sendSystemAlert = async (event) => {
   }
 };
 
-/**
- * Send Admin Notification
- * Envía notificaciones administrativas (reportes, backups, seguridad)
- */
 const sendAdminNotification = async (event) => {
   try {
     console.log('Event:', JSON.stringify(event, null, 2));
@@ -278,15 +261,10 @@ const sendAdminNotification = async (event) => {
   }
 };
 
-/**
- * Process Space Notification
- * Procesa notificaciones de espacios recibidas por SNS
- */
 const processSpaceNotification = async (event) => {
   try {
     console.log('Processing space notification:', JSON.stringify(event, null, 2));
     
-    // Process each SNS record
     for (const record of event.Records) {
       const snsMessage = record.Sns;
       const message = JSON.parse(snsMessage.Message);
@@ -299,14 +277,6 @@ const processSpaceNotification = async (event) => {
         timestamp: message.timestamp
       });
 
-      // Here you could:
-      // - Send emails via SES
-      // - Store notifications in DynamoDB
-      // - Send push notifications
-      // - Log to CloudWatch
-      // - Trigger other Lambda functions
-      
-      // For now, just log the processed notification
       console.log(`✅ Space notification processed: ${message.actionType} for space ${message.spaceId}`);
     }
 
@@ -317,14 +287,10 @@ const processSpaceNotification = async (event) => {
 
   } catch (error) {
     console.error('Error processing space notification:', error);
-    throw error; // Let SNS retry
+    throw error;
   }
 };
 
-/**
- * Process System Alert
- * Procesa alertas del sistema recibidas por SNS
- */
 const processSystemAlert = async (event) => {
   try {
     console.log('Processing system alert:', JSON.stringify(event, null, 2));
@@ -341,14 +307,8 @@ const processSystemAlert = async (event) => {
         timestamp: alert.timestamp
       });
 
-      // Critical alerts should trigger immediate actions
       if (alert.alertLevel === 'critical') {
         console.log('🚨 CRITICAL ALERT - Triggering emergency procedures');
-        // Here you could trigger:
-        // - Emergency notification to on-call staff
-        // - Automatic scaling
-        // - Circuit breaker activation
-        // - Backup system activation
       }
       
       console.log(`✅ System alert processed: ${alert.alertLevel} for ${alert.component}`);
@@ -365,10 +325,6 @@ const processSystemAlert = async (event) => {
   }
 };
 
-/**
- * Process Admin Notification
- * Procesa notificaciones administrativas recibidas por SNS
- */
 const processAdminNotification = async (event) => {
   try {
     console.log('Processing admin notification:', JSON.stringify(event, null, 2));
@@ -385,22 +341,21 @@ const processAdminNotification = async (event) => {
         timestamp: notification.timestamp
       });
 
-      // Route different notification types
       switch (notification.notificationType) {
         case 'backup':
-          console.log('📦 Processing backup notification');
+          console.log('Processing backup notification');
           break;
         case 'security':
-          console.log('🔒 Processing security notification');
+          console.log('Processing security notification');
           break;
         case 'report':
-          console.log('📊 Processing report notification');
+          console.log('Processing report notification');
           break;
         default:
-          console.log('📋 Processing general admin notification');
+          console.log('Processing general admin notification');
       }
       
-      console.log(`✅ Admin notification processed: ${notification.notificationType}`);
+      console.log(`Admin notification processed: ${notification.notificationType}`);
     }
 
     return {
@@ -414,10 +369,6 @@ const processAdminNotification = async (event) => {
   }
 };
 
-/**
- * Subscribe to Notifications
- * Permite a usuarios suscribirse a notificaciones
- */
 const subscribeToNotifications = async (event) => {
   try {
     console.log('Event:', JSON.stringify(event, null, 2));
@@ -442,7 +393,6 @@ const subscribeToNotifications = async (event) => {
       };
     }
 
-    // Determine topic ARN based on user role and request
     let topicArn;
     switch (topicType) {
       case 'spaces':
@@ -481,7 +431,7 @@ const subscribeToNotifications = async (event) => {
       async () => {
         const command = new SubscribeCommand({
           TopicArn: topicArn,
-          Protocol: protocol, // 'email', 'sms', 'http', 'https'
+          Protocol: protocol,
           Endpoint: endpoint,
           Attributes: {
             FilterPolicy: JSON.stringify({
@@ -518,10 +468,6 @@ const subscribeToNotifications = async (event) => {
   }
 };
 
-/**
- * List Subscriptions
- * Lista las suscripciones existentes para los topics
- */
 const listSubscriptions = async (event) => {
   try {
     console.log('Event:', JSON.stringify(event, null, 2));
@@ -537,7 +483,6 @@ const listSubscriptions = async (event) => {
 
     const subscriptions = {};
 
-    // Get subscriptions for each topic based on user role
     const topics = ['SPACE_NOTIFICATIONS'];
     if (['admin', 'responsable'].includes(user.role)) {
       topics.push('SYSTEM_ALERTS');

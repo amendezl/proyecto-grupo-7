@@ -1,8 +1,3 @@
-/**
- * Handler específico para modo horizontal (landscape)
- * Aprovecha el espacio adicional para mostrar más información sin scroll
- */
-
 const DynamoDBManager = require('../database/DynamoDBManager');
 const { withAuth, withErrorHandling } = require('../utils/auth');
 const { success, badRequest } = require('../utils/responses');
@@ -10,20 +5,14 @@ const { resilienceManager } = require('../utils/resilienceManager');
 
 const db = new DynamoDBManager();
 
-/**
- * Dashboard horizontal optimizado
- * Aprovecha el ancho adicional para mostrar más datos en columnas
- */
 const getHorizontalDashboard = withAuth(async (event) => {
     const user = event.user;
     const userAgent = event.headers['User-Agent'] || event.headers['user-agent'] || '';
     
-    // Detectar dispositivo para optimizar layout horizontal
     const isTablet = userAgent.includes('iPad') || 
                     (userAgent.includes('Android') && userAgent.includes('Tablet'));
     const isSmartphone = !isTablet && (userAgent.includes('iPhone') || userAgent.includes('Android'));
     
-    // Elementos por columna según dispositivo
     const maxElementsPerColumn = isTablet ? 8 : isSmartphone ? 4 : 6;
     
     return await resilienceManager.executeDatabase(
@@ -34,7 +23,6 @@ const getHorizontalDashboard = withAuth(async (event) => {
                 user.rol === 'admin' ? db.getUsuarios() : Promise.resolve([])
             ]);
             
-            // Reservas próximas para columna izquierda
             const reservasProximas = reservas
                 .filter(r => r.estado !== 'cancelada')
                 .filter(r => {
@@ -46,12 +34,10 @@ const getHorizontalDashboard = withAuth(async (event) => {
                 .sort((a, b) => new Date(a.fecha_inicio) - new Date(b.fecha_inicio))
                 .slice(0, maxElementsPerColumn);
             
-            // Espacios disponibles para columna derecha
             const espaciosDisponibles = espacios
                 .filter(e => e.estado === 'disponible')
                 .slice(0, maxElementsPerColumn);
             
-            // Estadísticas para la parte superior
             const stats = {
                 espacios: {
                     disponibles: espacios.filter(e => e.estado === 'disponible').length,
@@ -68,7 +54,6 @@ const getHorizontalDashboard = withAuth(async (event) => {
                 }
             };
             
-            // Añadir datos de admin si corresponde
             if (user.rol === 'admin') {
                 stats.usuarios = {
                     activos: usuarios.filter(u => u.activo).length,
@@ -124,45 +109,37 @@ const getHorizontalDashboard = withAuth(async (event) => {
     );
 });
 
-/**
- * Lista de espacios en modo horizontal con layout en grid
- * Aprovecha el ancho para mostrar 2-3 columnas
- */
 const getHorizontalSpaces = withAuth(async (event) => {
     const { page = 1, tipo, columns } = event.queryStringParameters || {};
     const userAgent = event.headers['User-Agent'] || event.headers['user-agent'] || '';
     
-    // Calcular columnas y elementos según dispositivo
-    let columnsCount = 2; // Default
-    let elementsPerPage = 12; // Default
+    let columnsCount = 2;
+    let elementsPerPage = 12;
     
     if (userAgent.includes('iPad')) {
-        columnsCount = parseInt(columns) || 3; // iPad puede manejar 3 columnas
-        elementsPerPage = 18; // 6 filas x 3 columnas
+        columnsCount = parseInt(columns) || 3;
+        elementsPerPage = 18;
     } else if (userAgent.includes('Tablet')) {
-        columnsCount = parseInt(columns) || 3; // Tablets Android también
+        columnsCount = parseInt(columns) || 3;
         elementsPerPage = 18;
     } else if (userAgent.includes('iPhone') || userAgent.includes('Android')) {
-        columnsCount = parseInt(columns) || 2; // Smartphones 2 columnas
-        elementsPerPage = 12; // 6 filas x 2 columnas
+        columnsCount = parseInt(columns) || 2;
+        elementsPerPage = 12;
     }
     
     return await resilienceManager.executeDatabase(
         async () => {
             let espacios = await db.getEspacios();
             
-            // Filtrar por tipo si se especifica
             if (tipo) {
                 espacios = espacios.filter(e => e.tipo === tipo);
             }
             
-            // Paginación para grid horizontal
             const currentPage = parseInt(page);
             const startIndex = (currentPage - 1) * elementsPerPage;
             const endIndex = startIndex + elementsPerPage;
             const espaciosPagina = espacios.slice(startIndex, endIndex);
             
-            // Optimizar datos para grid horizontal
             const espaciosGrid = espaciosPagina.map(espacio => ({
                 id: espacio.id,
                 nombre: espacio.nombre.length > 20 ? 
@@ -177,7 +154,6 @@ const getHorizontalSpaces = withAuth(async (event) => {
                 disponible: espacio.estado === 'disponible'
             }));
             
-            // Organizar en grid
             const rows = [];
             for (let i = 0; i < espaciosGrid.length; i += columnsCount) {
                 rows.push(espaciosGrid.slice(i, i + columnsCount));
@@ -215,10 +191,6 @@ const getHorizontalSpaces = withAuth(async (event) => {
     );
 });
 
-/**
- * Formulario de reserva horizontal optimizado
- * Campos dispuestos horizontalmente para aprovechar el ancho
- */
 const createHorizontalReservation = withAuth(async (event) => {
     const user = event.user;
     const { 
@@ -237,22 +209,18 @@ const createHorizontalReservation = withAuth(async (event) => {
     
     return await resilienceManager.executeDatabase(
         async () => {
-            // Construir fechas
             const fecha_inicio = `${fecha}T${hora_inicio}:00`;
             const fecha_fin = `${fecha}T${hora_fin}:00`;
             
-            // Verificar que hora_fin > hora_inicio
             if (new Date(fecha_fin) <= new Date(fecha_inicio)) {
                 return badRequest('La hora de fin debe ser posterior a la hora de inicio');
             }
             
-            // Verificar disponibilidad
             const espacio = await db.getEspacioById(espacio_id);
             if (!espacio || espacio.estado !== 'disponible') {
                 return badRequest('Espacio no disponible');
             }
             
-            // Crear reserva principal
             const nuevaReserva = await db.createReserva({
                 espacio_id,
                 usuario_id: user.id,
@@ -262,10 +230,9 @@ const createHorizontalReservation = withAuth(async (event) => {
                 estado: 'pendiente'
             });
             
-            // Si es recurrente, crear reservas adicionales
             const reservasCreadas = [nuevaReserva];
             if (recurrente && dias_recurrencia.length > 0) {
-                for (const dias of dias_recurrencia.slice(0, 4)) { // Máximo 4 recurrencias
+                for (const dias of dias_recurrencia.slice(0, 4)) {
                     const fechaRecurrente = new Date(fecha);
                     fechaRecurrente.setDate(fechaRecurrente.getDate() + parseInt(dias));
                     

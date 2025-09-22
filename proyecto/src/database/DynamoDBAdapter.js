@@ -1,11 +1,6 @@
 const { GetCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const DynamoDBManager = require('./DynamoDBManager');
 
-/**
- * Lightweight adapter that exposes getItem/putItem expected by
- * higher-level modules (e.g., PersonalizationManager) while
- * delegating to DynamoDBManager for resilience and configuration.
- */
 class DynamoDBAdapter {
     constructor() {
         this.manager = new DynamoDBManager();
@@ -13,7 +8,6 @@ class DynamoDBAdapter {
     }
 
     /**
-     * Get an item by PK and SK
      * @param {string} PK
      * @param {string} SK
      */
@@ -28,7 +22,6 @@ class DynamoDBAdapter {
     }
 
     /**
-     * Put (create/update) an item
      * @param {Object} item
      */
     async putItem(item) {
