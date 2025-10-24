@@ -14,7 +14,7 @@ env:
 phases:
   install:
     runtime-versions:
-      nodejs: 20
+      nodejs: 22
     commands:
       - echo "Iniciando build del Sistema de Gestión de Espacios..."
       - echo "Build iniciado en `date`"

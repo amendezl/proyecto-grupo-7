@@ -9,7 +9,7 @@
 ☁️ **Arquitectura 100% Serverless**
 
 ### **🎪 Backend Serverless (AWS)**
-- **Runtime**: Node.js 20 en AWS Lambda
+- **Runtime**: Node.js 22 en AWS Lambda
 - **Database**: DynamoDB serverless
 - **API**: AWS API Gateway
 - **Auth**: AWS Cognito
@@ -42,7 +42,7 @@ Sistema empresarial de gestión de espacios desarrollado con **Node.js**, **AWS 
 
 ## 🚀 Tecnologías
 
-- **Runtime**: Node.js 20
+- **Runtime**: Node.js 22
 - **Cloud**: AWS Lambda + API Gateway + DynamoDB + Cognito + SQS + SNS  
 - **Framework**: Serverless Framework v3
 - **Arquitectura**: Microservicios Serverless + ARM64

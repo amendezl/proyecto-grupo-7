@@ -12,7 +12,7 @@
   },
   "functions": {
     "pages/api/**/*.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "nodejs22.x"
     }
   },
   "regions": ["iad1"],

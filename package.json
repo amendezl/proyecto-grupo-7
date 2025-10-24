@@ -4,5 +4,8 @@
   },
   "scripts": {
     "deploy:all": "node ./scripts/deploy-frontend-backend.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

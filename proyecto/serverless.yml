@@ -28,7 +28,7 @@ plugins: ${file(./serverless-plugins.js)}
 
 provider:
   name: aws
-  runtime: nodejs20.x
+  runtime: nodejs22.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   environment:

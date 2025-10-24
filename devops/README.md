@@ -227,7 +227,7 @@ terraform --version
 # Docker instalado
 docker --version
 
-# Node.js 20+ instalado
+# Node.js 22+ instalado
 node --version
 ```
 
