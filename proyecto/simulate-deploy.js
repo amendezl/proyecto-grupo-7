@@ -55,15 +55,20 @@ setTimeout(() => {
 }, 1000);
 
 setTimeout(() => {
+    const region = process.env.AWS_REGION || 'us-east-1';
+    const stage = process.env.STAGE || 'dev';
+    const apiId = process.env.API_ID || 'xyz123abc';
+    const baseUrl = `https://${apiId}.execute-api.${region}.amazonaws.com/${stage}`;
+    
     console.log('\n🎯 URLs de APIs generadas:');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/espacios');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/responsables');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/responsables');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/zonas');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/auth/login');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/notifications/spaces');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/notifications/alerts');
-    console.log('   https://xyz123abc.execute-api.us-east-1.amazonaws.com/dev/api/notifications/subscribe');
+    console.log(`   ${baseUrl}/api/espacios`);
+    console.log(`   ${baseUrl}/api/responsables`);
+    console.log(`   ${baseUrl}/api/reservas`);
+    console.log(`   ${baseUrl}/api/zonas`);
+    console.log(`   ${baseUrl}/api/auth/login`);
+    console.log(`   ${baseUrl}/api/notifications/spaces`);
+    console.log(`   ${baseUrl}/api/notifications/alerts`);
+    console.log(`   ${baseUrl}/api/notifications/subscribe`);
     console.log('   ... y 50 endpoints más');
 }, 4000);
 

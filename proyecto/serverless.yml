@@ -2,7 +2,7 @@ service: sistema-gestion-espacios
 frameworkVersion: '3'
 
 custom:
-  # Custom variables for backend
+  # FIXED: Plugins now loaded conditionally via external JS file
   splitStacks:
     nested: true
     perFunction: false
@@ -11,47 +11,46 @@ custom:
       AWS::ApiGatewayV2::Api: false
       AWS::ApiGatewayV2::Stage: false
   client:
-    bucketName: sistema-gestion-espacios-frontend-prod # Cambia si tienes otro nombre de bucket
+    bucketName: ${env:S3_BUCKET_NAME, '${self:service}-frontend-${self:provider.stage}'}
     distributionFolder: ../frontend/out                # Carpeta generada por next export
     indexDocument: index.html
     errorDocument: index.html
-    region: us-east-1                                  # Cambia si usas otra región
+    region: ${env:AWS_REGION, '${self:provider.region}'}
     createDistribution: true
   scriptable:
     hooks:
       after:deploy:deploy:
-        - cd ${self:custom.client.distributionFolder} || true
+        - cd ../frontend/out || true
         - cd ..
-        - node ../scripts/deploy-frontend-backend.js --hook --table ${self:provider.environment.DYNAMODB_TABLE}
+        - node ../scripts/deploy-frontend-backend.js --hook
 
-plugins:
-  - serverless-dotenv-plugin
-  - serverless-scriptable-plugin
-  - serverless-plugin-split-stacks
-  - serverless-finch
+plugins: ${file(./serverless-plugins.js)}
 
 provider:
   name: aws
   runtime: nodejs20.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
-  role: arn:aws:iam::211125730443:role/LabRole
   environment:
     QUEUE_URL: { Ref: MyQueue }
     DB_TYPE: dynamodb
-    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}-table
+    # DynamoDB Tables - Using Refs to connect with Resources
+    DYNAMODB_TABLE: { Ref: DynamoDBTable }
+    TABLE_NAME: { Ref: DynamoDBTable }
+    CONNECTIONS_TABLE: { Ref: WebSocketConnectionsTable }
+    CIRCUIT_STATE_TABLE: { Ref: CircuitStateTable }
+    # Cognito Configuration - Using Refs to connect with Resources
     USER_POOL_ID: { Ref: CognitoUserPool }
     USER_POOL_CLIENT_ID: { Ref: CognitoUserPoolClient }
-    JWT_SECRET: ${env:JWT_SECRET, 'your-super-secret-jwt-key-change-in-production'}
+    COGNITO_USER_POOL_ID: { Ref: CognitoUserPool }
+    JWT_SECRET: ${env:JWT_SECRET, '${self:service}-${self:provider.stage}-jwt-secret'}
     NODE_ENV: ${self:provider.stage}
+    # SNS Topics - Using Refs to connect with Resources
     SNS_TOPIC_ARN: { Ref: SpaceNotificationsTopic }
     SNS_ALERTS_TOPIC_ARN: { Ref: SystemAlertsTopic }
     SNS_ADMIN_TOPIC_ARN: { Ref: AdminNotificationsTopic }
     SNS_PERSONALIZATION_TOPIC_ARN: { Ref: PersonalizationUpdatesTopic }
-    # WebSocket configuration
-    CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
-    TABLE_NAME: ${self:service}-${self:provider.stage}-table
-    CIRCUIT_STATE_TABLE: ${self:service}-${self:provider.stage}-circuit-state
+    # WebSocket Configuration - Using Refs to connect with Resources
     WEBSOCKET_ENDPOINT:
       Fn::Join:
         - ''
@@ -76,10 +75,13 @@ provider:
           Action:
             - sns:Publish
             - sns:Subscribe
-            - sns:CreateTopic
-            - sns:ListTopics
+            - sns:ListSubscriptionsByTopic
             - sns:GetTopicAttributes
-          Resource: "*"
+          Resource:
+            - Ref: SpaceNotificationsTopic
+            - Ref: SystemAlertsTopic
+            - Ref: AdminNotificationsTopic
+            - Ref: PersonalizationUpdatesTopic
         - Effect: Allow
           Action:
             - dynamodb:Query
@@ -100,6 +102,8 @@ provider:
             - cognito-idp:AdminCreateUser
             - cognito-idp:AdminSetUserPassword
             - cognito-idp:AdminGetUser
+            - cognito-idp:AdminUpdateUserAttributes
+            - cognito-idp:ListUsers
             - cognito-idp:InitiateAuth
             - cognito-idp:RespondToAuthChallenge
           Resource:
@@ -159,7 +163,7 @@ provider:
 functions:
   # Autenticación con Cognito - Optimizado para móviles
   login:
-    handler: src/handlers/cognitoAuth.login
+    handler: src/api/auth/cognitoAuth.login
     timeout: 10
     memorySize: 256
     events:
@@ -168,7 +172,7 @@ functions:
           path: /api/auth/login
 
   refresh:
-    handler: src/handlers/cognitoAuth.refresh
+    handler: src/api/auth/cognitoAuth.refresh
     timeout: 8
     memorySize: 256
     events:
@@ -177,7 +181,7 @@ functions:
           path: /api/auth/refresh
 
   me:
-    handler: src/handlers/cognitoAuth.me
+    handler: src/api/auth/cognitoAuth.me
     timeout: 5
     memorySize: 256
     events:
@@ -189,7 +193,7 @@ functions:
 
   # Endpoints originales con autorización de Cognito
   logout:
-    handler: src/handlers/auth.logout
+    handler: src/api/auth/auth.logout
     events:
       - httpApi:
           method: POST
@@ -198,7 +202,7 @@ functions:
             name: cognitoJwt
 
   register:
-    handler: src/handlers/auth.register
+    handler: src/api/auth/auth.register
     events:
       - httpApi:
           method: POST
@@ -208,7 +212,7 @@ functions:
   
   # Configuración global del cliente
   getClientGlobalConfig:
-    handler: src/handlers/personalization.getClientGlobalConfig
+    handler: src/api/integrations/personalization.getClientGlobalConfig
     events:
       - httpApi:
           method: GET
@@ -217,7 +221,7 @@ functions:
             name: cognitoJwt
 
   updateClientGlobalConfig:
-    handler: src/handlers/personalization.updateClientGlobalConfig
+    handler: src/api/integrations/personalization.updateClientGlobalConfig
     events:
       - httpApi:
           method: PUT
@@ -227,7 +231,7 @@ functions:
 
   # Configuración específica del usuario
   getUserSpecificConfig:
-    handler: src/handlers/personalization.getUserSpecificConfig
+    handler: src/api/integrations/personalization.getUserSpecificConfig
     events:
       - httpApi:
           method: GET
@@ -236,7 +240,7 @@ functions:
             name: cognitoJwt
 
   updateUserSpecificConfig:
-    handler: src/handlers/personalization.updateUserSpecificConfig
+    handler: src/api/integrations/personalization.updateUserSpecificConfig
     events:
       - httpApi:
           method: PUT
@@ -246,7 +250,7 @@ functions:
 
   # Configuración completa (global + específica + externa)
   getCompleteUserConfig:
-    handler: src/handlers/personalization.getCompleteUserConfig
+    handler: src/api/integrations/personalization.getCompleteUserConfig
     events:
       - httpApi:
           method: GET
@@ -256,7 +260,7 @@ functions:
 
   # Mecanismo de desacople - Carga configuración externa
   loadExternalConfig:
-    handler: src/handlers/personalization.loadExternalConfig
+    handler: src/api/integrations/personalization.loadExternalConfig
     events:
       - httpApi:
           method: POST
@@ -266,7 +270,7 @@ functions:
 
   # Exportar configuración del cliente
   exportClientConfig:
-    handler: src/handlers/personalization.exportClientConfig
+    handler: src/api/integrations/personalization.exportClientConfig
     events:
       - httpApi:
           method: GET
@@ -276,24 +280,24 @@ functions:
 
   # WebSocket handlers for real-time personalization updates
   wsConnect:
-    handler: src/handlers/websocket.connect
+    handler: src/api/integrations/websocket.connect
     events:
       - websocket:
           route: $connect
   wsDisconnect:
-    handler: src/handlers/websocket.disconnect
+    handler: src/api/integrations/websocket.disconnect
     events:
       - websocket:
           route: $disconnect
   wsDefault:
-    handler: src/handlers/websocket.default
+    handler: src/api/integrations/websocket.default
     events:
       - websocket:
           route: $default
 
   # SNS -> WebSocket forwarder
   personalizationForwarder:
-    handler: src/handlers/personalizationForwarder.handler
+    handler: src/api/integrations/personalizationForwarder.handler
     events:
       - sns:
           topicName: PersonalizationUpdatesTopic
@@ -302,7 +306,7 @@ functions:
 
   # DynamoDB Streams processor to capture all table changes and publish personalization updates
   dynamoStreamProcessor:
-    handler: src/handlers/dynamoStreamProcessor.handler
+    handler: src/api/system/dynamoStreamProcessor.handler
     events:
       - stream:
           type: dynamodb
@@ -315,7 +319,7 @@ functions:
 
   # Limpiar cache de configuraciones
   clearConfigurationCache:
-    handler: src/handlers/personalization.clearConfigurationCache
+    handler: src/api/integrations/personalization.clearConfigurationCache
     events:
       - httpApi:
           method: POST
@@ -325,7 +329,7 @@ functions:
 
   # Configuración por industria
   getIndustryConfig:
-    handler: src/handlers/personalization.getIndustryConfig
+    handler: src/api/integrations/personalization.getIndustryConfig
     events:
       - httpApi:
           method: GET
@@ -335,7 +339,7 @@ functions:
 
   # Dashboard con protección Cognito - Optimizado para móviles
   dashboard:
-    handler: src/handlers/dashboard.getDashboard
+    handler: src/api/system/dashboard.getDashboard
     timeout: 15
     memorySize: 1024
     events:
@@ -346,7 +350,7 @@ functions:
             name: cognitoJwt
 
   estadisticasDetalladas:
-    handler: src/handlers/dashboard.getEstadisticasDetalladas
+    handler: src/api/system/dashboard.getEstadisticasDetalladas
     timeout: 20
     memorySize: 1024
     events:
@@ -358,7 +362,7 @@ functions:
 
   # Espacios con protección Cognito - Optimizado para móviles
   getEspacios:
-    handler: src/handlers/espacios.getEspacios
+    handler: src/api/business/espacios.getEspacios
     timeout: 12
     memorySize: 512
     events:
@@ -369,7 +373,7 @@ functions:
             name: cognitoJwt
 
   getEspacio:
-    handler: src/handlers/espacios.getEspacio
+    handler: src/api/business/espacios.getEspacio
     events:
       - httpApi:
           method: GET
@@ -378,7 +382,7 @@ functions:
             name: cognitoJwt
 
   createEspacio:
-    handler: src/handlers/espacios.createEspacio
+    handler: src/api/business/espacios.createEspacio
     events:
       - httpApi:
           method: POST
@@ -387,7 +391,7 @@ functions:
             name: cognitoJwt
 
   updateEspacio:
-    handler: src/handlers/espacios.updateEspacio
+    handler: src/api/business/espacios.updateEspacio
     events:
       - httpApi:
           method: PUT
@@ -396,7 +400,7 @@ functions:
             name: cognitoJwt
 
   deleteEspacio:
-    handler: src/handlers/espacios.deleteEspacio
+    handler: src/api/business/espacios.deleteEspacio
     events:
       - httpApi:
           method: DELETE
@@ -405,7 +409,7 @@ functions:
             name: cognitoJwt
 
   estadisticasEspacios:
-    handler: src/handlers/espacios.getEstadisticasEspacios
+    handler: src/api/business/espacios.getEstadisticasEspacios
     events:
       - httpApi:
           method: GET
@@ -415,7 +419,7 @@ functions:
 
   # Reservas con protección Cognito
   getReservas:
-    handler: src/handlers/reservas.getReservas
+    handler: src/api/business/reservas.getReservas
     events:
       - httpApi:
           method: GET
@@ -424,7 +428,7 @@ functions:
             name: cognitoJwt
 
   getReserva:
-    handler: src/handlers/reservas.getReserva
+    handler: src/api/business/reservas.getReserva
     events:
       - httpApi:
           method: GET
@@ -433,7 +437,7 @@ functions:
             name: cognitoJwt
 
   createReserva:
-    handler: src/handlers/reservas.createReserva
+    handler: src/api/business/reservas.createReserva
     events:
       - httpApi:
           method: POST
@@ -442,7 +446,7 @@ functions:
             name: cognitoJwt
 
   updateReserva:
-    handler: src/handlers/reservas.updateReserva
+    handler: src/api/business/reservas.updateReserva
     events:
       - httpApi:
           method: PUT
@@ -451,7 +455,7 @@ functions:
             name: cognitoJwt
 
   cancelReserva:
-    handler: src/handlers/reservas.cancelReserva
+    handler: src/api/business/reservas.cancelReserva
     events:
       - httpApi:
           method: PATCH
@@ -460,7 +464,7 @@ functions:
             name: cognitoJwt
 
   deleteReserva:
-    handler: src/handlers/reservas.deleteReserva
+    handler: src/api/business/reservas.deleteReserva
     events:
       - httpApi:
           method: DELETE
@@ -469,7 +473,7 @@ functions:
             name: cognitoJwt
 
   estadisticasReservas:
-    handler: src/handlers/reservas.getEstadisticasReservas
+    handler: src/api/business/reservas.getEstadisticasReservas
     events:
       - httpApi:
           method: GET
@@ -479,7 +483,7 @@ functions:
 
   # Usuarios con protección Cognito
   getUsuarios:
-    handler: src/handlers/usuarios.getUsuarios
+    handler: src/api/business/usuarios.getUsuarios
     events:
       - httpApi:
           method: GET
@@ -488,7 +492,7 @@ functions:
             name: cognitoJwt
 
   getUsuario:
-    handler: src/handlers/usuarios.getUsuario
+    handler: src/api/business/usuarios.getUsuario
     events:
       - httpApi:
           method: GET
@@ -497,7 +501,7 @@ functions:
             name: cognitoJwt
 
   createUsuario:
-    handler: src/handlers/usuarios.createUsuario
+    handler: src/api/business/usuarios.createUsuario
     events:
       - httpApi:
           method: POST
@@ -506,7 +510,7 @@ functions:
             name: cognitoJwt
 
   updateUsuario:
-    handler: src/handlers/usuarios.updateUsuario
+    handler: src/api/business/usuarios.updateUsuario
     events:
       - httpApi:
           method: PUT
@@ -515,7 +519,7 @@ functions:
             name: cognitoJwt
 
   deleteUsuario:
-    handler: src/handlers/usuarios.deleteUsuario
+    handler: src/api/business/usuarios.deleteUsuario
     events:
       - httpApi:
           method: DELETE
@@ -524,7 +528,7 @@ functions:
             name: cognitoJwt
 
   toggleUsuarioEstado:
-    handler: src/handlers/usuarios.toggleUsuarioEstado
+    handler: src/api/business/usuarios.toggleUsuarioEstado
     events:
       - httpApi:
           method: PATCH
@@ -533,7 +537,7 @@ functions:
             name: cognitoJwt
 
   getPerfilActual:
-    handler: src/handlers/usuarios.getPerfilActual
+    handler: src/api/business/usuarios.getPerfilActual
     events:
       - httpApi:
           method: GET
@@ -542,7 +546,7 @@ functions:
             name: cognitoJwt
 
   updatePerfilActual:
-    handler: src/handlers/usuarios.updatePerfilActual
+    handler: src/api/business/usuarios.updatePerfilActual
     events:
       - httpApi:
           method: PUT
@@ -551,7 +555,7 @@ functions:
             name: cognitoJwt
 
   cambiarPassword:
-    handler: src/handlers/usuarios.cambiarPassword
+    handler: src/api/business/usuarios.cambiarPassword
     events:
       - httpApi:
           method: POST
@@ -561,7 +565,7 @@ functions:
 
   # Responsables con protección Cognito
   getResponsables:
-    handler: src/handlers/responsables.getResponsables
+    handler: src/api/business/responsables.getResponsables
     events:
       - httpApi:
           method: GET
@@ -570,7 +574,7 @@ functions:
             name: cognitoJwt
 
   getResponsable:
-    handler: src/handlers/responsables.getResponsable
+    handler: src/api/business/responsables.getResponsable
     events:
       - httpApi:
           method: GET
@@ -579,7 +583,7 @@ functions:
             name: cognitoJwt
 
   createResponsable:
-    handler: src/handlers/responsables.createResponsable
+    handler: src/api/business/responsables.createResponsable
     events:
       - httpApi:
           method: POST
@@ -588,7 +592,7 @@ functions:
             name: cognitoJwt
 
   updateResponsable:
-    handler: src/handlers/responsables.updateResponsable
+    handler: src/api/business/responsables.updateResponsable
     events:
       - httpApi:
           method: PUT
@@ -597,7 +601,7 @@ functions:
             name: cognitoJwt
 
   deleteResponsable:
-    handler: src/handlers/responsables.deleteResponsable
+    handler: src/api/business/responsables.deleteResponsable
     events:
       - httpApi:
           method: DELETE
@@ -606,7 +610,7 @@ functions:
             name: cognitoJwt
 
   toggleResponsableEstado:
-    handler: src/handlers/responsables.toggleResponsableEstado
+    handler: src/api/business/responsables.toggleResponsableEstado
     events:
       - httpApi:
           method: PATCH
@@ -615,7 +619,7 @@ functions:
             name: cognitoJwt
 
   getResponsablesPorArea:
-    handler: src/handlers/responsables.getResponsablesPorArea
+    handler: src/api/business/responsables.getResponsablesPorArea
     events:
       - httpApi:
           method: GET
@@ -624,7 +628,7 @@ functions:
             name: cognitoJwt
 
   getEspaciosAsignados:
-    handler: src/handlers/responsables.getEspaciosAsignados
+    handler: src/api/business/responsables.getEspaciosAsignados
     events:
       - httpApi:
           method: GET
@@ -633,7 +637,7 @@ functions:
             name: cognitoJwt
 
   asignarEspacio:
-    handler: src/handlers/responsables.asignarEspacio
+    handler: src/api/business/responsables.asignarEspacio
     events:
       - httpApi:
           method: POST
@@ -642,7 +646,7 @@ functions:
             name: cognitoJwt
 
   estadisticasResponsables:
-    handler: src/handlers/responsables.getEstadisticasResponsables
+    handler: src/api/business/responsables.getEstadisticasResponsables
     events:
       - httpApi:
           method: GET
@@ -652,7 +656,7 @@ functions:
 
   # Zonas con protección Cognito
   getZonas:
-    handler: src/handlers/zonas.getZonas
+    handler: src/api/business/zonas.getZonas
     events:
       - httpApi:
           method: GET
@@ -661,7 +665,7 @@ functions:
             name: cognitoJwt
 
   getZona:
-    handler: src/handlers/zonas.getZona
+    handler: src/api/business/zonas.getZona
     events:
       - httpApi:
           method: GET
@@ -670,7 +674,7 @@ functions:
             name: cognitoJwt
 
   createZona:
-    handler: src/handlers/zonas.createZona
+    handler: src/api/business/zonas.createZona
     events:
       - httpApi:
           method: POST
@@ -679,7 +683,7 @@ functions:
             name: cognitoJwt
 
   updateZona:
-    handler: src/handlers/zonas.updateZona
+    handler: src/api/business/zonas.updateZona
     events:
       - httpApi:
           method: PUT
@@ -688,7 +692,7 @@ functions:
             name: cognitoJwt
 
   deleteZona:
-    handler: src/handlers/zonas.deleteZona
+    handler: src/api/business/zonas.deleteZona
     events:
       - httpApi:
           method: DELETE
@@ -697,7 +701,7 @@ functions:
             name: cognitoJwt
 
   toggleZonaEstado:
-    handler: src/handlers/zonas.toggleZonaEstado
+    handler: src/api/business/zonas.toggleZonaEstado
     events:
       - httpApi:
           method: PATCH
@@ -706,7 +710,7 @@ functions:
             name: cognitoJwt
 
   getZonasPorPiso:
-    handler: src/handlers/zonas.getZonasPorPiso
+    handler: src/api/business/zonas.getZonasPorPiso
     events:
       - httpApi:
           method: GET
@@ -715,7 +719,7 @@ functions:
             name: cognitoJwt
 
   getEspaciosZona:
-    handler: src/handlers/zonas.getEspaciosZona
+    handler: src/api/business/zonas.getEspaciosZona
     events:
       - httpApi:
           method: GET
@@ -724,7 +728,7 @@ functions:
             name: cognitoJwt
 
   estadisticasZonas:
-    handler: src/handlers/zonas.getEstadisticasZonas
+    handler: src/api/business/zonas.getEstadisticasZonas
     events:
       - httpApi:
           method: GET
@@ -733,7 +737,7 @@ functions:
             name: cognitoJwt
 
   getPisosDisponibles:
-    handler: src/handlers/zonas.getPisosDisponibles
+    handler: src/api/business/zonas.getPisosDisponibles
     events:
       - httpApi:
           method: GET
@@ -742,7 +746,7 @@ functions:
             name: cognitoJwt
 
   getEdificiosDisponibles:
-    handler: src/handlers/zonas.getEdificiosDisponibles
+    handler: src/api/business/zonas.getEdificiosDisponibles
     events:
       - httpApi:
           method: GET
@@ -754,7 +758,7 @@ functions:
   
   # Dashboard móvil optimizado
   getMobileDashboard:
-    handler: src/handlers/mobile.getMobileDashboard
+    handler: src/api/integrations/mobile.getMobileDashboard
     timeout: 8
     memorySize: 512
     events:
@@ -766,7 +770,7 @@ functions:
 
   # Espacios optimizados para móvil
   getMobileSpaces:
-    handler: src/handlers/mobile.getMobileSpaces
+    handler: src/api/integrations/mobile.getMobileSpaces
     timeout: 10
     memorySize: 512
     events:
@@ -778,7 +782,7 @@ functions:
 
   # Reservas del usuario optimizadas para móvil
   getMobileReservations:
-    handler: src/handlers/mobile.getMobileReservations
+    handler: src/api/integrations/mobile.getMobileReservations
     timeout: 8
     memorySize: 256
     events:
@@ -790,7 +794,7 @@ functions:
 
   # Crear reserva optimizada para móvil
   createMobileReservation:
-    handler: src/handlers/mobile.createMobileReservation
+    handler: src/api/integrations/mobile.createMobileReservation
     timeout: 12
     memorySize: 512
     events:
@@ -802,7 +806,7 @@ functions:
 
   # Tipos de espacios para filtros móviles
   getSpaceTypes:
-    handler: src/handlers/mobile.getSpaceTypes
+    handler: src/api/integrations/mobile.getSpaceTypes
     timeout: 5
     memorySize: 256
     events:
@@ -816,7 +820,7 @@ functions:
   
   # Dashboard ultra-compacto para modo vertical
   getVerticalDashboard:
-    handler: src/handlers/vertical.getVerticalDashboard
+    handler: src/api/system/vertical.getVerticalDashboard
     timeout: 6
     memorySize: 256
     events:
@@ -828,7 +832,7 @@ functions:
 
   # Espacios paginados para modo vertical (sin scroll)
   getVerticalSpaces:
-    handler: src/handlers/vertical.getVerticalSpaces
+    handler: src/api/system/vertical.getVerticalSpaces
     timeout: 8
     memorySize: 256
     events:
@@ -840,7 +844,7 @@ functions:
 
   # Crear reserva optimizada para modo vertical
   createVerticalReservation:
-    handler: src/handlers/vertical.createVerticalReservation
+    handler: src/api/system/vertical.createVerticalReservation
     timeout: 10
     memorySize: 256
     events:
@@ -854,7 +858,7 @@ functions:
   
   # Dashboard en columnas para modo horizontal
   getHorizontalDashboard:
-    handler: src/handlers/horizontal.getHorizontalDashboard
+    handler: src/api/system/horizontal.getHorizontalDashboard
     timeout: 10
     memorySize: 256
     events:
@@ -866,7 +870,7 @@ functions:
 
   # Grid de espacios para modo horizontal (2-3 columnas)
   getHorizontalSpaces:
-    handler: src/handlers/horizontal.getHorizontalSpaces
+    handler: src/api/system/horizontal.getHorizontalSpaces
     timeout: 8
     memorySize: 256
     events:
@@ -878,7 +882,7 @@ functions:
 
   # Crear reserva con layout horizontal
   createHorizontalReservation:
-    handler: src/handlers/horizontal.createHorizontalReservation
+    handler: src/api/system/horizontal.createHorizontalReservation
     timeout: 10
     memorySize: 256
     events:
@@ -890,7 +894,7 @@ functions:
 
   # Worker para procesamiento asíncrono
   queueWorker:
-    handler: src/handlers/queueWorker.process
+    handler: src/api/system/queueWorker.process
     timeout: 30
     memorySize: 256
     events:
@@ -902,21 +906,21 @@ functions:
 
   # Endpoints de monitoreo de resiliencia (Retry + Circuit Breaker + Bulkhead)
   resilienceHealth:
-    handler: src/handlers/healthCheck.getResilienceHealth
+    handler: src/api/system/healthCheck.getResilienceHealth
     events:
       - httpApi:
           method: GET
           path: /api/health/resilience
 
   completeResilienceHealth:
-    handler: src/handlers/healthCheck.getCompleteResilienceHealth
+    handler: src/api/system/healthCheck.getCompleteResilienceHealth
     events:
       - httpApi:
           method: GET
           path: /api/health/resilience/complete
 
   bulkheadStatus:
-    handler: src/handlers/healthCheck.getBulkheadStatus
+    handler: src/api/system/healthCheck.getBulkheadStatus
     events:
       - httpApi:
           method: GET
@@ -925,7 +929,7 @@ functions:
             name: cognitoJwt
 
   resetResilienceMetrics:
-    handler: src/handlers/healthCheck.resetResilienceMetrics
+    handler: src/api/system/healthCheck.resetResilienceMetrics
     events:
       - httpApi:
           method: POST
@@ -934,7 +938,7 @@ functions:
             name: cognitoJwt
 
   resilienceConfiguration:
-    handler: src/handlers/healthCheck.getResilienceConfiguration
+    handler: src/api/system/healthCheck.getResilienceConfiguration
     events:
       - httpApi:
           method: GET
@@ -946,7 +950,7 @@ functions:
   
   # Envío de notificaciones de espacios
   sendSpaceNotification:
-    handler: src/handlers/sns.sendSpaceNotification
+    handler: src/api/integrations/sns.sendSpaceNotification
     events:
       - httpApi:
           method: POST
@@ -956,7 +960,7 @@ functions:
 
   # Envío de alertas del sistema
   sendSystemAlert:
-    handler: src/handlers/sns.sendSystemAlert
+    handler: src/api/integrations/sns.sendSystemAlert
     events:
       - httpApi:
           method: POST
@@ -966,7 +970,7 @@ functions:
 
   # Notificaciones de administración
   sendAdminNotification:
-    handler: src/handlers/sns.sendAdminNotification
+    handler: src/api/integrations/sns.sendAdminNotification
     events:
       - httpApi:
           method: POST
@@ -976,26 +980,26 @@ functions:
 
   # Procesar notificaciones SNS (triggered by SNS)
   processSpaceNotification:
-    handler: src/handlers/sns.processSpaceNotification
+    handler: src/api/integrations/sns.processSpaceNotification
     events:
       - sns:
           topicName: ${self:service}-${self:provider.stage}-space-notifications
 
   processSystemAlert:
-    handler: src/handlers/sns.processSystemAlert
+    handler: src/api/integrations/sns.processSystemAlert
     events:
       - sns:
           topicName: ${self:service}-${self:provider.stage}-system-alerts
 
   processAdminNotification:
-    handler: src/handlers/sns.processAdminNotification
+    handler: src/api/integrations/sns.processAdminNotification
     events:
       - sns:
           topicName: ${self:service}-${self:provider.stage}-admin-notifications
 
   # Suscripción a notificaciones
   subscribeToNotifications:
-    handler: src/handlers/sns.subscribeToNotifications
+    handler: src/api/integrations/sns.subscribeToNotifications
     events:
       - httpApi:
           method: POST
@@ -1005,7 +1009,7 @@ functions:
 
   # Listar suscripciones
   listSubscriptions:
-    handler: src/handlers/sns.listSubscriptions
+    handler: src/api/integrations/sns.listSubscriptions
     events:
       - httpApi:
           method: GET
@@ -1017,7 +1021,7 @@ functions:
   
   # WebSocket connection management
   websocketConnect:
-    handler: src/handlers/websocket.connect
+    handler: src/api/integrations/websocket.connect
     description: "Maneja nuevas conexiones WebSocket para tiempo real"
     timeout: 10
     memorySize: 256
@@ -1026,7 +1030,7 @@ functions:
           route: $connect
 
   websocketDisconnect:
-    handler: src/handlers/websocket.disconnect
+    handler: src/api/integrations/websocket.disconnect
     description: "Maneja desconexiones WebSocket"
     timeout: 8
     memorySize: 256
@@ -1035,7 +1039,7 @@ functions:
           route: $disconnect
 
   websocketMessage:
-    handler: src/handlers/websocket.message
+    handler: src/api/integrations/websocket.message
     description: "Maneja mensajes WebSocket por defecto"
     timeout: 10
     memorySize: 256
@@ -1045,7 +1049,7 @@ functions:
 
   # Real-time triggers from DynamoDB Streams
   realtimeReservaNotify:
-    handler: src/handlers/websocket.notifyReserva
+    handler: src/api/integrations/websocket.notifyReserva
     description: "Notifica en tiempo real cuando se crean/modifican reservas"
     timeout: 15
     memorySize: 512
@@ -1060,7 +1064,7 @@ functions:
             - eventName: [INSERT, MODIFY]
 
   realtimeEspacioNotify:
-    handler: src/handlers/websocket.notifyEspacioEstado
+    handler: src/api/integrations/websocket.notifyEspacioEstado
     description: "Notifica cuando cambia el estado de espacios"
     timeout: 15
     memorySize: 512
@@ -1076,7 +1080,7 @@ functions:
 
   # Manual stats update function
   realtimeStatsUpdate:
-    handler: src/handlers/websocket.sendStats
+    handler: src/api/integrations/websocket.sendStats
     description: "Envía estadísticas actualizadas a todos los clientes WebSocket"
     timeout: 20
     memorySize: 1024
@@ -1155,6 +1159,8 @@ resources:
             AttributeType: S
           - AttributeName: connectionId
             AttributeType: S
+          - AttributeName: status
+            AttributeType: S
         KeySchema:
           - AttributeName: clientId
             KeyType: HASH
@@ -1164,6 +1170,12 @@ resources:
           - IndexName: ConnectionIdIndex
             KeySchema:
               - AttributeName: connectionId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+          - IndexName: StatusIndex
+            KeySchema:
+              - AttributeName: status
                 KeyType: HASH
             Projection:
               ProjectionType: ALL
@@ -1347,40 +1359,113 @@ resources:
   Outputs:
     QueueUrl:
       Value: { Ref: MyQueue }
+      Description: "SQS Queue URL for async processing"
+      Export:
+        Name: ${self:service}-queue-url-${self:provider.stage}
+    QueueArn:
+      Value: { Fn::GetAtt: [ MyQueue, Arn ] }
+      Description: "SQS Queue ARN"
+      Export:
+        Name: ${self:service}-queue-arn-${self:provider.stage}
+
     DynamoDBTable:
       Value: { Ref: DynamoDBTable }
+      Description: "Main DynamoDB table name"
+      Export:
+        Name: ${self:service}-dynamodb-table-${self:provider.stage}
     DynamoDBTableArn:
       Value: { Fn::GetAtt: [ DynamoDBTable, Arn ] }
+      Description: "Main DynamoDB table ARN"
+      Export:
+        Name: ${self:service}-dynamodb-table-arn-${self:provider.stage}
+    DynamoDBStreamArn:
+      Value: { Fn::GetAtt: [ DynamoDBTable, StreamArn ] }
+      Description: "DynamoDB Stream ARN for real-time processing"
+      Export:
+        Name: ${self:service}-dynamodb-stream-arn-${self:provider.stage}
+    
+    ConnectionsTable:
+      Value: { Ref: WebSocketConnectionsTable }
+      Description: "WebSocket connections table name"
+      Export:
+        Name: ${self:service}-connections-table-${self:provider.stage}
+    ConnectionsTableArn:
+      Value: { Fn::GetAtt: [ WebSocketConnectionsTable, Arn ] }
+      Description: "WebSocket connections table ARN"
+      Export:
+        Name: ${self:service}-connections-table-arn-${self:provider.stage}
+    
+    CircuitStateTable:
+      Value: { Ref: CircuitStateTable }
+      Description: "Circuit breaker state table name"
+      Export:
+        Name: ${self:service}-circuit-state-table-${self:provider.stage}
+    CircuitStateTableArn:
+      Value: { Fn::GetAtt: [ CircuitStateTable, Arn ] }
+      Description: "Circuit breaker state table ARN"
+      Export:
+        Name: ${self:service}-circuit-state-table-arn-${self:provider.stage}
+    
+    # Cognito Authentication Resources
     UserPoolId:
       Value: { Ref: CognitoUserPool }
-      Description: Cognito User Pool ID
+      Description: "Cognito User Pool ID for authentication"
+      Export:
+        Name: ${self:service}-user-pool-id-${self:provider.stage}
     UserPoolClientId:
       Value: { Ref: CognitoUserPoolClient }
-      Description: Cognito User Pool Client ID
+      Description: "Cognito User Pool Client ID"
+      Export:
+        Name: ${self:service}-user-pool-client-id-${self:provider.stage}
     CognitoUserPoolArn:
       Value: { Fn::GetAtt: [ CognitoUserPool, Arn ] }
-      Description: Cognito User Pool ARN
+      Description: "Cognito User Pool ARN"
+      Export:
+        Name: ${self:service}-user-pool-arn-${self:provider.stage}
+    # SNS Topics and Messaging Resources
     SpaceNotificationsTopic:
       Value: { Ref: SpaceNotificationsTopic }
-      Description: SNS Topic for Space Notifications
-    SystemAlertsTopic:
-      Value: { Ref: SystemAlertsTopic }
-      Description: SNS Topic for System Alerts
-    AdminNotificationsTopic:
-      Value: { Ref: AdminNotificationsTopic }
-      Description: SNS Topic for Admin Notifications
+      Description: "SNS Topic name for Space Notifications"
+      Export:
+        Name: ${self:service}-space-notifications-topic-${self:provider.stage}
     SpaceNotificationsTopicArn:
       Value: { Ref: SpaceNotificationsTopic }
-      Description: SNS Topic ARN for Space Notifications
+      Description: "SNS Topic ARN for Space Notifications"
+      Export:
+        Name: ${self:service}-space-notifications-topic-arn-${self:provider.stage}
+        
+    SystemAlertsTopic:
+      Value: { Ref: SystemAlertsTopic }
+      Description: "SNS Topic name for System Alerts"
+      Export:
+        Name: ${self:service}-system-alerts-topic-${self:provider.stage}
     SystemAlertsTopicArn:
       Value: { Ref: SystemAlertsTopic }
-      Description: SNS Topic ARN for System Alerts
+      Description: "SNS Topic ARN for System Alerts"
+      Export:
+        Name: ${self:service}-system-alerts-topic-arn-${self:provider.stage}
+        
+    AdminNotificationsTopic:
+      Value: { Ref: AdminNotificationsTopic }
+      Description: "SNS Topic name for Admin Notifications"
+      Export:
+        Name: ${self:service}-admin-notifications-topic-${self:provider.stage}
     AdminNotificationsTopicArn:
       Value: { Ref: AdminNotificationsTopic }
-      Description: SNS Topic ARN for Admin Notifications
+      Description: "SNS Topic ARN for Admin Notifications"
+      Export:
+        Name: ${self:service}-admin-notifications-topic-arn-${self:provider.stage}
+        
     PersonalizationUpdatesTopic:
       Value: { Ref: PersonalizationUpdatesTopic }
-      Description: SNS Topic for Personalization Updates
+      Description: "SNS Topic name for Personalization Updates"
+      Export:
+        Name: ${self:service}-personalization-updates-topic-${self:provider.stage}
+    PersonalizationUpdatesTopicArn:
+      Value: { Ref: PersonalizationUpdatesTopic }
+      Description: "SNS Topic ARN for Personalization Updates"
+      Export:
+        Name: ${self:service}-personalization-updates-topic-arn-${self:provider.stage}
     # WebSocket outputs
     WebSocketApiEndpoint:
       Value:
