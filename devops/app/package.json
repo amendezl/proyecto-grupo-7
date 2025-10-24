@@ -1,0 +1,40 @@
+{
+  "name": "sistema-gestion-espacios-monitor",
+  "version": "2.0.0",
+  "description": "Sistema de Monitoreo y Health Check para Sistema de Gestión de Espacios",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "npm run test:health && npm run test:integration",
+    "test:health": "curl -f http://localhost:3000/health || exit 1",
+    "test:integration": "node tests/integration.js",
+    "dev": "nodemon server.js",
+    "lint": "eslint *.js",
+    "build": "echo 'Building monitoring service...' && npm ci --production"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "winston": "^3.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "eslint": "^8.50.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "espacios",
+    "gestion",
+    "monitoreo",
+    "devops",
+    "serverless",
+    "aws"
+  ],
+  "author": "Equipo DevOps - Sistema Gestión Espacios",
+  "license": "MIT"
+}

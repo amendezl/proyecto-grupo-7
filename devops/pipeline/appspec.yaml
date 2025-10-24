@@ -1,0 +1,51 @@
+version: 1
+
+# Configuración de CodeDeploy para Sistema de Gestión de Espacios
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: "TASK_DEFINITION"
+        LoadBalancerInfo:
+          ContainerName: "espacios-monitor"
+          ContainerPort: 3000
+        PlatformVersion: "LATEST"
+
+# Hooks de deployment para validaciones automáticas
+Hooks:
+  # Pre-deployment: Validación de prerrequisitos
+  BeforeInstall:
+    - location: devops/scripts/pre-deploy-checks.sh
+      timeout: 300
+      runas: root
+      
+  # Post-deployment: Validaciones de salud
+  AfterInstall:
+    - location: devops/scripts/health-check.sh
+      timeout: 180
+      runas: root
+      
+  # Validación de tráfico en vivo
+  AfterAllowTestTraffic:
+    - location: devops/scripts/smoke.sh
+      timeout: 120
+      runas: root
+      runOrder: 1
+    - location: devops/scripts/integration-tests.sh
+      timeout: 300
+      runas: root
+      runOrder: 2
+      
+  # Validación final después de permitir tráfico de producción
+  AfterAllowTraffic:
+    - location: devops/scripts/final-validation.sh
+      timeout: 180
+      runas: root
+
+# Configuración de rollback automático en caso de fallas
+AutoRollbackConfiguration:
+  Enabled: true
+  Events:
+    - DEPLOYMENT_FAILURE
+    - DEPLOYMENT_STOP_ON_ALARM
+    - DEPLOYMENT_STOP_ON_INSTANCE_FAILURE

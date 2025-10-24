@@ -1,0 +1,141 @@
+version: 0.2
+
+env:
+  variables:
+    APP_NAME: "sistema-gestion-espacios"
+    MONITORING_SERVICE: "espacios-monitor"
+    NODE_ENV: "production"
+  parameter-store:
+    # Secrets de AWS Parameter Store para seguridad
+    ECR_REPOSITORY_URI: "/devops/espacios/ecr/repository-uri"
+    API_BASE_URL: "/espacios/api/base-url"
+    FRONTEND_URL: "/espacios/frontend/url"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "Iniciando build del Sistema de Gestión de Espacios..."
+      - echo "Build iniciado en `date`"
+      - echo "Commit SHA: $CODEBUILD_RESOLVED_SOURCE_VERSION"
+      
+  pre_build:
+    commands:
+      # Instalar dependencias del servicio de monitoreo
+      - echo "Instalando dependencias del servicio de monitoreo..."
+      - cd devops/app && npm ci --production
+      - npm run test
+      - cd ../..
+      
+      # Instalar dependencias del backend serverless
+      - echo "Instalando dependencias del backend serverless..."
+      - cd proyecto && npm ci
+      - npm run validate:logs
+      - cd ..
+      
+      # Instalar dependencias del frontend
+      - echo "Instalando dependencias del frontend..."
+      - cd frontend && npm ci
+      - cd ..
+      
+      # Configurar Docker y ECR
+      - echo "Configurando autenticación con ECR..."
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - ECR_REPO="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO
+      
+      # Verificar existencia del repositorio ECR
+      - |
+        aws ecr describe-repositories --repository-names $MONITORING_SERVICE --region $AWS_REGION || \
+        aws ecr create-repository --repository-name $MONITORING_SERVICE --region $AWS_REGION
+        
+  build:
+    commands:
+      - echo "Fase de construcción iniciada..."
+      - GIT_SHA=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-7)
+      - IMAGE_TAG=${GIT_SHA:-latest}
+      - TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+      
+      # Build del servicio de monitoreo
+      - echo "Construyendo imagen Docker del servicio de monitoreo..."
+      - docker build -t $MONITORING_SERVICE:$IMAGE_TAG ./devops/app
+      - docker tag $MONITORING_SERVICE:$IMAGE_TAG $ECR_REPO/$MONITORING_SERVICE:$IMAGE_TAG
+      - docker tag $MONITORING_SERVICE:$IMAGE_TAG $ECR_REPO/$MONITORING_SERVICE:latest
+      
+      # Build del frontend
+      - echo "Construyendo frontend del Sistema de Gestión de Espacios..."
+      - cd frontend && npm run build && cd ..
+      
+      # Validación de la configuración serverless
+      - echo "Validando configuración serverless del backend..."
+      - cd proyecto && npx serverless print --stage prod --region $AWS_REGION && cd ..
+      
+  post_build:
+    commands:
+      - echo "Fase post-build iniciada..."
+      
+      # Push de la imagen Docker a ECR
+      - echo "Subiendo imagen del servicio de monitoreo a ECR..."
+      - docker push $ECR_REPO/$MONITORING_SERVICE:$IMAGE_TAG
+      - docker push $ECR_REPO/$MONITORING_SERVICE:latest
+      
+      # Generar artefactos de deployment
+      - echo "Generando artefactos de deployment..."
+      - |
+        printf '{"ImageURI":"%s","Version":"%s","Timestamp":"%s"}' \
+        "$ECR_REPO/$MONITORING_SERVICE:$IMAGE_TAG" \
+        "$IMAGE_TAG" \
+        "$TIMESTAMP" > imageDetail.json
+      
+      # Empaquetar el código serverless para deployment
+      - echo "Empaquetando código serverless..."
+      - cd proyecto && zip -r ../serverless-package.zip . && cd ..
+      
+      # Empaquetar el frontend para S3
+      - echo "Empaquetando frontend para S3..."
+      - cd frontend && zip -r ../frontend-build.zip out/ && cd ..
+      
+      # Generar manifiesto de deployment
+      - |
+        cat > deployment-manifest.json << EOF
+        {
+          "service": "sistema-gestion-espacios",
+          "version": "$IMAGE_TAG",
+          "timestamp": "$TIMESTAMP",
+          "components": {
+            "monitor": {
+              "type": "docker",
+              "image": "$ECR_REPO/$MONITORING_SERVICE:$IMAGE_TAG"
+            },
+            "backend": {
+              "type": "serverless",
+              "package": "serverless-package.zip"
+            },
+            "frontend": {
+              "type": "static",
+              "package": "frontend-build.zip"
+            }
+          },
+          "deployment_order": ["backend", "frontend", "monitor"]
+        }
+        EOF
+      
+      - echo "Build completado exitosamente en `date`"
+
+artifacts:
+  files:
+    - imageDetail.json
+    - deployment-manifest.json
+    - serverless-package.zip
+    - frontend-build.zip
+    - devops/pipeline/appspec.yaml
+    - devops/pipeline/taskdef.json
+  name: sistema-gestion-espacios-$GIT_SHA
+
+reports:
+  test-reports:
+    files:
+      - 'devops/app/logs/*.log'
+    base-directory: '.'
