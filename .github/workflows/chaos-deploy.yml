@@ -1,0 +1,108 @@
+name: Build & Deploy Chaos Agent to EC2 via SSM
+
+on:
+  workflow_dispatch:
+    inputs:
+      ecr_repo_uri:
+        description: 'ECR repository URI (example: 123456789012.dkr.ecr.us-east-1.amazonaws.com/chaos-agent)'
+        required: true
+      aws_region:
+        description: 'AWS region'
+        required: true
+        default: 'us-east-1'
+      target_url:
+        description: 'Upstream target URL for the chaos proxy (http://... )'
+        required: true
+      instances_tag_key:
+        description: 'Tag key to target instances (e.g. Role)'
+        required: true
+        default: 'Role'
+      instances_tag_value:
+        description: 'Tag value to target instances (e.g. app)'
+        required: true
+        default: 'app'
+      latency_ms:
+        description: 'Latency to inject (ms)'
+        required: false
+        default: '0'
+      error_rate:
+        description: 'Error rate percentage to inject (0-100)'
+        required: false
+        default: '0'
+      error_status:
+        description: 'HTTP status code for injected errors'
+        required: false
+        default: '503'
+      image_tag:
+        description: 'Image tag to push (default: workflow run id)'
+        required: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ github.event.inputs.aws_region }}
+
+      - name: Set variables
+        run: |
+          echo "ECR_REPO=${{ github.event.inputs.ecr_repo_uri }}" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.event.inputs.image_tag || github.run_id }}" >> $GITHUB_ENV
+          echo "TARGET_URL=${{ github.event.inputs.target_url }}" >> $GITHUB_ENV
+          echo "TAG_KEY=${{ github.event.inputs.instances_tag_key }}" >> $GITHUB_ENV
+          echo "TAG_VALUE=${{ github.event.inputs.instances_tag_value }}" >> $GITHUB_ENV
+          echo "LATENCY=${{ github.event.inputs.latency_ms }}" >> $GITHUB_ENV
+          echo "ERROR_RATE=${{ github.event.inputs.error_rate }}" >> $GITHUB_ENV
+          echo "ERROR_STATUS=${{ github.event.inputs.error_status }}" >> $GITHUB_ENV
+
+      - name: Login to ECR
+        run: |
+          aws ecr describe-repositories --repository-names "$(echo $ECR_REPO | awk -F'/' '{print $2}')" || aws ecr create-repository --repository-name "$(echo $ECR_REPO | awk -F'/' '{print $2}')" || true
+          aws ecr get-login-password | docker login --username AWS --password-stdin $(echo $ECR_REPO | awk -F'/' '{print $1}')
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${ECR_REPO}:${IMAGE_TAG} ./chaos-engineering
+
+      - name: Push image to ECR
+        run: |
+          docker push ${ECR_REPO}:${IMAGE_TAG}
+
+      - name: Trigger SSM send-command to run chaos container on targets
+        env:
+          ECR_REPO: ${{ env.ECR_REPO }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          TARGET_URL: ${{ env.TARGET_URL }}
+          TAG_KEY: ${{ env.TAG_KEY }}
+          TAG_VALUE: ${{ env.TAG_VALUE }}
+          LATENCY: ${{ env.LATENCY }}
+          ERROR_RATE: ${{ env.ERROR_RATE }}
+          ERROR_STATUS: ${{ env.ERROR_STATUS }}
+        run: |
+          set -euo pipefail
+          FULL_IMAGE="${ECR_REPO}:${IMAGE_TAG}"
+          echo "Sending SSM command to instances tagged ${TAG_KEY}=${TAG_VALUE} to run image ${FULL_IMAGE}"
+
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "Run chaos proxy: ${FULL_IMAGE}" \
+            --targets Key=tag:${TAG_KEY},Values=${TAG_VALUE} \
+            --parameters commands="#!/bin/bash
+          set -euo pipefail
+          if ! command -v docker >/dev/null 2>&1; then apt-get update && apt-get install -y ca-certificates curl gnupg lsb-release; curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh; fi
+          docker pull ${FULL_IMAGE} || true
+          docker rm -f chaos-proxy || true
+          docker run -d --name chaos-proxy --restart unless-stopped -p 9000:9000 ${FULL_IMAGE} --target ${TARGET_URL} --port 9000 --latency ${LATENCY} --error-rate ${ERROR_RATE} --error-status ${ERROR_STATUS}" \
+            --timeout-seconds 600 --region ${{ github.event.inputs.aws_region }}
+
+      - name: Show command status
+        run: |
+          echo "SSM command sent. Check SSM console or CloudWatch Logs for command output and status."
