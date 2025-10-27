@@ -157,6 +157,23 @@ npx serverless deploy --stage dev --region us-east-1
 
 Si aún falla en una instancia muy pequeña, sube temporalmente el tamaño de la instancia o ejecuta el deploy desde una máquina con más memoria.
 
+### Problema: CloudFormation "Circular dependency between resources"
+
+Si ves un error masivo listando cientos de recursos en dependencia circular, es porque el rol IAM referencia recursos usando `Fn::GetAtt` o `Ref`, y esos recursos referencian el rol.
+
+**Solución ya aplicada en el repo:**
+- Cambiamos las referencias dinámicas del rol IAM por ARNs construidos con `!Sub` y wildcards
+- Esto rompe el ciclo de dependencias permitiendo que CloudFormation resuelva el orden
+
+Si actualizaste el repo (`git pull`) y el error persiste:
+```bash
+cd ~/proyecto-grupo-7/proyecto
+git pull
+export NODE_OPTIONS="--max-old-space-size=4096"
+export DISABLE_DOTENV=1
+npx serverless deploy --stage dev --region us-east-1
+```
+
 ## 9) Limpieza
 
 ```bash
