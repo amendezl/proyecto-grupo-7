@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
-    "serverless": "^3.38.0",
+  "serverless": "^3.40.0",
     "serverless-dotenv-plugin": "^6.0.0",
     "serverless-finch": "^4.0.4",
     "serverless-offline": "^13.6.0",
@@ -49,7 +49,8 @@
     "jose": "^4.14.4",
     "jsonwebtoken": "^9.0.2",
     "minimist": "^1.2.8",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "@sentry/serverless": "^7.120.0"
   },
   "engines": {
     "node": ">=22.0.0"

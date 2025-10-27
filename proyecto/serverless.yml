@@ -1,5 +1,6 @@
 service: sistema-gestion-espacios
 frameworkVersion: '3'
+configValidationMode: warn
 
 custom:
   # FIXED: Plugins now loaded conditionally via external JS file
@@ -45,6 +46,10 @@ provider:
     COGNITO_USER_POOL_ID: { Ref: CognitoUserPool }
     JWT_SECRET: ${env:JWT_SECRET, '${self:service}-${self:provider.stage}-jwt-secret'}
     NODE_ENV: ${self:provider.stage}
+    # Optional SaaS monitoring (Sentry)
+    SENTRY_DSN: ${env:SENTRY_DSN, ''}
+    SENTRY_TRACES_SAMPLE_RATE: ${env:SENTRY_TRACES_SAMPLE_RATE, '0'}
+    SENTRY_RELEASE: ${env:SENTRY_RELEASE, ''}
     # SNS Topics - Using Refs to connect with Resources
     SNS_TOPIC_ARN: { Ref: SpaceNotificationsTopic }
     SNS_ALERTS_TOPIC_ARN: { Ref: SystemAlertsTopic }

@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Infraestructura para el Sistema de Gestión de Espacios Hospitalarios'
+Description: 'Infraestructura para el Sistema de Gestión de Espacios'
 
 # PARAMETROS
 

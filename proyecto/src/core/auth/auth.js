@@ -102,10 +102,14 @@ const parseBody = (event) => {
     }
 };
 
-const { logger } = require('../monitoring/logger');
+const { logger } = require('../../infrastructure/monitoring/logger');
+// Optional SaaS monitoring (Sentry) via decoupled adapter
+const { monitoring } = require('../../infrastructure/monitoring/sentryAdapter');
 
 const withErrorHandling = (handler) => {
     return async (event, context) => {
+        // Initialize SaaS monitoring if configured (no-op otherwise)
+        try { monitoring.init(); } catch (_) {}
         const startTime = Date.now();
         const operationId = `${context?.functionName || 'unknown'}-${Date.now()}`;
         const functionName = context?.functionName || 'unknown';
@@ -149,6 +153,8 @@ const withErrorHandling = (handler) => {
                 errorMessage: error.message,
                 errorType: error.constructor.name
             });
+            // Report to SaaS monitoring (Sentry) if available
+            try { monitoring.captureException(error, { operationId, functionName, executionTime }); } catch (_) {}
             
             const errorResponse = {
                 status: 'FAILED',
@@ -184,13 +190,15 @@ const withErrorHandling = (handler) => {
                 errorResponse.stack = error.stack;
             }
             
-            return {
+            const response = {
                 statusCode: 500,
                 body: JSON.stringify({
                     ...errorResponse,
                     type: 'INTERNAL_ERROR'
                 })
             };
+            try { await monitoring.flush(1500); } catch (_) {}
+            return response;
         }
     };
 };

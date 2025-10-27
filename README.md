@@ -45,9 +45,29 @@ Sistema empresarial de gestión de espacios desarrollado con **Node.js**, **AWS 
 - **Runtime**: Node.js 22
 - **Cloud**: AWS Lambda + API Gateway + DynamoDB + Cognito + SQS + SNS  
 - **Framework**: Serverless Framework v3
-- **Arquitectura**: Microservicios Serverless + ARM64
+- **Arquitectura**: Clean Architecture (api/ · core/ · infrastructure/ · shared/) + Microservicios Serverless + ARM64
 - **Autenticación**: AWS Cognito JWT
 - **Resiliencia**: Retry + Circuit Breaker + Bulkhead Patterns
+
+### 🧱 Clean Architecture y Desacoplamiento
+
+- Capas:
+	- `api/` (entradas/adaptadores de entrega)
+	- `core/` (casos de uso, reglas de negocio, validación)
+	- `infrastructure/` (adaptadores tecnológicos: AWS SDK, DynamoDB, SNS, WebSocket, monitoreo)
+	- `shared/` (utilidades, patrones, contratos/ports)
+- Prescindencia tecnológica: los casos de uso en `core/` no dependen de AWS ni SDKs.
+- Puertos/Adapters: se definen contratos en `shared/ports/` y se conectan implementaciones en `infrastructure/`.
+
+### 🧭 SaaS opcional y desacoplado
+
+- Monitoreo/Telemetría SaaS (opcional) vía Sentry usando el adaptador `infrastructure/monitoring/sentryAdapter.js`.
+- Activación por variables de entorno (no rompe si no están definidas):
+	- `SENTRY_DSN`
+	- `SENTRY_TRACES_SAMPLE_RATE`
+	- `SENTRY_RELEASE`
+  
+Más detalles en `docs/deploy-aws-ubuntu24.md`.
 
 ## 📱 **CONFIRMACIÓN 100% FUNCIONAL WEB + MÓVIL**
 
