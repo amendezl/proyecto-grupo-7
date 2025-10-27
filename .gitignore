@@ -1,2 +1,251 @@
+# ============================================================================
+# PROYECTO GRUPO 7 - GITIGNORE UNIFICADO
+# Cubre: Node.js, Serverless, Next.js, TypeScript, AWS, Testing
+# ============================================================================
+
+# ============================================================================
+# NODE.JS & NPM/YARN
+# ============================================================================
 node_modules/
-node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# Yarn Berry (v2+)
+.yarn/*
+!.yarn/patches
+!.yarn/plugins  
+!.yarn/releases
+!.yarn/versions
+.pnp.*
+
+# Package files
+package-lock.json
+yarn.lock
+.npmrc
+
+# ============================================================================
+# SERVERLESS FRAMEWORK & AWS
+# ============================================================================
+.serverless/
+.webpack/
+.aws/
+.aws-sam/
+
+# AWS credentials and config (should be in ~/.aws/)
+aws-credentials.json
+.aws-credentials
+
+# CloudFormation generated files
+cf-template-*.json
+
+# ============================================================================
+# NEXT.JS & FRONTEND
+# ============================================================================
+# Next.js build outputs
+/.next/
+/out/
+/build/
+/dist/
+
+# Production builds
+/frontend/.next/
+/frontend/out/
+/frontend/build/
+/frontend/dist/
+
+# Static exports
+/frontend/out/
+
+# ============================================================================
+# TYPESCRIPT
+# ============================================================================
+*.tsbuildinfo
+next-env.d.ts
+
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Environment backup files
+.env.backup
+.env.bak
+
+# ============================================================================
+# TESTING & COVERAGE
+# ============================================================================
+coverage/
+.nyc_output/
+.coverage/
+*.lcov
+
+# Jest
+/coverage/
+/test-results/
+
+# Cypress
+/cypress/screenshots/
+/cypress/videos/
+/cypress/reports/
+
+# ============================================================================
+# DEVELOPMENT & DEBUGGING
+# ============================================================================
+# Debug files
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# ============================================================================
+# IDE & EDITORS
+# ============================================================================
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-*
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+\#*\#
+.\#*
+
+# ============================================================================
+# OPERATING SYSTEM
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================================================
+# TEMPORARY & CACHE FILES
+# ============================================================================
+# Temporary folders
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+
+# ============================================================================
+# BUILD & DEPLOYMENT ARTIFACTS
+# ============================================================================
+# Archives
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.7z
+
+# Build artifacts specific to this project
+INTEGRATION-REPORT.js
+SEEDER-ANALYSIS.js
+SEEDER-OPTIONS.js
+MISSING-HANDLERS-REPORT.js
+FINAL-INTEGRATION-REPORT.js
+DEPLOY-SCRIPT-ANALYSIS.js
+CLEANUP-REPORT.js
+GITIGNORE-ANALYSIS.js
+
+# ============================================================================
+# SECURITY & SENSITIVE DATA
+# ============================================================================
+# API keys and secrets
+.secrets
+secrets.json
+config/secrets.json
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# ============================================================================
+# CLOUD & DEPLOYMENT
+# ============================================================================
+# Vercel
+.vercel
+
+# Netlify
+.netlify
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# ============================================================================
+# PROJECT SPECIFIC
+# ============================================================================
+# Archive folder (if exists)
+.archive/
+
+# Backup files
+*.backup
+*.bak
+
+# Database dumps
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================================================
+# END OF GITIGNORE
+# ============================================================================

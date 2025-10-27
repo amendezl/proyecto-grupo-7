@@ -1,3 +1,8 @@
+# ⚠️  ARCHIVO DEPRECADO - NO USAR
+# Este archivo ha sido reemplazado por serverless-unified.yml
+# Use: serverless deploy con serverless-unified.yml
+# NOTA: Este archivo se mantiene solo por compatibilidad temporal
+
 service: sistema-gestion-espacios
 frameworkVersion: '3'
 configValidationMode: warn
@@ -33,30 +38,13 @@ provider:
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   environment:
-    QUEUE_URL: "https://sqs.us-east-1.amazonaws.com/ACCOUNT_ID/sistema-gestion-espacios-dev-queue"
-    DB_TYPE: dynamodb
-    # DynamoDB Tables - Using static names to avoid circular refs
-    DYNAMODB_TABLE: "sistema-gestion-espacios-dev-table"
-    TABLE_NAME: "sistema-gestion-espacios-dev-table"
-    CONNECTIONS_TABLE: "sistema-gestion-espacios-dev-connections"
-    CIRCUIT_STATE_TABLE: "sistema-gestion-espacios-dev-circuit-state"
-    # Cognito Configuration - Using static names
-    USER_POOL_ID: "USER_POOL_ID_PLACEHOLDER"
-    USER_POOL_CLIENT_ID: "USER_POOL_CLIENT_ID_PLACEHOLDER"
-    COGNITO_USER_POOL_ID: "USER_POOL_ID_PLACEHOLDER"
-    JWT_SECRET: ${env:JWT_SECRET, '${self:service}-${self:provider.stage}-jwt-secret'}
+    # Minimal environment for lab deployment
     NODE_ENV: ${self:provider.stage}
-    # Optional SaaS monitoring (Sentry)
+    JWT_SECRET: ${env:JWT_SECRET, '${self:service}-${self:provider.stage}-jwt-secret'}
     SENTRY_DSN: ${env:SENTRY_DSN, ''}
-    SENTRY_TRACES_SAMPLE_RATE: ${env:SENTRY_TRACES_SAMPLE_RATE, '0'}
-    SENTRY_RELEASE: ${env:SENTRY_RELEASE, ''}
-    # SNS Topics - Using static ARNs
-    SNS_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-space-notifications"
-    SNS_ALERTS_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-system-alerts"
-    SNS_ADMIN_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-admin-notifications"
-    SNS_PERSONALIZATION_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-personalization-updates"
-    # WebSocket Configuration - Using static endpoint
-    WEBSOCKET_ENDPOINT: "wss://API_ID.execute-api.us-east-1.amazonaws.com/dev"
+    REGION: ${self:provider.region}
+  iam:
+    role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/LabRole
   logs:
     httpApi: true
   tracing:
@@ -980,95 +968,6 @@ package:
 
 resources:
   Resources:
-    MyQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:service}-${self:provider.stage}-queue
-        VisibilityTimeout: 60
-        MessageRetentionPeriod: 1209600
-    
-    DynamoDBTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:service}-${self:provider.stage}-table
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: PK
-            AttributeType: S
-          - AttributeName: SK
-            AttributeType: S
-          - AttributeName: GSI1PK
-            AttributeType: S
-          - AttributeName: GSI1SK
-            AttributeType: S
-        KeySchema:
-          - AttributeName: PK
-            KeyType: HASH
-          - AttributeName: SK
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: GSI1
-            KeySchema:
-              - AttributeName: GSI1PK
-                KeyType: HASH
-              - AttributeName: GSI1SK
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-        StreamSpecification:
-          StreamViewType: NEW_AND_OLD_IMAGES
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-
-    # WebSocket Connections Table for real-time
-    WebSocketConnectionsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: sistema-gestion-espacios-dev-connections
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: clientId
-            AttributeType: S
-          - AttributeName: connectionId
-            AttributeType: S
-          - AttributeName: status
-            AttributeType: S
-        KeySchema:
-          - AttributeName: clientId
-            KeyType: HASH
-          - AttributeName: connectionId
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: ConnectionIdIndex
-            KeySchema:
-              - AttributeName: connectionId
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-          - IndexName: StatusIndex
-            KeySchema:
-              - AttributeName: status
-                KeyType: HASH
-            Projection:
-              ProjectionType: ALL
-    
-    # Circuit breaker state persistence (optional, small table)
-    CircuitStateTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: sistema-gestion-espacios-dev-circuit-state
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: serviceName
-            AttributeType: S
-        KeySchema:
-          - AttributeName: serviceName
-            KeyType: HASH
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-            
-    # ...existing backend resources...
-
     # WebSocket API Gateway
     WebSocketApi:
       Type: AWS::ApiGatewayV2::Api
@@ -1093,30 +992,6 @@ resources:
           - email
         AutoVerifiedAttributes:
           - email
-        Policies:
-          PasswordPolicy:
-            MinimumLength: 8
-            RequireLowercase: true
-            RequireNumbers: true
-            RequireSymbols: false
-            RequireUppercase: true
-        Schema:
-          - Name: email
-            AttributeDataType: String
-            Required: true
-            Mutable: true
-          - Name: name
-            AttributeDataType: String
-            Required: false
-            Mutable: true
-          - Name: family_name
-            AttributeDataType: String
-            Required: false
-            Mutable: true
-          - Name: custom:role
-            AttributeDataType: String
-            Required: false
-            Mutable: true
 
     CognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
@@ -1124,109 +999,9 @@ resources:
         ClientName: ${self:service}-${self:provider.stage}-app
         GenerateSecret: false
         UserPoolId: { Ref: CognitoUserPool }
-        PreventUserExistenceErrors: ENABLED
         ExplicitAuthFlows:
           - ALLOW_USER_PASSWORD_AUTH
           - ALLOW_REFRESH_TOKEN_AUTH
-          - ALLOW_ADMIN_USER_PASSWORD_AUTH
-        AccessTokenValidity: 60
-        IdTokenValidity: 60
-        RefreshTokenValidity: 30
-        TokenValidityUnits:
-          AccessToken: minutes
-          IdToken: minutes
-          RefreshToken: days
-        # Use Cognito defaults for Read/Write attributes (email, phone_number, etc.)
-        # ReadAttributes and WriteAttributes removed to avoid invalid attribute errors
-
-    # === SNS TOPICS ===
-    
-    # Topic para notificaciones de espacios (creación, actualización, asignación)
-    SpaceNotificationsTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: sistema-gestion-espacios-dev-space-notifications
-        DisplayName: Space Management Notifications
-
-    # Topic para alertas del sistema (errores, mantenimiento, capacidad)
-    SystemAlertsTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: sistema-gestion-espacios-dev-system-alerts
-        DisplayName: System Alerts
-
-    # Topic para notificaciones de administración (reports, backups, security)
-    AdminNotificationsTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: sistema-gestion-espacios-dev-admin-notifications
-        DisplayName: Admin Notifications
-
-    # Topic for personalization updates
-    PersonalizationUpdatesTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: sistema-gestion-espacios-dev-personalization-updates
-        DisplayName: Personalization Updates
-
-    # === CLOUDWATCH ALARMS PARA MONITOREO MÓVIL ===
-    
-    # Alarma para errores de autenticación móvil
-    MobileAuthErrorAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: ${self:service}-${self:provider.stage}-mobile-auth-errors
-        AlarmDescription: Demasiados errores de autenticación desde móviles
-        MetricName: Errors
-        Namespace: AWS/Lambda
-        Statistic: Sum
-        Period: 300
-        EvaluationPeriods: 2
-        Threshold: 5
-        ComparisonOperator: GreaterThanThreshold
-        AlarmActions:
-          - { Ref: SystemAlertsTopic }
-        Dimensions:
-          - Name: FunctionName
-            Value: ${self:service}-${self:provider.stage}-login
-
-    # Alarma para latencia alta en endpoints móviles
-    MobileHighLatencyAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: ${self:service}-${self:provider.stage}-mobile-high-latency
-        AlarmDescription: Latencia alta en endpoints móviles
-        MetricName: Duration
-        Namespace: AWS/Lambda
-        Statistic: Average
-        Period: 300
-        EvaluationPeriods: 2
-        Threshold: 8000  # 8 segundos
-        ComparisonOperator: GreaterThanThreshold
-        AlarmActions:
-          - { Ref: SystemAlertsTopic }
-        Dimensions:
-          - Name: FunctionName
-            Value: ${self:service}-${self:provider.stage}-getMobileDashboard
-
-    # Alarma para fallos en dashboard móvil
-    MobileDashboardErrorAlarm:
-      Type: AWS::CloudWatch::Alarm
-      Properties:
-        AlarmName: ${self:service}-${self:provider.stage}-mobile-dashboard-errors
-        AlarmDescription: Errores en dashboard móvil
-        MetricName: Errors
-        Namespace: AWS/Lambda
-        Statistic: Sum
-        Period: 300
-        EvaluationPeriods: 1
-        Threshold: 3
-        ComparisonOperator: GreaterThanThreshold
-        AlarmActions:
-          - { Ref: SystemAlertsTopic }
-        Dimensions:
-          - Name: FunctionName
-            Value: ${self:service}-${self:provider.stage}-getMobileDashboard
         
   Outputs:
     QueueUrl:

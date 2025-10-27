@@ -1,0 +1,50 @@
+service: sistema-gestion-espacios
+
+custom:
+  # Skip complex plugins for lab environment
+  configValidationMode: warn
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    JWT_SECRET: minimal-lab-jwt-secret
+    SENTRY_DSN: ${env:SENTRY_DSN, ''}
+  iam:
+    role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/LabRole
+
+functions:
+  # Health check only
+  healthCheck:
+    handler: src/handlers/healthCheck.handler
+    events:
+      - httpApi:
+          path: /health
+          method: get
+          cors: true
+
+  # Basic auth
+  login:
+    handler: src/handlers/auth.login
+    events:
+      - httpApi:
+          path: /auth/login
+          method: post
+          cors: true
+
+plugins:
+  - serverless-http-api
+
+package:
+  individually: false
+  excludeDevDependencies: true
+  patterns:
+    - '!node_modules/**'
+    - '!tests/**'
+    - '!*.test.js'
+    - '!coverage/**'
+    - '!.git/**'
+    - src/**

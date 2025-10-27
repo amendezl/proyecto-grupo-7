@@ -3,7 +3,7 @@
     "serverless-plugin-split-stacks": "^1.14.0"
   },
   "scripts": {
-    "deploy:all": "node ./scripts/deploy-frontend-backend.js"
+    "deploy:all": "cd proyecto && serverless deploy"
   },
   "engines": {
     "node": ">=22.0.0"
