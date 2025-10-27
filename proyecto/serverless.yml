@@ -58,7 +58,28 @@ provider:
     # WebSocket Configuration - Using static endpoint
     WEBSOCKET_ENDPOINT: "wss://API_ID.execute-api.us-east-1.amazonaws.com/dev"
   iam:
-    role: LambdaExecutionRole
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - sqs:*
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - sns:*
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - dynamodb:*
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - cognito-idp:*
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - execute-api:*
+          Resource: "*"
   logs:
     httpApi: true
   tracing:
@@ -72,12 +93,9 @@ provider:
       cognitoJwt:
         type: jwt
         identitySource: $request.header.Authorization
-        issuerUrl:
-          Fn::Sub:
-            - https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
-            - { UserPoolId: { Ref: CognitoUserPool } }
+        issuerUrl: "https://cognito-idp.us-east-1.amazonaws.com/USER_POOL_ID_PLACEHOLDER"
         audience:
-          - { Ref: CognitoUserPoolClient }
+          - "USER_POOL_CLIENT_ID_PLACEHOLDER"
 
 functions:
   # Autenticación con Cognito - Optimizado para móviles
@@ -229,10 +247,7 @@ functions:
     events:
       - stream:
           type: dynamodb
-          arn:
-            Fn::GetAtt:
-              - DynamoDBTable
-              - StreamArn
+          arn: "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/sistema-gestion-espacios-dev-table/stream/*"
           batchSize: 100
           startingPosition: LATEST
 
@@ -818,8 +833,7 @@ functions:
     memorySize: 256
     events:
       - sqs:
-          arn:
-            Fn::GetAtt: [ MyQueue, Arn ]
+          arn: "arn:aws:sqs:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-queue"
           batchSize: 10
           maximumBatchingWindow: 30
 
@@ -975,8 +989,7 @@ functions:
     events:
       - stream:
           type: dynamodb
-          arn:
-            Fn::GetAtt: [DynamoDBTable, StreamArn]
+          arn: "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/sistema-gestion-espacios-dev-table/stream/*"
           batchSize: 10
           startingPosition: LATEST
           filterPatterns:
@@ -990,8 +1003,7 @@ functions:
     events:
       - stream:
           type: dynamodb
-          arn:
-            Fn::GetAtt: [DynamoDBTable, StreamArn]
+          arn: "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/sistema-gestion-espacios-dev-table/stream/*"
           batchSize: 10
           startingPosition: LATEST
           filterPatterns:
@@ -1033,46 +1045,6 @@ package:
 
 resources:
   Resources:
-    # Explicit Lambda Execution Role (breaks circular dependency)
-    LambdaExecutionRole:
-      Type: AWS::IAM::Role
-      Properties:
-        RoleName: ${self:service}-${self:provider.stage}-lambda-execution-role
-        AssumeRolePolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service: lambda.amazonaws.com
-              Action: sts:AssumeRole
-        ManagedPolicyArns:
-          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        Policies:
-          - PolicyName: ${self:service}-${self:provider.stage}-lambda-policy
-            PolicyDocument:
-              Version: '2012-10-17'
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - sqs:*
-                  Resource: "*"
-                - Effect: Allow
-                  Action:
-                    - sns:*
-                  Resource: "*"
-                - Effect: Allow
-                  Action:
-                    - dynamodb:*
-                  Resource: "*"
-                - Effect: Allow
-                  Action:
-                    - cognito-idp:*
-                  Resource: "*"
-                - Effect: Allow
-                  Action:
-                    - execute-api:*
-                  Resource: "*"
-
     MyQueue:
       Type: AWS::SQS::Queue
       Properties:
