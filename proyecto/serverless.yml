@@ -33,38 +33,30 @@ provider:
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   environment:
-    QUEUE_URL: { Ref: MyQueue }
+    QUEUE_URL: "https://sqs.us-east-1.amazonaws.com/ACCOUNT_ID/sistema-gestion-espacios-dev-queue"
     DB_TYPE: dynamodb
-    # DynamoDB Tables - Using Refs to connect with Resources
-    DYNAMODB_TABLE: { Ref: DynamoDBTable }
-    TABLE_NAME: { Ref: DynamoDBTable }
-    CONNECTIONS_TABLE: { Ref: WebSocketConnectionsTable }
-    CIRCUIT_STATE_TABLE: { Ref: CircuitStateTable }
-    # Cognito Configuration - Using Refs to connect with Resources
-    USER_POOL_ID: { Ref: CognitoUserPool }
-    USER_POOL_CLIENT_ID: { Ref: CognitoUserPoolClient }
-    COGNITO_USER_POOL_ID: { Ref: CognitoUserPool }
+    # DynamoDB Tables - Using static names to avoid circular refs
+    DYNAMODB_TABLE: "sistema-gestion-espacios-dev-table"
+    TABLE_NAME: "sistema-gestion-espacios-dev-table"
+    CONNECTIONS_TABLE: "sistema-gestion-espacios-dev-connections"
+    CIRCUIT_STATE_TABLE: "sistema-gestion-espacios-dev-circuit-state"
+    # Cognito Configuration - Using static names
+    USER_POOL_ID: "USER_POOL_ID_PLACEHOLDER"
+    USER_POOL_CLIENT_ID: "USER_POOL_CLIENT_ID_PLACEHOLDER"
+    COGNITO_USER_POOL_ID: "USER_POOL_ID_PLACEHOLDER"
     JWT_SECRET: ${env:JWT_SECRET, '${self:service}-${self:provider.stage}-jwt-secret'}
     NODE_ENV: ${self:provider.stage}
     # Optional SaaS monitoring (Sentry)
     SENTRY_DSN: ${env:SENTRY_DSN, ''}
     SENTRY_TRACES_SAMPLE_RATE: ${env:SENTRY_TRACES_SAMPLE_RATE, '0'}
     SENTRY_RELEASE: ${env:SENTRY_RELEASE, ''}
-    # SNS Topics - Using Refs to connect with Resources
-    SNS_TOPIC_ARN: { Ref: SpaceNotificationsTopic }
-    SNS_ALERTS_TOPIC_ARN: { Ref: SystemAlertsTopic }
-    SNS_ADMIN_TOPIC_ARN: { Ref: AdminNotificationsTopic }
-    SNS_PERSONALIZATION_TOPIC_ARN: { Ref: PersonalizationUpdatesTopic }
-    # WebSocket Configuration - Using Refs to connect with Resources
-    WEBSOCKET_ENDPOINT:
-      Fn::Join:
-        - ''
-        - - 'wss://'
-          - Ref: WebSocketApi
-          - '.execute-api.'
-          - Ref: 'AWS::Region'
-          - '.amazonaws.com/'
-          - ${self:provider.stage}
+    # SNS Topics - Using static ARNs
+    SNS_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-space-notifications"
+    SNS_ALERTS_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-system-alerts"
+    SNS_ADMIN_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-admin-notifications"
+    SNS_PERSONALIZATION_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-personalization-updates"
+    # WebSocket Configuration - Using static endpoint
+    WEBSOCKET_ENDPOINT: "wss://API_ID.execute-api.us-east-1.amazonaws.com/dev"
   iam:
     role: LambdaExecutionRole
   logs:
@@ -1125,7 +1117,7 @@ resources:
     WebSocketConnectionsTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:provider.environment.CONNECTIONS_TABLE}
+        TableName: sistema-gestion-espacios-dev-connections
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
           - AttributeName: clientId
@@ -1157,7 +1149,7 @@ resources:
     CircuitStateTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: ${self:provider.environment.CIRCUIT_STATE_TABLE}
+        TableName: sistema-gestion-espacios-dev-circuit-state
         BillingMode: PAY_PER_REQUEST
         AttributeDefinitions:
           - AttributeName: serviceName
@@ -1246,28 +1238,28 @@ resources:
     SpaceNotificationsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${self:provider.stage}-space-notifications-${sls:instanceId}
+        TopicName: sistema-gestion-espacios-dev-space-notifications
         DisplayName: Space Management Notifications
 
     # Topic para alertas del sistema (errores, mantenimiento, capacidad)
     SystemAlertsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${self:provider.stage}-system-alerts-${sls:instanceId}
+        TopicName: sistema-gestion-espacios-dev-system-alerts
         DisplayName: System Alerts
 
     # Topic para notificaciones de administración (reports, backups, security)
     AdminNotificationsTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${self:provider.stage}-admin-notifications-${sls:instanceId}
+        TopicName: sistema-gestion-espacios-dev-admin-notifications
         DisplayName: Admin Notifications
 
     # Topic for personalization updates
     PersonalizationUpdatesTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: ${self:service}-${self:provider.stage}-personalization-updates-${sls:instanceId}
+        TopicName: sistema-gestion-espacios-dev-personalization-updates
         DisplayName: Personalization Updates
 
     # === CLOUDWATCH ALARMS PARA MONITOREO MÓVIL ===
