@@ -130,6 +130,33 @@ serverless deploy --stage dev --region us-east-1
 
 3. Dependiendo del entorno, setea variables directamente en el shell o en parámetros seguros (SSM/Secrets Manager) y evita `.env` en producción.
 
+### Problema: FATAL ERROR JavaScript heap out of memory durante "Packaging"
+
+Esto ocurre cuando el proceso Node se queda sin heap (memoria) al crear los zips. Mitigaciones:
+
+1) Instalar solo dependencias de producción antes del deploy (reduce node_modules):
+```bash
+cd ~/proyecto-grupo-7/proyecto
+# si aún no hay lockfile, primero:
+npm install
+# luego reinstala limpio solo prod deps
+rm -rf node_modules
+npm ci --omit=dev
+```
+
+2) Dar más heap a Node solo para el comando de deploy:
+```bash
+export NODE_OPTIONS="--max-old-space-size=4096"
+npx serverless deploy --stage dev --region us-east-1
+```
+
+3) El proyecto ya incluye optimizaciones de empaquetado en `serverless.yml`:
+	- `package.individually: true`
+	- Lista blanca: solo `src/**`, `package.json`, `package-lock.json`, `serverless-plugins.js`, `node_modules/**`
+	- Excluye tests y markdown
+
+Si aún falla en una instancia muy pequeña, sube temporalmente el tamaño de la instancia o ejecuta el deploy desde una máquina con más memoria.
+
 ## 9) Limpieza
 
 ```bash
