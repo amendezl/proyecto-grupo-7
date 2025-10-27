@@ -57,29 +57,6 @@ provider:
     SNS_PERSONALIZATION_TOPIC_ARN: "arn:aws:sns:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-personalization-updates"
     # WebSocket Configuration - Using static endpoint
     WEBSOCKET_ENDPOINT: "wss://API_ID.execute-api.us-east-1.amazonaws.com/dev"
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - sqs:*
-          Resource: "*"
-        - Effect: Allow
-          Action:
-            - sns:*
-          Resource: "*"
-        - Effect: Allow
-          Action:
-            - dynamodb:*
-          Resource: "*"
-        - Effect: Allow
-          Action:
-            - cognito-idp:*
-          Resource: "*"
-        - Effect: Allow
-          Action:
-            - execute-api:*
-          Resource: "*"
   logs:
     httpApi: true
   tracing:
@@ -235,21 +212,10 @@ functions:
   # SNS -> WebSocket forwarder
   personalizationForwarder:
     handler: src/api/integrations/personalizationForwarder.handler
-    events:
-      - sns:
-          topicName: PersonalizationUpdatesTopic
-          arn:
-            Ref: PersonalizationUpdatesTopic
 
   # DynamoDB Streams processor to capture all table changes and publish personalization updates
   dynamoStreamProcessor:
     handler: src/api/system/dynamoStreamProcessor.handler
-    events:
-      - stream:
-          type: dynamodb
-          arn: "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/sistema-gestion-espacios-dev-table/stream/*"
-          batchSize: 100
-          startingPosition: LATEST
 
   # Limpiar cache de configuraciones
   clearConfigurationCache:
@@ -831,11 +797,6 @@ functions:
     handler: src/api/system/queueWorker.process
     timeout: 30
     memorySize: 256
-    events:
-      - sqs:
-          arn: "arn:aws:sqs:us-east-1:ACCOUNT_ID:sistema-gestion-espacios-dev-queue"
-          batchSize: 10
-          maximumBatchingWindow: 30
 
   # Endpoints de monitoreo de resiliencia (Retry + Circuit Breaker + Bulkhead)
   resilienceHealth:
@@ -914,21 +875,12 @@ functions:
   # Procesar notificaciones SNS (triggered by SNS)
   processSpaceNotification:
     handler: src/api/integrations/sns.processSpaceNotification
-    events:
-      - sns:
-          topicName: ${self:service}-${self:provider.stage}-space-notifications
 
   processSystemAlert:
     handler: src/api/integrations/sns.processSystemAlert
-    events:
-      - sns:
-          topicName: ${self:service}-${self:provider.stage}-system-alerts
 
   processAdminNotification:
     handler: src/api/integrations/sns.processAdminNotification
-    events:
-      - sns:
-          topicName: ${self:service}-${self:provider.stage}-admin-notifications
 
   # Suscripción a notificaciones
   subscribeToNotifications:
@@ -986,28 +938,12 @@ functions:
     description: "Notifica en tiempo real cuando se crean/modifican reservas"
     timeout: 15
     memorySize: 512
-    events:
-      - stream:
-          type: dynamodb
-          arn: "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/sistema-gestion-espacios-dev-table/stream/*"
-          batchSize: 10
-          startingPosition: LATEST
-          filterPatterns:
-            - eventName: [INSERT, MODIFY]
 
   realtimeEspacioNotify:
     handler: src/api/integrations/websocket.notifyEspacioEstado
     description: "Notifica cuando cambia el estado de espacios"
     timeout: 15
     memorySize: 512
-    events:
-      - stream:
-          type: dynamodb
-          arn: "arn:aws:dynamodb:us-east-1:ACCOUNT_ID:table/sistema-gestion-espacios-dev-table/stream/*"
-          batchSize: 10
-          startingPosition: LATEST
-          filterPatterns:
-            - eventName: [MODIFY]
 
   # Manual stats update function
   realtimeStatsUpdate:
@@ -1016,7 +952,6 @@ functions:
     timeout: 20
     memorySize: 1024
     events:
-      - schedule: rate(5 minutes)
       - httpApi:
           method: POST
           path: /api/realtime/stats
