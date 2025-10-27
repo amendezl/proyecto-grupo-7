@@ -68,53 +68,29 @@ provider:
   iam:
     role:
       name: ${self:service}-${self:provider.stage}-lambda-role
+      managedPolicies:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       statements:
         - Effect: Allow
           Action:
-            - sqs:SendMessage
-            - sqs:ReceiveMessage
-            - sqs:DeleteMessage
-            - sqs:GetQueueAttributes
-          Resource: "arn:aws:sqs:${aws:region}:${aws:accountId}:${self:service}-${self:provider.stage}-queue"
+            - sqs:*
+          Resource: "*"
         - Effect: Allow
           Action:
-            - sns:Publish
-            - sns:Subscribe
-            - sns:ListSubscriptionsByTopic
-            - sns:GetTopicAttributes
-          Resource: "arn:aws:sns:${aws:region}:${aws:accountId}:*"
+            - sns:*
+          Resource: "*"
         - Effect: Allow
           Action:
-            - dynamodb:Query
-            - dynamodb:Scan
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:DeleteItem
-            - dynamodb:DescribeStream
-            - dynamodb:GetRecords
-            - dynamodb:GetShardIterator
-            - dynamodb:ListStreams
-          Resource:
-            - "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-${self:provider.stage}-table"
-            - "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-${self:provider.stage}-table/*"
-            - "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/*connections*"
-            - "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/*circuit*"
+            - dynamodb:*
+          Resource: "*"
         - Effect: Allow
           Action:
-            - cognito-idp:AdminInitiateAuth
-            - cognito-idp:AdminCreateUser
-            - cognito-idp:AdminSetUserPassword
-            - cognito-idp:AdminGetUser
-            - cognito-idp:AdminUpdateUserAttributes
-            - cognito-idp:ListUsers
-            - cognito-idp:InitiateAuth
-            - cognito-idp:RespondToAuthChallenge
-          Resource: "arn:aws:cognito-idp:${aws:region}:${aws:accountId}:userpool/*"
+            - cognito-idp:*
+          Resource: "*"
         - Effect: Allow
           Action:
-            - execute-api:ManageConnections
-          Resource: "arn:aws:execute-api:${aws:region}:${aws:accountId}:*/*"
+            - execute-api:*
+          Resource: "*"
   logs:
     httpApi: true
   tracing:
