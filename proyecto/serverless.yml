@@ -66,31 +66,7 @@ provider:
           - '.amazonaws.com/'
           - ${self:provider.stage}
   iam:
-    role:
-      name: ${self:service}-${self:provider.stage}-lambda-role
-      managedPolicies:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      statements:
-        - Effect: Allow
-          Action:
-            - sqs:*
-          Resource: "*"
-        - Effect: Allow
-          Action:
-            - sns:*
-          Resource: "*"
-        - Effect: Allow
-          Action:
-            - dynamodb:*
-          Resource: "*"
-        - Effect: Allow
-          Action:
-            - cognito-idp:*
-          Resource: "*"
-        - Effect: Allow
-          Action:
-            - execute-api:*
-          Resource: "*"
+      role: LambdaExecutionRole
   logs:
     httpApi: true
   tracing:
@@ -1070,6 +1046,46 @@ package:
 
 resources:
   Resources:
+    # Explicit Lambda Execution Role (breaks circular dependency)
+    LambdaExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${self:provider.stage}-lambda-execution-role
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Policies:
+          - PolicyName: ${self:service}-${self:provider.stage}-lambda-policy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sqs:*
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - sns:*
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - dynamodb:*
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - cognito-idp:*
+                  Resource: "*"
+                - Effect: Allow
+                  Action:
+                    - execute-api:*
+                  Resource: "*"
+
     MyQueue:
       Type: AWS::SQS::Queue
       Properties:
