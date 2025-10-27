@@ -1021,21 +1021,16 @@ functions:
 
 
 package:
-  individually: true
+  individually: false
   excludeDevDependencies: true
   patterns:
-    # Start from nothing, then include only what Lambda needs
-    - '!**/*'
-    # Source code and runtime manifests
     - 'src/**'
     - 'package.json'
-    - 'package-lock.json'
-    - 'serverless-plugins.js'
-    # Runtime dependencies
     - 'node_modules/**'
-    # Tests and docs remain excluded
     - '!**/*.md'
     - '!**/*.test.*'
+    - '!**/docs/**'
+    - '!**/coverage/**'
   #   apiVersion: '2012-11-05'
   #   endpoint: http://localhost:4566  # LocalStack
   #   region: ${self:provider.region}
