@@ -1,7 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Infraestructura para el Sistema de Gestión de Espacios'
-
-# PARAMETROS
+Description: 'Red segura y segmentación para Sistema de Gestión de Espacios (Defense-in-Depth)'
 
 Parameters:
   Environment:
@@ -10,31 +8,28 @@ Parameters:
     AllowedValues: [dev, staging, prod]
     Description: Entorno de despliegue
 
-  DomainName:
-    Type: String
-    Default: hospital-espacios.example.com
-    Description: Nombre de dominio para el frontend
-
-  # RED Y SEGMENTACIÓN
-
   ProjectName:
     Type: String
     Default: certamen3
+
   VPCCIDR:
     Type: String
     Default: 10.0.0.0/16
+
   PublicSubnetACIDR:
     Type: String
     Default: 10.0.0.0/24
   PublicSubnetBCIDR:
     Type: String
     Default: 10.0.1.0/24
+
   AppSubnetACIDR:
     Type: String
     Default: 10.0.10.0/24
   AppSubnetBCIDR:
     Type: String
     Default: 10.0.11.0/24
+
   DBSubnetACIDR:
     Type: String
     Default: 10.0.20.0/24
@@ -42,180 +37,7 @@ Parameters:
     Type: String
     Default: 10.0.21.0/24
 
-# RECURSOS
-
 Resources:
-
-  # FRONTEND
-
-  FrontendBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub 'hospital-espacios-frontend-${Environment}-vacacerdogallinacaballo98765321'
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Project
-          Value: HospitalEspacios
-
-
-  CloudFrontOriginAccessControl:
-    Type: AWS::CloudFront::OriginAccessControl
-    Properties:
-      OriginAccessControlConfig:
-        Name: !Sub "OAC-${FrontendBucket}"
-        OriginAccessControlOriginType: s3
-        SigningBehavior: always
-        SigningProtocol: sigv4
-
-  CloudFrontDistribution:
-    Type: AWS::CloudFront::Distribution
-    Properties:
-      DistributionConfig:
-        Origins:
-          - DomainName: !Sub "${FrontendBucket.RegionalDomainName}"
-            Id: S3Origin
-            S3OriginConfig:
-              OriginAccessIdentity: ''
-            OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
-        DefaultRootObject: index.html
-        Enabled: true
-        HttpVersion: http2
-        PriceClass: PriceClass_100
-        ViewerCertificate:
-          CloudFrontDefaultCertificate: true
-        DefaultCacheBehavior:
-          AllowedMethods: [GET, HEAD, OPTIONS]
-          CachedMethods: [GET, HEAD, OPTIONS]
-          Compress: true
-          DefaultTTL: 3600
-          ForwardedValues:
-            QueryString: true
-            Cookies:
-              Forward: none
-          TargetOriginId: S3Origin
-          ViewerProtocolPolicy: redirect-to-https
-        CustomErrorResponses:
-          - ErrorCode: 403
-            ResponseCode: 200
-            ResponsePagePath: /index.html
-          - ErrorCode: 404
-            ResponseCode: 200
-            ResponsePagePath: /index.html
-        Tags:
-          - Key: Environment
-            Value: !Ref Environment
-          - Key: Project
-            Value: HospitalEspacios
-
-
-  FrontendBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref FrontendBucket
-      PolicyDocument:
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: cloudfront.amazonaws.com
-            Action: s3:GetObject
-            Resource: !Sub "${FrontendBucket.Arn}/*"
-            Condition:
-              StringEquals:
-                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}"
-
-  # DYNAMODB
-  
-  EspaciosTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub 'hospital-espacios-${Environment}'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: id
-          AttributeType: S
-        - AttributeName: tipo
-          AttributeType: S
-      KeySchema:
-        - AttributeName: id
-          KeyType: HASH
-      GlobalSecondaryIndexes:
-        - IndexName: TipoIndex
-          KeySchema:
-            - AttributeName: tipo
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Project
-          Value: HospitalEspacios
-
-  WebSocketConnectionsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub 'hospital-ws-connections-${Environment}'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: connectionId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: connectionId
-          KeyType: HASH
-      Tags:
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Project
-          Value: HospitalEspacios
-
-  # IAM
-
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: !Sub 'hospital-lambda-role-${Environment}'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: DynamoDBAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                  - dynamodb:PutItem
-                  - dynamodb:UpdateItem
-                  - dynamodb:DeleteItem
-                  - dynamodb:Query
-                  - dynamodb:Scan
-                Resource:
-                  - !GetAtt EspaciosTable.Arn
-                  - !GetAtt WebSocketConnectionsTable.Arn
-        - PolicyName: APIGatewayManagement
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - execute-api:ManageConnections
-                Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*"
-
-  # RED Y SEGMENTACIÓN (NUEVO)
 
   VPC:
     Type: AWS::EC2::VPC
@@ -236,7 +58,6 @@ Resources:
       InternetGatewayId: !Ref IGW
       VpcId: !Ref VPC
 
-  # SUBREDES
   PublicSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
@@ -291,7 +112,6 @@ Resources:
       MapPublicIpOnLaunch: false
       Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-b" }]
 
-  # TABLAS DE ENRUTAMIENTO
   PublicRT:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -317,7 +137,6 @@ Resources:
       SubnetId: !Ref PublicSubnetB
       RouteTableId: !Ref PublicRT
 
-  # NAT
   NatEip:
     Type: AWS::EC2::EIP
     Properties:
@@ -380,15 +199,6 @@ Resources:
       SubnetId: !Ref DBSubnetB
       RouteTableId: !Ref DBRT
 
-  # ENDPOINTS VPC
-  VPCEndpointS3:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VPC
-      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
-      VpcEndpointType: Gateway
-      RouteTableIds: [!Ref AppRT, !Ref DBRT]
-
   EndpointSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -398,6 +208,14 @@ Resources:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
       Tags: [{ Key: Name, Value: !Sub "${ProjectName}-vpce-sg" }]
+
+  VPCEndpointS3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcEndpointType: Gateway
+      RouteTableIds: [!Ref AppRT, !Ref DBRT]
 
   VPCEndpointSecrets:
     Type: AWS::EC2::VPCEndpoint
@@ -409,7 +227,6 @@ Resources:
       SubnetIds: [!Ref AppSubnetA, !Ref AppSubnetB]
       SecurityGroupIds: [!Ref EndpointSG]
 
-  # GRUPOS DE SEGURIDAD
   ALBSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -450,7 +267,7 @@ Resources:
       SecurityGroupIngress:
         - Description: DB from AppSG
           IpProtocol: tcp
-          FromPort: 5432
+          FromPort: 5432   # ajusta 3306 si usas MySQL
           ToPort: 5432
           SourceSecurityGroupId: !Ref AppSG
       SecurityGroupEgress:
@@ -458,7 +275,6 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-sg" }]
 
-  # NACLs
   AppNACL:
     Type: AWS::EC2::NetworkAcl
     Properties:
@@ -470,7 +286,7 @@ Resources:
     Properties:
       NetworkAclId: !Ref AppNACL
       RuleNumber: 100
-      Protocol: 6    
+      Protocol: 6
       RuleAction: allow
       Egress: false
       CidrBlock: 0.0.0.0/0
@@ -509,14 +325,12 @@ Resources:
       SubnetId: !Ref AppSubnetB
       NetworkAclId: !Ref AppNACL
 
-# OUTPUTS 
-
 Outputs:
   VpcId:
     Description: VPC ID
     Value: !Ref VPC
   PublicSubnets:
-    Description: Subredes públicas (ALB/Perímetro)
+    Description: Subredes públicas (perímetro)
     Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB]]
   AppSubnets:
     Description: Subredes privadas de aplicación
@@ -533,39 +347,3 @@ Outputs:
   DBSGId:
     Description: SG de la DB
     Value: !Ref DBSG
-
-  FrontendBucketName:
-    Description: Nombre del bucket S3 para el frontend
-    Value: !Ref FrontendBucket
-    Export:
-      Name: !Sub "${AWS::StackName}-FrontendBucketName"
-
-  CloudFrontDistributionId:
-    Description: ID de la distribución CloudFront
-    Value: !Ref CloudFrontDistribution
-    Export:
-      Name: !Sub "${AWS::StackName}-CloudFrontDistributionId"
-
-  CloudFrontDomainName:
-    Description: Nombre de dominio de la distribución CloudFront
-    Value: !GetAtt CloudFrontDistribution.DomainName
-    Export:
-      Name: !Sub "${AWS::StackName}-CloudFrontDomainName"
-
-  EspaciosTableName:
-    Description: Nombre de la tabla DynamoDB para espacios
-    Value: !Ref EspaciosTable
-    Export:
-      Name: !Sub "${AWS::StackName}-EspaciosTableName"
-
-  WebSocketConnectionsTableName:
-    Description: Nombre de la tabla DynamoDB para conexiones WebSocket
-    Value: !Ref WebSocketConnectionsTable
-    Export:
-      Name: !Sub "${AWS::StackName}-WebSocketConnectionsTableName"
-
-  LambdaRoleName:
-    Description: Nombre del rol IAM para funciones Lambda
-    Value: !Ref LambdaExecutionRole
-    Export:
-      Name: !Sub "${AWS::StackName}-LambdaRoleName"
