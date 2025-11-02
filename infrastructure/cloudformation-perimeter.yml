@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Perímetro seguro: CloudFront + WAF (básico) + cabeceras seguras'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Entorno de despliegue
+
+  ProjectName:
+    Type: String
+    Default: certamen3
+
+  FrontendBucketName:
+    Type: String
+    Description: Nombre del bucket S3 que contiene el frontend estático
+    Default: proyecto-grupo7-frontend-dev
+
+Resources:
+
+  ########################################
+  # 1. Web ACL (WAF) básico para CloudFront
+  ########################################
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub '${ProjectName}-web-acl-${Environment}'
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub '${ProjectName}-web-acl-${Environment}'
+        SampledRequestsEnabled: true
+      Rules:
+        # Reglas administradas comunes de AWS (protección OWASP: SQLi, XSS, etc.)
+        - Name: AWSManagedCommonRules
+          Priority: 0
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-common-${Environment}'
+            SampledRequestsEnabled: true
+
+        # Rate limiting (anti flood / DoS simple)
+        - Name: RateLimitRule
+          Priority: 1
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: 2000  # máx req por IP / ~5min
+              AggregateKeyType: IP
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: !Sub '${ProjectName}-ratelimit-${Environment}'
+            SampledRequestsEnabled: true
+
+  ########################################
+  # 2. CloudFront Function para cabeceras de seguridad
+  ########################################
+  SecurityHeadersFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub '${ProjectName}-security-headers-${Environment}'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: "Agrega cabeceras de seguridad a las respuestas"
+        Runtime: cloudfront-js-1.0
+      FunctionCode: |
+        function handler(event) {
+          var response = event.response;
+          var headers = response.headers;
+
+          // HSTS: obliga HTTPS en el browser
+          headers['strict-transport-security'] = {
+            value: 'max-age=63072000; includeSubDomains; preload'
+          };
+
+          // Evita embedding en iframes externos (clickjacking)
+          headers['x-frame-options'] = { value: 'DENY' };
+
+          // Evita que el navegador intente adivinar tipos MIME
+          headers['x-content-type-options'] = { value: 'nosniff' };
+
+          // Política de contenido (CSP) básica
+          headers['content-security-policy'] = {
+            value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+          };
+
+          // Política de Referer
+          headers['referrer-policy'] = { value: 'no-referrer' };
+
+          // Limita acceso a features sensibles
+          headers['permissions-policy'] = {
+            value: 'camera=(), microphone=(), geolocation=()'
+          };
+
+          return response;
+        }
+
+  ########################################
+  # 3. Origin Access Control para S3 privado
+  ########################################
+  CloudFrontOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-oac-${Environment}"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  ########################################
+  # 4. Distribución CloudFront (HTTPS forzado)
+  ########################################
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+
+        DefaultRootObject: index.html
+
+        DefaultCacheBehavior:
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          Compress: true
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+
+          FunctionAssociations:
+            - EventType: viewer-response
+              FunctionARN: !GetAtt SecurityHeadersFunction.FunctionARN
+
+
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: none
+          DefaultTTL: 3600
+
+        ViewerCertificate:
+          # Modo B: usamos el cert por defecto de CloudFront.
+          CloudFrontDefaultCertificate: true
+
+        Origins:
+          - Id: S3Origin
+            DomainName: !Sub "${FrontendBucketName}.s3.amazonaws.com"
+            S3OriginConfig:
+              # Para usar OAC, CloudFront pide que igual declares S3OriginConfig.
+              # OriginAccessIdentity string vacío es el patrón recomendado.
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
+
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+
+Outputs:
+  CloudFrontDomainName:
+    Description: Dominio público HTTPS que sirve el frontend detrás de WAF/CloudFront
+    Value: !GetAtt CloudFrontDistribution.DomainName
+
+  WebACLName:
+    Description: Nombre del WAF WebACL creado
+    Value: !Ref WebACL
