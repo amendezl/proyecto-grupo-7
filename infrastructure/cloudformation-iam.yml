@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Roles IAM para Lambdas del proyecto Hospital-Espacios'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+
+Resources:
+  # Rol para Lambda PACIENTE
+  LambdaPacienteRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'hospital-lambda-paciente-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBPacienteAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/paciente-${Environment}"
+
+  # Rol para Lambda ATENCION
+  LambdaAtencionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'hospital-lambda-atencion-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAtencionAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/atencion-${Environment}"
+
+  # Rol para Lambda VACUNA
+  LambdaVacunaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'hospital-lambda-vacuna-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBVacunaAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/vacuna-${Environment}"
+
+Outputs:
+  LambdaPacienteRoleArn:
+    Value: !GetAtt LambdaPacienteRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaPacienteRoleArn"
+
+  LambdaAtencionRoleArn:
+    Value: !GetAtt LambdaAtencionRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaAtencionRoleArn"
+
+  LambdaVacunaRoleArn:
+    Value: !GetAtt LambdaVacunaRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaVacunaRoleArn"
