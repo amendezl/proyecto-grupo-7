@@ -85,6 +85,8 @@ provider:
   runtime: nodejs22.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  deploymentBucket:
+    blockPublicAccess: true
   environment:
     # === CORE ENVIRONMENT ===
     NODE_ENV: ${self:provider.stage}
@@ -200,7 +202,7 @@ functions:
   # === DEVOPS AUTOMATION AS LAMBDA ===
   devopsAutomation:
     handler: src/handlers/devops.automation
-    timeout: 30
+    timeout: 29
     memorySize: 512
     events:
       - schedule: 
@@ -229,7 +231,7 @@ functions:
 
   devopsStatus:
     handler: src/handlers/devops.status
-    timeout: 30
+    timeout: 29
     memorySize: 256
     events:
       - httpApi:
@@ -239,7 +241,7 @@ functions:
   # === CHAOS ENGINEERING AS LAMBDA ===
   chaosEngineering:
     handler: src/handlers/chaos.resilience
-    timeout: 30
+    timeout: 29
     memorySize: 256
     events:
       - httpApi:

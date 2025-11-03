@@ -3,10 +3,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   distDir: '.next',
+  output: 'export', // Enable static export
   images: {
     domains: [
       `${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com`
-    ]
+    ],
+    unoptimized: true // Required for static export
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -15,7 +17,8 @@ const nextConfig: NextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true,
-  }
+  },
+  trailingSlash: true, // Recommended for static export
 };
 
 export default nextConfig;
