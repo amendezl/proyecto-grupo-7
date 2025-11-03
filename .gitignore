@@ -38,6 +38,7 @@ yarn.lock
 aws-credentials.json
 .aws-credentials
 
+
 # CloudFormation generated files
 cf-template-*.json
 
@@ -245,6 +246,12 @@ config/secrets.json
 *.db
 *.sqlite
 *.sqlite3
+
+# ============================================================================
+# MISCELLANEOUS
+# ============================================================================
+
+credentials.txt
 
 # ============================================================================
 # END OF GITIGNORE

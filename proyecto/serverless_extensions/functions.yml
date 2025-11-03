@@ -1,0 +1,368 @@
+functions: 
+  # === CORE AUTHENTICATION ===
+  login:
+    handler: src/handlers/auth.login
+    timeout: 10
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /auth/login
+          method: post
+          cors: true
+
+  register:
+    handler: src/handlers/auth.register
+    timeout: 10
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /auth/register
+          method: post
+          cors: true
+
+  refreshToken:
+    handler: src/handlers/auth.refreshToken
+    timeout: 5
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /auth/refresh
+          method: post
+          cors: true
+
+  # === HEALTH & MONITORING ===
+  healthCheck:
+    handler: src/handlers/healthCheck.handler
+    timeout: 5
+    memorySize: 128
+    events:
+      - httpApi:
+          path: /health
+          method: get
+          cors: true
+
+  # === DEVOPS AUTOMATION AS LAMBDA ===
+  devopsAutomation:
+    handler: src/handlers/devops.automation
+    timeout: 300
+    memorySize: 512
+    events:
+      - schedule: 
+          rate: rate(60 minutes)
+          description: "DevOps automation tasks"
+      - httpApi:
+          path: /devops/automation
+          method: post
+          cors: true
+          authorizer:
+            name: cognitoJwt
+    environment:
+      DEVOPS_MODE: automation
+
+  devopsStatus:
+    handler: src/handlers/devops.status
+    timeout: 30
+    memorySize: 256
+    events:
+      - httpApi:
+          path: /devops/status
+          method: get
+          cors: true
+
+  # === CHAOS ENGINEERING AS LAMBDA ===
+  chaosEngineering:
+    handler: src/handlers/chaos.resilience
+    timeout: 30
+    memorySize: 256
+    events:
+      - httpApi:
+          path: /chaos/test
+          method: post
+          cors: true
+          authorizer:
+            name: cognitoJwt
+      - httpApi:
+          path: /chaos/proxy
+          method: any
+          cors: true
+    environment:
+      CHAOS_MODE: testing
+      CHAOS_TARGET_URL: 
+        Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+
+  # === CORE BUSINESS LOGIC ===
+  # Usuarios
+  getUsers:
+    handler: src/handlers/usuarios.getUsers
+    timeout: 10
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /users
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoJwt
+
+  createUser:
+    handler: src/handlers/usuarios.createUser
+    timeout: 10
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /users
+          method: post
+          cors: true
+          authorizer:
+            name: cognitoJwt
+
+  # Espacios
+  getEspacios:
+    handler: src/handlers/espacios.getEspacios
+    timeout: 10
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /espacios
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoJwt
+
+  createEspacio:
+    handler: src/handlers/espacios.createEspacio
+    timeout: 10
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /espacios
+          method: post
+          cors: true
+          authorizer:
+            name: cognitoJwt
+
+  # Reservas
+  getReservas:
+    handler: src/handlers/reservas.getReservas
+    timeout: 10
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /reservas
+          method: get
+          cors: true
+          authorizer:
+            name: cognitoJwt
+
+  createReserva:
+    handler: src/handlers/reservas.createReserva
+    timeout: 15
+    memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+    events:
+      - httpApi:
+          path: /reservas
+          method: post
+          cors: true
+          authorizer:
+            name: cognitoJwt
+
+  # === WEBSOCKET REAL-TIME ===
+  websocketConnect:
+    handler: src/handlers/websocket.connect.connect
+    timeout: 10
+    memorySize: 256
+    events:
+      - websocket:
+          route: $connect
+
+  websocketDisconnect:
+    handler: src/handlers/websocket.disconnect.disconnect
+    timeout: 10
+    memorySize: 256
+    events:
+      - websocket:
+          route: $disconnect
+
+  websocketDefault:
+    handler: src/handlers/websocket.default.default
+    timeout: 10
+    memorySize: 256
+    events:
+      - websocket:
+          route: $default
+
+  # === QUEUE WORKERS ===
+  queueWorker:
+    handler: src/handlers/queueWorker.handler
+    timeout: 60
+    memorySize: 512
+    events:
+      - sqs:
+          arn: { Fn::GetAtt: [MainQueue, Arn] }
+          batchSize: 10
+          maximumBatchingWindow: 5
+
+  # === SNS EVENT PROCESSORS ===
+  notificationProcessor:
+    handler: src/handlers/sns.handler
+    timeout: 30
+    memorySize: 256
+    events:
+      - sns:
+          arn: { Ref: SpaceNotificationsTopic }
+      - sns:
+          arn: { Ref: SystemAlertsTopic }
+
+  # === MISSING BUSINESS HANDLERS ===
+  # Dashboard Analytics
+  getDashboardMetrics:
+    handler: src/handlers/dashboard.getDashboardMetrics
+    timeout: 30
+    events:
+      - http:
+          path: /dashboard/metrics
+          method: get
+          cors: true
+
+  getDashboardStats:
+    handler: src/handlers/dashboard.getDashboardStats
+    timeout: 30
+    events:
+      - http:
+          path: /dashboard/stats
+          method: get
+          cors: true
+
+  # Responsables Management
+  getResponsables:
+    handler: src/handlers/responsables.getResponsables
+    timeout: 30
+    events:
+      - http:
+          path: /responsables
+          method: get
+          cors: true
+
+  getResponsable:
+    handler: src/handlers/responsables.getResponsable
+    timeout: 30
+    events:
+      - http:
+          path: /responsables/{id}
+          method: get
+          cors: true
+
+  createResponsable:
+    handler: src/handlers/responsables.createResponsable
+    timeout: 30
+    events:
+      - http:
+          path: /responsables
+          method: post
+          cors: true
+
+  updateResponsable:
+    handler: src/handlers/responsables.updateResponsable
+    timeout: 30
+    events:
+      - http:
+          path: /responsables/{id}
+          method: put
+          cors: true
+
+  deleteResponsable:
+    handler: src/handlers/responsables.deleteResponsable
+    timeout: 30
+    events:
+      - http:
+          path: /responsables/{id}
+          method: delete
+          cors: true
+
+  # Zonas Management
+  getZonas:
+    handler: src/handlers/zonas.getZonas
+    timeout: 30
+    events:
+      - http:
+          path: /zonas
+          method: get
+          cors: true
+
+  getZona:
+    handler: src/handlers/zonas.getZona
+    timeout: 30
+    events:
+      - http:
+          path: /zonas/{id}
+          method: get
+          cors: true
+
+  createZona:
+    handler: src/handlers/zonas.createZona
+    timeout: 30
+    events:
+      - http:
+          path: /zonas
+          method: post
+          cors: true
+
+  updateZona:
+    handler: src/handlers/zonas.updateZona
+    timeout: 30
+    events:
+      - http:
+          path: /zonas/{id}
+          method: put
+          cors: true
+
+  deleteZona:
+    handler: src/handlers/zonas.deleteZona
+    timeout: 30
+    events:
+      - http:
+          path: /zonas/{id}
+          method: delete
+          cors: true
+
+  # DynamoDB Stream Processor (CRITICAL)
+  dynamoStreamProcessor:
+    handler: src/handlers/dynamoStreamProcessor.handler
+    timeout: 60
+    memorySize: 512
+    events:
+      - stream:
+          type: dynamodb
+          arn: { Fn::GetAtt: [MainDynamoDBTable, StreamArn] }
+          batchSize: 10
+          startingPosition: LATEST
+          filterPatterns:
+            - eventName: [INSERT, MODIFY, REMOVE]
+
+  # Alternative Cognito Authentication
+  cognitoLogin:
+    handler: src/handlers/cognitoAuth.login
+    timeout: 30
+    events:
+      - http:
+          path: /auth/cognito/login
+          method: post
+          cors: true
+
+  cognitoRegister:
+    handler: src/handlers/cognitoAuth.register
+    timeout: 30
+    events:
+      - http:
+          path: /auth/cognito/register
+          method: post
+          cors: true
+
+  cognitoRefresh:
+    handler: src/handlers/cognitoAuth.refreshToken
+    timeout: 30
+    events:
+      - http:
+          path: /auth/cognito/refresh
+          method: post
+          cors: true

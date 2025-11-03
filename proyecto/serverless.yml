@@ -1,6 +1,6 @@
 service: sistema-gestion-espacios
 
-frameworkVersion: '3'
+frameworkVersion: '4'
 
 custom:
   configValidationMode: warn
@@ -44,10 +44,10 @@ custom:
   # === AUTOMATION HOOKS ===
   scriptable:
     hooks:
-      # PRE-DEPLOYMENT: Setup infrastructure
-      before:aws:deploy:deploy:createStack:
-        - echo "==> Deploying base infrastructure..."
-        - node ../infrastructure/deploy-infrastructure.js ${self:provider.stage}
+      # PRE-DEPLOYMENT: Setup infrastructure (comment out if AWS credentials not available)
+      # before:aws:deploy:deploy:createStack:
+      #   - echo "==> Deploying base infrastructure..."
+      #   - node ../infrastructure/deploy-infrastructure.js ${self:provider.stage}
       
       # FRONTEND BUILD & DEPLOYMENT
       after:aws:deploy:deploy:checkForChanges:
@@ -77,7 +77,7 @@ custom:
 
 plugins:
   - serverless-finch
-  - serverless-split-stacks
+  - serverless-plugin-split-stacks
   - serverless-scriptable-plugin
 
 provider:
@@ -105,6 +105,7 @@ provider:
     # === MESSAGING ===
     MAIN_QUEUE_URL: { Ref: MainQueue }
     DLQ_URL: { Ref: DeadLetterQueue }
+    DEVOPS_QUEUE_URL: { Ref: DevOpsQueue }
     
     # === SNS TOPICS ===
     SPACE_NOTIFICATIONS_TOPIC: { Ref: SpaceNotificationsTopic }
@@ -155,7 +156,7 @@ package:
     - '!.git/**'
     - '!docs/**'
     - 'src/**'
-    - 'scripts/**'
+    - 'scripts/**' 
 
 functions:
   # === CORE AUTHENTICATION ===
@@ -167,7 +168,6 @@ functions:
       - httpApi:
           path: /auth/login
           method: post
-          cors: true
 
   register:
     handler: src/handlers/auth.register
@@ -177,7 +177,6 @@ functions:
       - httpApi:
           path: /auth/register
           method: post
-          cors: true
 
   refreshToken:
     handler: src/handlers/auth.refreshToken
@@ -187,7 +186,6 @@ functions:
       - httpApi:
           path: /auth/refresh
           method: post
-          cors: true
 
   # === HEALTH & MONITORING ===
   healthCheck:
@@ -198,12 +196,11 @@ functions:
       - httpApi:
           path: /health
           method: get
-          cors: true
 
   # === DEVOPS AUTOMATION AS LAMBDA ===
   devopsAutomation:
     handler: src/handlers/devops.automation
-    timeout: 300
+    timeout: 30
     memorySize: 512
     events:
       - schedule: 
@@ -212,11 +209,23 @@ functions:
       - httpApi:
           path: /devops/automation
           method: post
-          cors: true
           authorizer:
             name: cognitoJwt
     environment:
       DEVOPS_MODE: automation
+
+  # Long-running DevOps automation (triggered via SQS for async processing)
+  devopsAutomationWorker:
+    handler: src/handlers/devops.automationWorker
+    timeout: 300
+    memorySize: 512
+    events:
+      - sqs:
+          arn: { Fn::GetAtt: [DevOpsQueue, Arn] }
+          batchSize: 1
+    environment:
+      DEVOPS_MODE: automation
+      WORKER_MODE: true
 
   devopsStatus:
     handler: src/handlers/devops.status
@@ -226,7 +235,6 @@ functions:
       - httpApi:
           path: /devops/status
           method: get
-          cors: true
 
   # === CHAOS ENGINEERING AS LAMBDA ===
   chaosEngineering:
@@ -237,13 +245,11 @@ functions:
       - httpApi:
           path: /chaos/test
           method: post
-          cors: true
           authorizer:
             name: cognitoJwt
       - httpApi:
           path: /chaos/proxy
           method: any
-          cors: true
     environment:
       CHAOS_MODE: testing
       CHAOS_TARGET_URL: 
@@ -259,7 +265,6 @@ functions:
       - httpApi:
           path: /users
           method: get
-          cors: true
           authorizer:
             name: cognitoJwt
 
@@ -271,7 +276,6 @@ functions:
       - httpApi:
           path: /users
           method: post
-          cors: true
           authorizer:
             name: cognitoJwt
 
@@ -284,7 +288,6 @@ functions:
       - httpApi:
           path: /espacios
           method: get
-          cors: true
           authorizer:
             name: cognitoJwt
 
@@ -296,7 +299,6 @@ functions:
       - httpApi:
           path: /espacios
           method: post
-          cors: true
           authorizer:
             name: cognitoJwt
 
@@ -309,7 +311,6 @@ functions:
       - httpApi:
           path: /reservas
           method: get
-          cors: true
           authorizer:
             name: cognitoJwt
 
@@ -321,7 +322,6 @@ functions:
       - httpApi:
           path: /reservas
           method: post
-          cors: true
           authorizer:
             name: cognitoJwt
 
@@ -369,14 +369,16 @@ functions:
     events:
       - sns:
           arn: { Ref: SpaceNotificationsTopic }
+          topicName: ${self:service}-${self:provider.stage}-space-notifications
       - sns:
           arn: { Ref: SystemAlertsTopic }
+          topicName: ${self:service}-${self:provider.stage}-system-alerts
 
   # === MISSING BUSINESS HANDLERS ===
   # Dashboard Analytics
   getDashboardMetrics:
     handler: src/handlers/dashboard.getDashboardMetrics
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /dashboard/metrics
@@ -385,7 +387,7 @@ functions:
 
   getDashboardStats:
     handler: src/handlers/dashboard.getDashboardStats
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /dashboard/stats
@@ -395,7 +397,7 @@ functions:
   # Responsables Management
   getResponsables:
     handler: src/handlers/responsables.getResponsables
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /responsables
@@ -404,7 +406,7 @@ functions:
 
   getResponsable:
     handler: src/handlers/responsables.getResponsable
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /responsables/{id}
@@ -413,7 +415,7 @@ functions:
 
   createResponsable:
     handler: src/handlers/responsables.createResponsable
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /responsables
@@ -422,7 +424,7 @@ functions:
 
   updateResponsable:
     handler: src/handlers/responsables.updateResponsable
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /responsables/{id}
@@ -431,7 +433,7 @@ functions:
 
   deleteResponsable:
     handler: src/handlers/responsables.deleteResponsable
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /responsables/{id}
@@ -441,7 +443,7 @@ functions:
   # Zonas Management
   getZonas:
     handler: src/handlers/zonas.getZonas
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /zonas
@@ -450,7 +452,7 @@ functions:
 
   getZona:
     handler: src/handlers/zonas.getZona
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /zonas/{id}
@@ -459,7 +461,7 @@ functions:
 
   createZona:
     handler: src/handlers/zonas.createZona
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /zonas
@@ -468,7 +470,7 @@ functions:
 
   updateZona:
     handler: src/handlers/zonas.updateZona
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /zonas/{id}
@@ -477,7 +479,7 @@ functions:
 
   deleteZona:
     handler: src/handlers/zonas.deleteZona
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /zonas/{id}
@@ -501,7 +503,7 @@ functions:
   # Alternative Cognito Authentication
   cognitoLogin:
     handler: src/handlers/cognitoAuth.login
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /auth/cognito/login
@@ -510,7 +512,7 @@ functions:
 
   cognitoRegister:
     handler: src/handlers/cognitoAuth.register
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /auth/cognito/register
@@ -519,7 +521,7 @@ functions:
 
   cognitoRefresh:
     handler: src/handlers/cognitoAuth.refreshToken
-    timeout: 30
+    timeout: 29
     events:
       - http:
           path: /auth/cognito/refresh
@@ -802,6 +804,14 @@ resources:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: ${self:service}-${self:provider.stage}-dlq
+        MessageRetentionPeriod: 1209600
+
+    # DevOps Automation Queue
+    DevOpsQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${self:provider.stage}-devops-queue
+        VisibilityTimeout: 360
         MessageRetentionPeriod: 1209600
 
     # === SNS TOPICS ===

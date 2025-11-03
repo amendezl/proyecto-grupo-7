@@ -18,7 +18,7 @@ if (!['dev', 'staging', 'prod'].includes(environment)) {
 }
 
 // Nombre del stack
-const stackName = `hospital-espacios-${environment}`;
+const stackName = `gestion-espacios-${environment}`;
 
 // Ruta del template CloudFormation
 const templatePath = path.resolve(__dirname, 'cloudformation-template.yml');
@@ -48,7 +48,7 @@ try {
     --stack-name ${stackName} \
     --parameter-overrides Environment=${environment} \
     --capabilities CAPABILITY_NAMED_IAM \
-    --tags Project=HospitalEspacios Environment=${environment}`,
+    --tags Project=GestionEspacios Environment=${environment}`,
     { stdio: 'inherit' }
   );
 
