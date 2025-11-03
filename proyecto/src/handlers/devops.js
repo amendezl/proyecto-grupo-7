@@ -3,42 +3,37 @@
  * Integra funcionalidades de la carpeta devops/ como funciones Lambda
  */
 
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient, DescribeTableCommand } = require('@aws-sdk/client-dynamodb');
 const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch');
 const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+const { SQSClient, GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
 
 const dynamodb = new DynamoDBClient({ region: process.env.REGION });
 const cloudwatch = new CloudWatchClient({ region: process.env.REGION });
 const sns = new SNSClient({ region: process.env.REGION });
+const sqs = new SQSClient({ region: process.env.REGION });
 
 /**
  * DevOps Automation Function
  * Ejecuta tareas automatizadas de DevOps como monitoreo, alertas, y mantenimiento
  */
-exports.automation = async (event, context) => {
+async function automation(event, context) {
   console.log('DevOps Automation triggered:', JSON.stringify(event, null, 2));
   
   try {
-    const tasks = [];
-    
-    // 1. Health Check de servicios críticos
-    tasks.push(await performHealthChecks());
-    
-    // 2. Monitoreo de métricas del sistema
-    tasks.push(await collectSystemMetrics());
-    
-    // 3. Verificación de alertas pendientes
-    tasks.push(await checkPendingAlerts());
-    
-    // 4. Limpieza de recursos temporales
-    tasks.push(await cleanupTempResources());
-    
-    // 5. Backup de estado crítico
-    tasks.push(await backupCriticalState());
+    const tasks = [
+      performHealthChecks(),
+      collectSystemMetrics(),
+      checkPendingAlerts(),
+      cleanupTempResources(),
+      backupCriticalState()
+    ];
     
     const results = await Promise.allSettled(tasks);
     
     // Compilar reporte de ejecución
+    const healthResult = results[0];
+
     const report = {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
@@ -49,7 +44,9 @@ exports.automation = async (event, context) => {
         task: getTaskName(index),
         status: result.status,
         result: result.status === 'fulfilled' ? result.value : result.reason?.message
-      }))
+      })),
+      health: healthResult?.status === 'fulfilled' ? healthResult.value : undefined,
+      healthError: healthResult?.status === 'rejected' ? healthResult.reason?.message : undefined
     };
     
     // Enviar reporte vía SNS si hay fallos
@@ -91,26 +88,45 @@ async function performHealthChecks() {
     checkWebSocketHealth(),
     checkQueueHealth()
   ];
-  
+
   const results = await Promise.allSettled(checks);
-  
-  // Publicar métricas de salud
-  const healthMetrics = results.map((result, index) => ({
-    MetricName: `HealthCheck_${getServiceName(index)}`,
-    Value: result.status === 'fulfilled' ? 1 : 0,
+
+  const services = results.map((result, index) => {
+    const serviceName = getServiceName(index);
+    if (result.status === 'fulfilled') {
+      return {
+        name: serviceName,
+        status: 'healthy',
+        details: result.value.details
+      };
+    }
+
+    return {
+      name: serviceName,
+      status: 'unhealthy',
+      error: result.reason?.message || 'Unknown error'
+    };
+  });
+
+  const metricData = services.map(service => ({
+    MetricName: `HealthCheck_${service.name}`,
+    Value: service.status === 'healthy' ? 1 : 0,
     Unit: 'Count',
     Timestamp: new Date()
   }));
-  
+
   await cloudwatch.send(new PutMetricDataCommand({
     Namespace: 'DevOps/HealthChecks',
-    MetricData: healthMetrics
+    MetricData: metricData
   }));
-  
+
   return {
     task: 'health_checks',
-    checks: results.length,
-    healthy: results.filter(r => r.status === 'fulfilled').length
+    summary: {
+      total: services.length,
+      healthy: services.filter(service => service.status === 'healthy').length
+    },
+    services
   };
 }
 
@@ -155,6 +171,33 @@ async function checkPendingAlerts() {
   };
 }
 
+async function status() {
+  console.log('DevOps status endpoint invoked');
+  try {
+    const healthReport = await performHealthChecks();
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({
+        message: 'DevOps status available',
+        environment: process.env.NODE_ENV,
+        timestamp: new Date().toISOString(),
+        summary: healthReport.summary,
+        services: healthReport.services
+      })
+    };
+  } catch (error) {
+    console.error('DevOps status check failed:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        message: 'DevOps status check failed',
+        error: error.message
+      })
+    };
+  }
+}
+
 /**
  * Limpiar recursos temporales
  */
@@ -181,23 +224,106 @@ async function backupCriticalState() {
  * Verificaciones de salud específicas
  */
 async function checkDatabaseHealth() {
-  // Implementar verificación de DynamoDB
-  return { service: 'database', status: 'healthy' };
+  const tableName = process.env.MAIN_TABLE;
+  if (!tableName) {
+    throw new Error('MAIN_TABLE environment variable is not defined');
+  }
+
+  const result = await dynamodb.send(new DescribeTableCommand({ TableName: tableName }));
+  const table = result.Table;
+
+  if (!table || table.TableStatus !== 'ACTIVE') {
+    const status = table?.TableStatus || 'UNKNOWN';
+    throw new Error(`DynamoDB table ${tableName} is not active (status: ${status})`);
+  }
+
+  return {
+    service: 'database',
+    status: 'healthy',
+    details: {
+      tableName,
+      itemCount: table.ItemCount ?? 0,
+      tableSizeBytes: table.TableSizeBytes ?? 0
+    }
+  };
 }
 
 async function checkApiHealth() {
-  // Implementar verificación de API Gateway
-  return { service: 'api', status: 'healthy' };
+  const apiBaseUrl = process.env.HTTP_API_URL;
+  if (!apiBaseUrl) {
+    throw new Error('HTTP_API_URL environment variable is not defined');
+  }
+
+  const start = Date.now();
+  const response = await fetch(`${apiBaseUrl}/health`, {
+    method: 'GET',
+    headers: { 'User-Agent': 'devops-automation/1.0' }
+  });
+  const elapsed = Date.now() - start;
+
+  if (!response.ok) {
+    throw new Error(`API health check failed with status ${response.status}`);
+  }
+
+  const payload = await response.json().catch(() => ({}));
+
+  return {
+    service: 'api',
+    status: 'healthy',
+    details: {
+      latencyMs: elapsed,
+      reportedStatus: payload.status || 'unknown'
+    }
+  };
 }
 
 async function checkWebSocketHealth() {
-  // Implementar verificación de WebSocket API
-  return { service: 'websocket', status: 'healthy' };
+  const connectionsTable = process.env.CONNECTIONS_TABLE;
+  if (!connectionsTable) {
+    throw new Error('CONNECTIONS_TABLE environment variable is not defined');
+  }
+
+  const result = await dynamodb.send(new DescribeTableCommand({ TableName: connectionsTable }));
+  const table = result.Table;
+
+  if (!table || table.TableStatus !== 'ACTIVE') {
+    const status = table?.TableStatus || 'UNKNOWN';
+    throw new Error(`Connections table ${connectionsTable} is not active (status: ${status})`);
+  }
+
+  return {
+    service: 'websocket',
+    status: 'healthy',
+    details: {
+      tableName: connectionsTable,
+      activeConnections: table.ItemCount ?? 0
+    }
+  };
 }
 
 async function checkQueueHealth() {
-  // Implementar verificación de SQS
-  return { service: 'queue', status: 'healthy' };
+  const queueUrl = process.env.MAIN_QUEUE_URL;
+  if (!queueUrl) {
+    throw new Error('MAIN_QUEUE_URL environment variable is not defined');
+  }
+
+  const response = await sqs.send(new GetQueueAttributesCommand({
+    QueueUrl: queueUrl,
+    AttributeNames: ['ApproximateNumberOfMessages', 'ApproximateNumberOfMessagesNotVisible']
+  }));
+
+  const messagesVisible = Number(response.Attributes?.ApproximateNumberOfMessages ?? '0');
+  const messagesInFlight = Number(response.Attributes?.ApproximateNumberOfMessagesNotVisible ?? '0');
+
+  return {
+    service: 'queue',
+    status: 'healthy',
+    details: {
+      queueUrl,
+      messagesVisible,
+      messagesInFlight
+    }
+  };
 }
 
 /**
@@ -247,6 +373,11 @@ function getTaskName(index) {
 }
 
 function getServiceName(index) {
-  const services = ['Database', 'API', 'WebSocket', 'Queue'];
-  return services[index] || `Service_${index}`;
+  const services = ['database', 'api', 'websocket', 'queue'];
+  return services[index] || `service_${index}`;
 }
+
+module.exports = {
+  automation,
+  status
+};

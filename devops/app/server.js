@@ -33,14 +33,18 @@ app.use(express.json());
 // Variables de configuración del entorno
 const API_BASE_URL = process.env.API_BASE_URL || 'https://api.sistema-espacios.com';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'https://sistema-espacios.com';
+const DEVOPS_STATUS_URL = process.env.DEVOPS_STATUS_URL || `${API_BASE_URL}/devops/status`;
 
 // Estado del sistema
 let systemStatus = {
   backend: 'unknown',
   frontend: 'unknown',
   database: 'unknown',
+  websocket: 'unknown',
+  queue: 'unknown',
   lastCheck: new Date(),
-  version: '2.0.0'
+  version: '2.0.0',
+  summary: {}
 };
 
 // Función para verificar el estado del backend serverless
@@ -67,15 +71,55 @@ async function checkFrontendHealth() {
   }
 }
 
-// Función para verificar el estado de DynamoDB (a través del backend)
-async function checkDatabaseHealth() {
+// Función para verificar estado consolidado de componentes backend
+async function checkDevOpsStatus() {
   try {
-    const response = await axios.get(`${API_BASE_URL}/system/health/database`, { timeout: 5000 });
-    systemStatus.database = response.data.status === 'OK' ? 'healthy' : 'unhealthy';
-    logger.info('Database health check: OK');
+    const response = await axios.get(DEVOPS_STATUS_URL, { timeout: 5000 });
+    if (response.status !== 200) {
+      throw new Error(`Unexpected status ${response.status}`);
+    }
+
+    const services = Array.isArray(response.data?.services) ? response.data.services : [];
+    const summaries = {};
+
+    services.forEach(service => {
+      if (!service?.name) {
+        return;
+      }
+
+      const status = service.status || 'unknown';
+      summaries[service.name] = {
+        status,
+        details: service.details || {}
+      };
+
+      if (service.name === 'database') {
+        systemStatus.database = status;
+      }
+
+      if (service.name === 'websocket') {
+        systemStatus.websocket = status;
+      }
+
+      if (service.name === 'queue') {
+        systemStatus.queue = status;
+      }
+    });
+
+    systemStatus.summary = {
+      ...systemStatus.summary,
+      devops: {
+        timestamp: response.data?.timestamp,
+        services: summaries
+      }
+    };
+
+    logger.info('DevOps status check: OK');
   } catch (error) {
     systemStatus.database = 'unhealthy';
-    logger.error('Database health check failed:', error.message);
+    systemStatus.websocket = 'unhealthy';
+    systemStatus.queue = 'unhealthy';
+    logger.error('DevOps status check failed:', error.message);
   }
 }
 
@@ -83,8 +127,8 @@ async function checkDatabaseHealth() {
 setInterval(async () => {
   await Promise.all([
     checkBackendHealth(),
-    checkFrontendHealth(), 
-    checkDatabaseHealth()
+    checkFrontendHealth(),
+    checkDevOpsStatus()
   ]);
   systemStatus.lastCheck = new Date();
 }, 30000);
@@ -179,7 +223,7 @@ app.listen(port, async () => {
   await Promise.all([
     checkBackendHealth(),
     checkFrontendHealth(),
-    checkDatabaseHealth()
+    checkDevOpsStatus()
   ]);
   
   console.log(`🚀 Sistema de Gestión de Espacios - Monitor DevOps v${systemStatus.version}`);

@@ -1,16 +1,16 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Red segura y segmentación para Sistema de Gestión de Espacios (Defense-in-Depth)'
+Description: 'Red segura y segmentación para el Sistema de Gestión de Espacios'
 
 Parameters:
+  ServiceName:
+    Type: String
+    Default: sistema-gestion-espacios
+    Description: Nombre lógico del servicio
   Environment:
     Type: String
     Default: dev
     AllowedValues: [dev, staging, prod]
     Description: Entorno de despliegue
-
-  ProjectName:
-    Type: String
-    Default: certamen3
 
   VPCCIDR:
     Type: String
@@ -45,12 +45,12 @@ Resources:
       CidrBlock: !Ref VPCCIDR
       EnableDnsHostnames: true
       EnableDnsSupport: true
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-vpc" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-vpc-${Environment}" }]
 
   IGW:
     Type: AWS::EC2::InternetGateway
     Properties:
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-igw" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-igw-${Environment}" }]
 
   AttachIGW:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -65,7 +65,7 @@ Resources:
       CidrBlock: !Ref PublicSubnetACIDR
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: true
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-public-a" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-public-a-${Environment}" }]
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
@@ -74,7 +74,7 @@ Resources:
       CidrBlock: !Ref PublicSubnetBCIDR
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: true
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-public-b" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-public-b-${Environment}" }]
 
   AppSubnetA:
     Type: AWS::EC2::Subnet
@@ -83,7 +83,7 @@ Resources:
       CidrBlock: !Ref AppSubnetACIDR
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: false
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-a" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-a-${Environment}" }]
 
   AppSubnetB:
     Type: AWS::EC2::Subnet
@@ -92,7 +92,7 @@ Resources:
       CidrBlock: !Ref AppSubnetBCIDR
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: false
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-b" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-b-${Environment}" }]
 
   DBSubnetA:
     Type: AWS::EC2::Subnet
@@ -101,7 +101,7 @@ Resources:
       CidrBlock: !Ref DBSubnetACIDR
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: false
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-a" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-db-a-${Environment}" }]
 
   DBSubnetB:
     Type: AWS::EC2::Subnet
@@ -110,13 +110,13 @@ Resources:
       CidrBlock: !Ref DBSubnetBCIDR
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: false
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-b" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-db-b-${Environment}" }]
 
   PublicRT:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-public-rt" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-public-rt-${Environment}" }]
 
   PublicRTDefaultRoute:
     Type: AWS::EC2::Route
@@ -147,13 +147,13 @@ Resources:
     Properties:
       AllocationId: !GetAtt NatEip.AllocationId
       SubnetId: !Ref PublicSubnetA
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-nat" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-nat-${Environment}" }]
 
   AppRT:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-rt" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-rt-${Environment}" }]
 
   AppRTDefaultRoute:
     Type: AWS::EC2::Route
@@ -178,7 +178,7 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-rt" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-db-rt-${Environment}" }]
 
   DBRTDefaultRoute:
     Type: AWS::EC2::Route
@@ -207,7 +207,7 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-vpce-sg" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-vpce-sg-${Environment}" }]
 
   VPCEndpointS3:
     Type: AWS::EC2::VPCEndpoint
@@ -241,7 +241,7 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-alb-sg" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-alb-sg-${Environment}" }]
 
   AppSG:
     Type: AWS::EC2::SecurityGroup
@@ -257,7 +257,7 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-sg" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-sg-${Environment}" }]
 
   DBSG:
     Type: AWS::EC2::SecurityGroup
@@ -273,13 +273,13 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-sg" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-db-sg-${Environment}" }]
 
   AppNACL:
     Type: AWS::EC2::NetworkAcl
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-nacl" }]
+      Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-nacl-${Environment}" }]
 
   AppNACLInboundAllowEphemeral:
     Type: AWS::EC2::NetworkAclEntry

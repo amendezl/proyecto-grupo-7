@@ -1,21 +1,21 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Perímetro seguro: CloudFront + WAF (básico) + cabeceras seguras'
+Description: 'Perímetro seguro: CloudFront + WAF + cabeceras seguras'
 
 Parameters:
+  ServiceName:
+    Type: String
+    Default: sistema-gestion-espacios
+    Description: Nombre lógico del servicio
   Environment:
     Type: String
     Default: dev
     AllowedValues: [dev, staging, prod]
     Description: Entorno de despliegue
 
-  ProjectName:
-    Type: String
-    Default: certamen3
-
   FrontendBucketName:
     Type: String
     Description: Nombre del bucket S3 que contiene el frontend estático
-    Default: proyecto-grupo7-frontend-dev
+    Default: sistema-gestion-espacios-frontend-dev
 
 Resources:
 
@@ -25,13 +25,13 @@ Resources:
   WebACL:
     Type: AWS::WAFv2::WebACL
     Properties:
-      Name: !Sub '${ProjectName}-web-acl-${Environment}'
+      Name: !Sub '${ServiceName}-web-acl-${Environment}'
       Scope: CLOUDFRONT
       DefaultAction:
         Allow: {}
       VisibilityConfig:
         CloudWatchMetricsEnabled: true
-        MetricName: !Sub '${ProjectName}-web-acl-${Environment}'
+        MetricName: !Sub '${ServiceName}-web-acl-${Environment}'
         SampledRequestsEnabled: true
       Rules:
         # Reglas administradas comunes de AWS (protección OWASP: SQLi, XSS, etc.)
@@ -45,7 +45,7 @@ Resources:
               Name: AWSManagedRulesCommonRuleSet
           VisibilityConfig:
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${ProjectName}-common-${Environment}'
+            MetricName: !Sub '${ServiceName}-common-${Environment}'
             SampledRequestsEnabled: true
 
         # Rate limiting (anti flood / DoS simple)
@@ -59,7 +59,7 @@ Resources:
               AggregateKeyType: IP
           VisibilityConfig:
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${ProjectName}-ratelimit-${Environment}'
+            MetricName: !Sub '${ServiceName}-ratelimit-${Environment}'
             SampledRequestsEnabled: true
 
   ########################################
@@ -68,7 +68,7 @@ Resources:
   SecurityHeadersFunction:
     Type: AWS::CloudFront::Function
     Properties:
-      Name: !Sub '${ProjectName}-security-headers-${Environment}'
+      Name: !Sub '${ServiceName}-security-headers-${Environment}'
       AutoPublish: true
       FunctionConfig:
         Comment: "Agrega cabeceras de seguridad a las respuestas"
@@ -112,7 +112,7 @@ Resources:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
       OriginAccessControlConfig:
-        Name: !Sub "${ProjectName}-oac-${Environment}"
+        Name: !Sub "${ServiceName}-oac-${Environment}"
         OriginAccessControlOriginType: s3
         SigningBehavior: always
         SigningProtocol: sigv4

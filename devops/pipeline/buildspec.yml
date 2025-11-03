@@ -19,6 +19,7 @@ phases:
       - echo "Iniciando build del Sistema de Gestión de Espacios..."
       - echo "Build iniciado en `date`"
       - echo "Commit SHA: $CODEBUILD_RESOLVED_SOURCE_VERSION"
+      - yum install -y jq > /tmp/jq-install.log
       
   pre_build:
     commands:
@@ -38,6 +39,9 @@ phases:
       - echo "Instalando dependencias del frontend..."
       - cd frontend && npm ci
       - cd ..
+
+  # Configurar URL de estado DevOps para reutilizar en la pipeline
+  - export DEVOPS_STATUS_URL="${API_BASE_URL}/devops/status"
       
       # Configurar Docker y ECR
       - echo "Configurando autenticación con ECR..."
@@ -66,7 +70,7 @@ phases:
       
       # Build del frontend
       - echo "Construyendo frontend del Sistema de Gestión de Espacios..."
-      - cd frontend && npm run build && cd ..
+  - cd frontend && npm run export && cd ..
       
       # Validación de la configuración serverless
       - echo "Validando configuración serverless del backend..."
@@ -96,6 +100,16 @@ phases:
       # Empaquetar el frontend para S3
       - echo "Empaquetando frontend para S3..."
       - cd frontend && zip -r ../frontend-build.zip out/ && cd ..
+
+  # Actualizar task definition con variables reales
+  - echo "Normalizando task definition para CodeDeploy..."
+  - ACCOUNT_ID=${ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}
+  - STATUS_URL=${DEVOPS_STATUS_URL:-${API_BASE_URL}/devops/status}
+  - TMP_TASKDEF=$(mktemp)
+  - sed "s#<ACCOUNT_ID>#${ACCOUNT_ID}#g" devops/pipeline/taskdef.json > $TMP_TASKDEF
+  - jq --arg api "$API_BASE_URL" --arg fe "$FRONTEND_URL" --arg status "$STATUS_URL" '.containerDefinitions[0].environment = (.containerDefinitions[0].environment | map(if .name == "API_BASE_URL" then .value = $api elif .name == "FRONTEND_URL" then .value = $fe elif .name == "DEVOPS_STATUS_URL" then .value = $status else . end))' $TMP_TASKDEF > devops/pipeline/taskdef.rendered.json
+  - mv devops/pipeline/taskdef.rendered.json devops/pipeline/taskdef.json
+  - rm -f $TMP_TASKDEF
       
       # Generar manifiesto de deployment
       - |

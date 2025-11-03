@@ -1,0 +1,134 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0,
+      "y": 0,
+      "width": 24,
+      "height": 3,
+      "properties": {
+        "markdown": "# Sistema de Gestión de Espacios\nMonitoreo unificado del despliegue serverless (Lambda, DynamoDB, SQS, Frontend, WebSocket)"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 3,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Estado DevOps (Lambda HealthChecks)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "stat": "Average",
+        "metrics": [
+          [ "DevOps/HealthChecks", "HealthCheck_database" ],
+          [ "DevOps/HealthChecks", "HealthCheck_api" ],
+          [ "DevOps/HealthChecks", "HealthCheck_websocket" ],
+          [ "DevOps/HealthChecks", "HealthCheck_queue" ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 3,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Carga Sistema DevOps",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "stat": "Average",
+        "yAxis": {
+          "left": {
+            "label": "Percent"
+          }
+        },
+        "metrics": [
+          [ "DevOps/System", "SystemLoad" ],
+          [ "DevOps/System", "AutomationRun", { "stat": "Sum", "yAxis": "right", "label": "Runs" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 9,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Lambda - Invocaciones vs Errores",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "metrics": [
+          [ "AWS/Lambda", "Invocations", "FunctionName", "sistema-gestion-espacios-prod-devopsAutomation", { "label": "DevOps Automation" } ],
+          [ ".", "Errors", ".", ".", { "label": "DevOps Errors", "yAxis": "right" } ],
+          [ "AWS/Lambda", "Invocations", "FunctionName", "sistema-gestion-espacios-prod-healthCheck", { "label": "API Health" } ],
+          [ ".", "Errors", ".", ".", { "label": "API Health Errors", "yAxis": "right" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 9,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "DynamoDB Throughput",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "metrics": [
+          [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "sistema-gestion-espacios-prod-main" ],
+          [ ".", "ConsumedWriteCapacityUnits", ".", ".", { "yAxis": "right" } ],
+          [ "AWS/DynamoDB", "ReturnedItemCount", "TableName", "sistema-gestion-espacios-prod-connections", { "label": "Active Connections" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 15,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "SQS Cola Principal",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "metrics": [
+          [ "AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "sistema-gestion-espacios-prod-main-queue" ],
+          [ ".", "ApproximateNumberOfMessagesNotVisible", ".", ".", { "label": "In Flight" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 15,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Frontend Latency (CloudFront)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "metrics": [
+          [ "AWS/CloudFront", "TotalErrorRate", "DistributionId", "YOUR_DISTRIBUTION_ID", "Region", "Global" ],
+          [ "AWS/CloudFront", "Requests", "DistributionId", "YOUR_DISTRIBUTION_ID", "Region", "Global", { "yAxis": "right" } ]
+        ]
+      }
+    }
+  ]
+}

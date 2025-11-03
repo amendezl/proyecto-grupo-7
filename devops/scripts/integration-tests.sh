@@ -10,6 +10,7 @@ set -euo pipefail
 MONITOR_URL="${MONITOR_URL:-http://localhost:3000}"
 API_BASE_URL="${API_BASE_URL:-https://api.sistema-espacios.com}"
 FRONTEND_URL="${FRONTEND_URL:-https://sistema-espacios.com}"
+DEVOPS_STATUS_URL="${DEVOPS_STATUS_URL:-${API_BASE_URL}/devops/status}"
 TIMEOUT=10
 
 # Colores para output
@@ -150,13 +151,18 @@ for endpoint_config in "${backend_endpoints[@]}"; do
     fi
 done
 
+# Test 7: DevOps status endpoint
+if ! test_json_response "$DEVOPS_STATUS_URL" "services" "DevOps Status Endpoint"; then
+    test_failures=$((test_failures + 1))
+fi
+
 # ========================================
 # TESTS DE FRONTEND
 # ========================================
 
 log "=== TESTS DE FRONTEND ==="
 
-# Test 7: Frontend availability
+# Test 8: Frontend availability
 if test_endpoint "$FRONTEND_URL" 200 "Frontend Availability"; then
     success "✓ Frontend está completamente accesible"
 else
@@ -164,7 +170,7 @@ else
     test_failures=$((test_failures + 1))
 fi
 
-# Test 8: Frontend assets básicos (si están disponibles)
+# Test 9: Frontend assets básicos (si están disponibles)
 frontend_assets=("/_next/static" "/favicon.ico" "/manifest.json")
 
 for asset in "${frontend_assets[@]}"; do
@@ -182,7 +188,7 @@ done
 
 log "=== TESTS DE INTEGRACIÓN COMPLETA ==="
 
-# Test 9: Monitor puede conectar con backend
+# Test 10: Monitor puede conectar con backend
 log "Testing: Monitor → Backend connectivity"
 monitor_status=$(curl -s "$MONITOR_URL/status" 2>/dev/null || echo '{}')
 
@@ -200,7 +206,7 @@ else
     test_failures=$((test_failures + 1))
 fi
 
-# Test 10: Monitor puede conectar con frontend
+# Test 11: Monitor puede conectar con frontend
 if echo "$monitor_status" | grep -q '"frontend"'; then
     frontend_status=$(echo "$monitor_status" | grep -o '"frontend":"[^"]*"' | cut -d'"' -f4)
     if [ "$frontend_status" = "healthy" ]; then
@@ -220,7 +226,7 @@ fi
 
 log "=== TESTS DE PERFORMANCE ==="
 
-# Test 11: Tiempo de respuesta del monitor
+# Test 12: Tiempo de respuesta del monitor
 log "Testing: Monitor response time"
 start_time=$(date +%s%N)
 curl -s "$MONITOR_URL/health" > /dev/null 2>&1

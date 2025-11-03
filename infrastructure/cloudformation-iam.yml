@@ -1,18 +1,22 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Roles IAM para Lambdas del proyecto Hospital-Espacios'
+Description: 'Roles IAM para Lambdas del Sistema de Gestión de Espacios'
 
 Parameters:
+  ServiceName:
+    Type: String
+    Default: sistema-gestion-espacios
+    Description: Nombre lógico del servicio
   Environment:
     Type: String
     Default: dev
     AllowedValues: [dev, staging, prod]
 
 Resources:
-  # Rol para Lambda PACIENTE
-  LambdaPacienteRole:
+  # Rol para Lambda API Core
+  LambdaApiRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'hospital-lambda-paciente-${Environment}'
+      RoleName: !Sub '${ServiceName}-lambda-api-${Environment}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -23,7 +27,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: DynamoDBPacienteAccess
+        - PolicyName: DynamoDBMainTableAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -35,14 +39,22 @@ Resources:
                   - dynamodb:DeleteItem
                   - dynamodb:Query
                   - dynamodb:Scan
-                Resource:
-                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/paciente-${Environment}"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main"
+               - Effect: Allow
+                 Action:
+                   - dynamodb:DescribeTable
+                   - dynamodb:DescribeStream
+                   - dynamodb:GetRecords
+                   - dynamodb:GetShardIterator
+                 Resource:
+                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main"
+                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main/stream/*"
 
-  # Rol para Lambda ATENCION
-  LambdaAtencionRole:
+  # Rol para Lambda Tiempo Real
+  LambdaRealtimeRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'hospital-lambda-atencion-${Environment}'
+      RoleName: !Sub '${ServiceName}-lambda-realtime-${Environment}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -53,7 +65,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: DynamoDBAtencionAccess
+        - PolicyName: DynamoDBConnectionsAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -66,13 +78,18 @@ Resources:
                   - dynamodb:Query
                   - dynamodb:Scan
                 Resource:
-                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/atencion-${Environment}"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-connections"
+               - Effect: Allow
+                 Action:
+                   - dynamodb:DescribeTable
+                 Resource:
+                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-connections"
 
-  # Rol para Lambda VACUNA
-  LambdaVacunaRole:
+  # Rol para Lambda de Operaciones y Circuit Breaker
+  LambdaOpsRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'hospital-lambda-vacuna-${Environment}'
+      RoleName: !Sub '${ServiceName}-lambda-ops-${Environment}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -83,7 +100,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: DynamoDBVacunaAccess
+        - PolicyName: DynamoDBCircuitStateAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -96,20 +113,32 @@ Resources:
                   - dynamodb:Query
                   - dynamodb:Scan
                 Resource:
-                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/vacuna-${Environment}"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-circuit-state"
+               - Effect: Allow
+                 Action:
+                   - dynamodb:DescribeTable
+                 Resource:
+                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-circuit-state"
+               - Effect: Allow
+                 Action:
+                   - dynamodb:PutItem
+                   - dynamodb:UpdateItem
+                   - dynamodb:GetItem
+                 Resource:
+                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main"
 
 Outputs:
-  LambdaPacienteRoleArn:
-    Value: !GetAtt LambdaPacienteRole.Arn
+  LambdaApiRoleArn:
+    Value: !GetAtt LambdaApiRole.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-LambdaPacienteRoleArn"
+      Name: !Sub "${AWS::StackName}-LambdaApiRoleArn"
 
-  LambdaAtencionRoleArn:
-    Value: !GetAtt LambdaAtencionRole.Arn
+  LambdaRealtimeRoleArn:
+    Value: !GetAtt LambdaRealtimeRole.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-LambdaAtencionRoleArn"
+      Name: !Sub "${AWS::StackName}-LambdaRealtimeRoleArn"
 
-  LambdaVacunaRoleArn:
-    Value: !GetAtt LambdaVacunaRole.Arn
+  LambdaOpsRoleArn:
+    Value: !GetAtt LambdaOpsRole.Arn
     Export:
-      Name: !Sub "${AWS::StackName}-LambdaVacunaRoleArn"
+      Name: !Sub "${AWS::StackName}-LambdaOpsRoleArn"

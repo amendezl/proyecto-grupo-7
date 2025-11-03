@@ -1,9 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Infraestructura para el Sistema de Gestión de Espacios'
+Description: 'Infraestructura base para el Sistema de Gestión de Espacios'
 
 # PARAMETROS
 
 Parameters:
+  ServiceName:
+    Type: String
+    Default: sistema-gestion-espacios
+    Description: Nombre lógico del servicio base
   Environment:
     Type: String
     Default: dev
@@ -12,14 +16,11 @@ Parameters:
 
   DomainName:
     Type: String
-    Default: hospital-espacios.example.com
+    Default: gestion-espacios.example.com
     Description: Nombre de dominio para el frontend
 
   # RED Y SEGMENTACIÓN
 
-  ProjectName:
-    Type: String
-    Default: certamen3
   VPCCIDR:
     Type: String
     Default: 10.0.0.0/16
@@ -51,7 +52,7 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub 'hospital-espacios-frontend-${Environment}-vacacerdogallinacaballo98765321'
+      BucketName: !Sub '${ServiceName}-frontend-${Environment}'
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -62,7 +63,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
         - Key: Project
-          Value: HospitalEspacios
+          Value: !Ref ServiceName
 
 
   CloudFrontOriginAccessControl:
@@ -112,7 +113,7 @@ Resources:
           - Key: Environment
             Value: !Ref Environment
           - Key: Project
-            Value: HospitalEspacios
+            Value: !Ref ServiceName
 
 
   FrontendBucketPolicy:
@@ -132,36 +133,48 @@ Resources:
 
   # DYNAMODB
   
-  EspaciosTable:
+  MainDynamoDBTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'hospital-espacios-${Environment}'
+      TableName: !Sub '${ServiceName}-${Environment}-main'
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: id
+        - AttributeName: PK
           AttributeType: S
-        - AttributeName: tipo
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
           AttributeType: S
       KeySchema:
-        - AttributeName: id
+        - AttributeName: PK
           KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
       GlobalSecondaryIndexes:
-        - IndexName: TipoIndex
+        - IndexName: GSI1
           KeySchema:
-            - AttributeName: tipo
+            - AttributeName: GSI1PK
               KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
           Projection:
             ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       Tags:
         - Key: Environment
           Value: !Ref Environment
         - Key: Project
-          Value: HospitalEspacios
+          Value: !Ref ServiceName
 
   WebSocketConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub 'hospital-ws-connections-${Environment}'
+      TableName: !Sub '${ServiceName}-${Environment}-connections'
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: connectionId
@@ -169,18 +182,38 @@ Resources:
       KeySchema:
         - AttributeName: connectionId
           KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
       Tags:
         - Key: Environment
           Value: !Ref Environment
         - Key: Project
-          Value: HospitalEspacios
+          Value: !Ref ServiceName
+
+  CircuitStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ServiceName}-${Environment}-circuit-state'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: serviceName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: serviceName
+          KeyType: HASH
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ServiceName
 
   # IAM
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'hospital-lambda-role-${Environment}'
+      RoleName: !Sub '${ServiceName}-lambda-role-${Environment}'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -203,9 +236,13 @@ Resources:
                   - dynamodb:DeleteItem
                   - dynamodb:Query
                   - dynamodb:Scan
+                  - dynamodb:DescribeStream
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
                 Resource:
-                  - !GetAtt EspaciosTable.Arn
+                  - !GetAtt MainDynamoDBTable.Arn
                   - !GetAtt WebSocketConnectionsTable.Arn
+                  - !GetAtt CircuitStateTable.Arn
         - PolicyName: APIGatewayManagement
           PolicyDocument:
             Version: '2012-10-17'
@@ -223,12 +260,12 @@ Resources:
       CidrBlock: !Ref VPCCIDR
       EnableDnsHostnames: true
       EnableDnsSupport: true
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-vpc" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-vpc-${Environment}" }]
 
   IGW:
     Type: AWS::EC2::InternetGateway
     Properties:
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-igw" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-igw-${Environment}" }]
 
   AttachIGW:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -244,7 +281,7 @@ Resources:
       CidrBlock: !Ref PublicSubnetACIDR
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: true
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-public-a" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-public-a-${Environment}" }]
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
@@ -253,7 +290,7 @@ Resources:
       CidrBlock: !Ref PublicSubnetBCIDR
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: true
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-public-b" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-public-b-${Environment}" }]
 
   AppSubnetA:
     Type: AWS::EC2::Subnet
@@ -262,7 +299,7 @@ Resources:
       CidrBlock: !Ref AppSubnetACIDR
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: false
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-a" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-a-${Environment}" }]
 
   AppSubnetB:
     Type: AWS::EC2::Subnet
@@ -271,7 +308,7 @@ Resources:
       CidrBlock: !Ref AppSubnetBCIDR
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: false
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-b" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-b-${Environment}" }]
 
   DBSubnetA:
     Type: AWS::EC2::Subnet
@@ -280,7 +317,7 @@ Resources:
       CidrBlock: !Ref DBSubnetACIDR
       AvailabilityZone: !Select [0, !GetAZs ""]
       MapPublicIpOnLaunch: false
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-a" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-db-a-${Environment}" }]
 
   DBSubnetB:
     Type: AWS::EC2::Subnet
@@ -289,14 +326,14 @@ Resources:
       CidrBlock: !Ref DBSubnetBCIDR
       AvailabilityZone: !Select [1, !GetAZs ""]
       MapPublicIpOnLaunch: false
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-b" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-db-b-${Environment}" }]
 
   # TABLAS DE ENRUTAMIENTO
   PublicRT:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-public-rt" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-public-rt-${Environment}" }]
 
   PublicRTDefaultRoute:
     Type: AWS::EC2::Route
@@ -328,13 +365,13 @@ Resources:
     Properties:
       AllocationId: !GetAtt NatEip.AllocationId
       SubnetId: !Ref PublicSubnetA
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-nat" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-nat-${Environment}" }]
 
   AppRT:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-rt" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-rt-${Environment}" }]
 
   AppRTDefaultRoute:
     Type: AWS::EC2::Route
@@ -359,7 +396,7 @@ Resources:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-rt" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-db-rt-${Environment}" }]
 
   DBRTDefaultRoute:
     Type: AWS::EC2::Route
@@ -397,7 +434,7 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-vpce-sg" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-vpce-sg-${Environment}" }]
 
   VPCEndpointSecrets:
     Type: AWS::EC2::VPCEndpoint
@@ -424,7 +461,7 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-alb-sg" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-alb-sg-${Environment}" }]
 
   AppSG:
     Type: AWS::EC2::SecurityGroup
@@ -440,7 +477,7 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-sg" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-sg-${Environment}" }]
 
   DBSG:
     Type: AWS::EC2::SecurityGroup
@@ -456,14 +493,14 @@ Resources:
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-db-sg" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-db-sg-${Environment}" }]
 
   # NACLs
   AppNACL:
     Type: AWS::EC2::NetworkAcl
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: !Sub "${ProjectName}-app-nacl" }]
+  Tags: [{ Key: Name, Value: !Sub "${ServiceName}-app-nacl-${Environment}" }]
 
   AppNACLInboundAllowEphemeral:
     Type: AWS::EC2::NetworkAclEntry
@@ -552,17 +589,23 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-CloudFrontDomainName"
 
-  EspaciosTableName:
-    Description: Nombre de la tabla DynamoDB para espacios
-    Value: !Ref EspaciosTable
+  MainTableName:
+    Description: Nombre de la tabla DynamoDB principal
+    Value: !Ref MainDynamoDBTable
     Export:
-      Name: !Sub "${AWS::StackName}-EspaciosTableName"
+      Name: !Sub "${AWS::StackName}-MainTableName"
 
   WebSocketConnectionsTableName:
     Description: Nombre de la tabla DynamoDB para conexiones WebSocket
     Value: !Ref WebSocketConnectionsTable
     Export:
       Name: !Sub "${AWS::StackName}-WebSocketConnectionsTableName"
+
+  CircuitStateTableName:
+    Description: Nombre de la tabla DynamoDB para estado del circuito
+    Value: !Ref CircuitStateTable
+    Export:
+      Name: !Sub "${AWS::StackName}-CircuitStateTableName"
 
   LambdaRoleName:
     Description: Nombre del rol IAM para funciones Lambda

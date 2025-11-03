@@ -2,7 +2,7 @@
 
 **Proyecto Arquitectura de Sistemas 2025-2**
 
-**Autores**: Benjamin Bennett Ramírez, Antonio Méndez Leiva y Tomás Rodríguez Álvarez
+**Autores**: Benjamin Bennett Ramírez, Marcial Ibáñez Saenz, Antonio Méndez Leiva, Tomás Rodríguez Álvarez
 
 **Docente**: Mauricio Alex Vásquez Duque
 

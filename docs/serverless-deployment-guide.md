@@ -9,26 +9,15 @@ Este documento describe la arquitectura y proceso de deployment **100% serverles
 - **Chaos Engineering**: Testing de resiliencia como funciones Lambda
 - **Infrastructure**: CloudFormation integrado en Serverless Framework
 
-## 📋 Configuraciones Disponibles
+## 📋 Configuración Disponible
 
-### 1. `serverless-unified.yml` - Configuración Completa
-- **95 funciones Lambda** con todas las características
-- **Frontend Next.js** con S3 + CloudFront
-- **DevOps automation** ejecutándose cada hora
-- **Chaos engineering** on-demand vía API
-- **Full monitoring** con CloudWatch + SNS alerts
-- **Clean Architecture** con SaaS integrations (Sentry)
-
-### 2. `serverless-minimal.yml` - Configuración Para AWS Lab
-- **2 funciones Lambda** básicas (health + auth)
-- **Sin recursos complejos** (compatible con labs)
-- **Mínimas variables de entorno**
-- **LabRole predefinido**
-
-### 3. `serverless.yml` - Configuración Standard
-- **Configuración intermedia** entre unified y minimal
-- **Funciones core** del negocio
-- **Split stacks** para deployments grandes
+### `serverless.yml` - Configuración Unificada
+- **Cobertura completa** de todas las funciones Lambda del proyecto
+- **Entrega integrada** de Frontend Next.js en S3 + CloudFront
+- **Automatización DevOps** programada y expuesta vía API
+- **Chaos engineering** habilitado bajo demanda
+- **Monitoring & Alerting** nativo con CloudWatch + SNS
+- **Clean Architecture** con adaptadores SaaS (Sentry, etc.)
 
 ## 🏗️ Arquitectura Serverless
 
@@ -87,13 +76,10 @@ node scripts/deploy-complete.js staging standard
 node scripts/migrate-infrastructure.js dev
 ```
 
-### 3. Deployment Directo con Serverless
+### Deployment Directo con Serverless
 ```bash
-# Configuración completa
-npx serverless deploy --config serverless-unified.yml --stage dev --region us-east-1
-
-# Configuración mínima (para labs)
-npx serverless deploy --config serverless-minimal.yml --stage dev --region us-east-1
+# Deployment completo usando la configuración unificada
+npx serverless deploy --stage dev --region us-east-1
 ```
 
 ## 📦 Integración de Componentes
@@ -165,19 +151,6 @@ CLOUDFRONT_DISTRIBUTION=auto-referenced
 
 ## 🎯 Comandos de Deployment por Entorno
 
-### AWS Academy Labs (Permisos Limitados)
-```bash
-# Setup inicial
-export AWS_ACCOUNT_ID=975050051149
-cd proyecto
-
-# Deployment mínimo
-npx serverless deploy --config serverless-minimal.yml --stage dev --region us-east-1
-
-# Verificar deployment
-curl https://YOUR-API-ID.execute-api.us-east-1.amazonaws.com/health
-```
-
 ### Entorno de Desarrollo Completo
 ```bash
 # Setup completo
@@ -189,7 +162,7 @@ export SENTRY_DSN=your-sentry-dsn
 export JWT_SECRET=your-jwt-secret
 
 # Deployment completo
-node scripts/deploy-complete.js dev unified
+node scripts/deploy-complete.js dev
 
 # Verificar servicios
 curl https://YOUR-API-ID.execute-api.us-east-1.amazonaws.com/health

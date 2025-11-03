@@ -51,6 +51,10 @@
           "name": "FRONTEND_URL", 
           "value": "https://sistema-espacios.com" 
         },
+        {
+          "name": "DEVOPS_STATUS_URL",
+          "value": "https://api.sistema-espacios.com/devops/status"
+        },
         { 
           "name": "LOG_LEVEL", 
           "value": "info" 
