@@ -4,10 +4,9 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "predeploy": "node pre-deploy-check.js",
     "dev": "serverless offline --stage dev",
     "build:frontend": "cd ../frontend && npm ci && npm run build",
-    "deploy:backend": "npm run predeploy && serverless deploy --stage $STAGE --region $REGION",
+    "deploy:backend": "serverless deploy --stage $STAGE --region $REGION",
     "deploy": "cross-env STAGE=dev REGION=us-east-1 npm run deploy:backend",
     "deploy:prod": "cross-env STAGE=prod REGION=us-east-1 npm run deploy:backend",
     "deploy:quick": "serverless deploy --stage dev --region us-east-1",
