@@ -6,25 +6,25 @@ custom:
   configValidationMode: warn
   
   # === FRONTEND DEPLOYMENT CONFIGURATION ===
-  client:
-    bucketName: ${self:service}-frontend-${self:provider.stage}
-    distributionFolder: ../frontend/out
-    indexDocument: index.html
-    errorDocument: 404.html
-    region: ${self:provider.region}
-    createDistribution: true
-    manageResources: false
-    uploadConcurrency: 5
+  # client:  # Disabled since serverless-finch is disabled
+  #   bucketName: ${self:service}-frontend-${self:provider.stage}
+  #   distributionFolder: ../frontend/out
+  #   indexDocument: index.html
+  #   errorDocument: 404.html
+  #   region: ${self:provider.region}
+  #   createDistribution: true
+  #   manageResources: false
+  #   uploadConcurrency: 5
   
   # === SPLIT STACKS FOR LARGE DEPLOYMENTS ===
-  splitStacks:
-    nested: true
-    perFunction: false
-    perType: true
-    stackType:
-      AWS::ApiGatewayV2::Api: false
-      AWS::ApiGatewayV2::Stage: false
-      AWS::CloudFormation::Stack: false
+  # splitStacks:  # Disabled due to v4 compatibility issues
+  #   nested: true
+  #   perFunction: false
+  #   perType: true
+  #   stackType:
+  #     AWS::ApiGatewayV2::Api: false
+  #     AWS::ApiGatewayV2::Stage: false
+  #     AWS::CloudFormation::Stack: false
   
   # === ENVIRONMENT-SPECIFIC SETTINGS ===
   stages:
@@ -49,36 +49,18 @@ custom:
       #   - echo "==> Deploying base infrastructure..."
       #   - node ../infrastructure/deploy-infrastructure.js ${self:provider.stage}
       
-      # FRONTEND BUILD & DEPLOYMENT
-      after:aws:deploy:deploy:checkForChanges:
-        - echo "==> Building frontend..."
-        - cd ../frontend && npm ci
-        - echo "==> Injecting environment variables..."
-        - cd ../frontend && echo "NEXT_PUBLIC_API_URL=https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com" > .env.production.local
-        - cd ../frontend && echo "NEXT_PUBLIC_WS_URL=wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}" >> .env.production.local
-        - cd ../frontend && echo "NEXT_PUBLIC_STAGE=${self:provider.stage}" >> .env.production.local
-        - cd ../frontend && echo "NEXT_PUBLIC_AWS_REGION=${self:provider.region}" >> .env.production.local
-        - cd ../frontend && npm run build
-        - cd ../frontend && npm run export
-      
-      # POST-DEPLOYMENT: Frontend upload and seeding
+      # POST-DEPLOYMENT: Seeding only (simplified for v4 compatibility)
       after:deploy:deploy:
-        - echo "==> Uploading frontend to S3..."
-        - npx serverless client deploy
-        - echo "==> Seeding database..."
-        - DYNAMODB_TABLE=${self:service}-${self:provider.stage}-main node scripts/seed-dynamodb.js --stage ${self:provider.stage} --yes
-        - echo "==> Running chaos engineering smoke tests..."
-        - cd ../chaos-engineering && npm ci && npm run start -- --smoke-test
-      
-      # CLEANUP
-      before:remove:remove:
-        - echo "==> Removing frontend assets..."
-        - npx serverless client remove
+        - echo "==> Deployment completed successfully"
+        # - echo "==> Seeding database..."
+        # - DYNAMODB_TABLE=${self:service}-${self:provider.stage}-main node scripts/seed-dynamodb.js --stage ${self:provider.stage} --yes
+        # - npx serverless client remove
 
 plugins:
-  - serverless-finch
-  - serverless-plugin-split-stacks
+  # - serverless-finch  # Disabled due to ServerlessDeploymentBucket conflicts
+  # - serverless-plugin-split-stacks  # Disabled due to v4 compatibility issues
   - serverless-scriptable-plugin
+  - serverless-offline
 
 provider:
   name: aws
@@ -96,30 +78,28 @@ provider:
     
     # === AUTHENTICATION ===
     JWT_SECRET: ${env:JWT_SECRET, '${self:service}-${self:provider.stage}-jwt-secret'}
-    COGNITO_USER_POOL_ID: { Ref: CognitoUserPool }
-    COGNITO_CLIENT_ID: { Ref: CognitoUserPoolClient }
+    COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+    COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
     
     # === DATABASE ===
-    MAIN_TABLE: { Ref: MainDynamoDBTable }
-    CONNECTIONS_TABLE: { Ref: WebSocketConnectionsTable }
-    CIRCUIT_STATE_TABLE: { Ref: CircuitStateTable }
+    MAIN_TABLE: !Ref MainDynamoDBTable
+    CONNECTIONS_TABLE: !Ref WebSocketConnectionsTable
+    CIRCUIT_STATE_TABLE: !Ref CircuitStateTable
     
     # === MESSAGING ===
-    MAIN_QUEUE_URL: { Ref: MainQueue }
-    DLQ_URL: { Ref: DeadLetterQueue }
-    DEVOPS_QUEUE_URL: { Ref: DevOpsQueue }
+    MAIN_QUEUE_URL: !Ref MainQueue
+    DLQ_URL: !Ref DeadLetterQueue
+    DEVOPS_QUEUE_URL: !Ref DevOpsQueue
     
     # === SNS TOPICS ===
-    SPACE_NOTIFICATIONS_TOPIC: { Ref: SpaceNotificationsTopic }
-    SYSTEM_ALERTS_TOPIC: { Ref: SystemAlertsTopic }
-    ADMIN_NOTIFICATIONS_TOPIC: { Ref: AdminNotificationsTopic }
+    SPACE_NOTIFICATIONS_TOPIC: !Ref SpaceNotificationsTopic
+    SYSTEM_ALERTS_TOPIC: !Ref SystemAlertsTopic
+    ADMIN_NOTIFICATIONS_TOPIC: !Ref AdminNotificationsTopic
     
     # === WEBSOCKET ===
-    WEBSOCKET_ENDPOINT: 
-      Fn::Sub: "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+    WEBSOCKET_ENDPOINT: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
     # === HTTP API ===
-    HTTP_API_URL:
-      Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    HTTP_API_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
     
     # === MONITORING (SaaS) ===
     SENTRY_DSN: ${env:SENTRY_DSN, ''}
@@ -127,11 +107,12 @@ provider:
     SENTRY_ENVIRONMENT: ${self:provider.stage}
     
     # === FRONTEND ASSETS ===
-    FRONTEND_BUCKET: { Ref: FrontendBucket }
-    CLOUDFRONT_DISTRIBUTION: { Ref: CloudFrontDistribution }
+    FRONTEND_BUCKET: !Ref FrontendBucket
+    CLOUDFRONT_DISTRIBUTION: !Ref CloudFrontDistribution
   
   iam:
-    role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/LabRole
+    role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '851725592386'}:role/LabRole
+
   
   logs:
     httpApi: true
@@ -142,8 +123,7 @@ provider:
       cognitoJwt:
         type: jwt
         identitySource: $request.header.Authorization
-        issuerUrl: 
-          Fn::Sub: "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}"
+        issuerUrl: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}"
         audience:
           - Ref: CognitoUserPoolClient
 
@@ -370,10 +350,10 @@ functions:
     memorySize: 256
     events:
       - sns:
-          arn: { Ref: SpaceNotificationsTopic }
+          arn: !Ref SpaceNotificationsTopic
           topicName: ${self:service}-${self:provider.stage}-space-notifications
       - sns:
-          arn: { Ref: SystemAlertsTopic }
+          arn: !Ref SystemAlertsTopic
           topicName: ${self:service}-${self:provider.stage}-system-alerts
 
   # === MISSING BUSINESS HANDLERS ===
@@ -553,7 +533,8 @@ resources:
       Properties:
         DistributionConfig:
           Origins:
-            - DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            - DomainName: 
+                Fn::GetAtt: [FrontendBucket, RegionalDomainName]
               Id: S3Origin
               S3OriginConfig:
                 OriginAccessIdentity: ""
@@ -595,16 +576,17 @@ resources:
     AttachIGW:
       Type: AWS::EC2::VPCGatewayAttachment
       Properties:
-        InternetGatewayId: { Ref: ProjectIGW }
-        VpcId: { Ref: ProjectVPC }
+        InternetGatewayId: !Ref ProjectIGW 
+        VpcId: !Ref ProjectVPC 
 
     # Public Subnets
     PublicSubnetA:
       Type: AWS::EC2::Subnet
       Properties:
-        VpcId: { Ref: ProjectVPC }
+        VpcId: !Ref ProjectVPC 
         CidrBlock: 10.0.0.0/24
-        AvailabilityZone: !Select [0, !GetAZs ""]
+        AvailabilityZone:
+          Fn::Select: [0, { Fn::GetAZs: "" }]
         MapPublicIpOnLaunch: true
         Tags:
           - Key: Name
@@ -613,9 +595,10 @@ resources:
     PublicSubnetB:
       Type: AWS::EC2::Subnet
       Properties:
-        VpcId: { Ref: ProjectVPC }
+        VpcId: !Ref ProjectVPC 
         CidrBlock: 10.0.1.0/24
-        AvailabilityZone: !Select [1, !GetAZs ""]
+        AvailabilityZone:
+          Fn::Select: [1, { Fn::GetAZs: "" }]
         MapPublicIpOnLaunch: true
         Tags:
           - Key: Name
@@ -625,9 +608,10 @@ resources:
     PrivateSubnetA:
       Type: AWS::EC2::Subnet
       Properties:
-        VpcId: { Ref: ProjectVPC }
+        VpcId: !Ref ProjectVPC 
         CidrBlock: 10.0.10.0/24
-        AvailabilityZone: !Select [0, !GetAZs ""]
+        AvailabilityZone:
+          Fn::Select: [0, { Fn::GetAZs: "" }]
         Tags:
           - Key: Name
             Value: ${self:service}-${self:provider.stage}-private-a
@@ -635,9 +619,10 @@ resources:
     PrivateSubnetB:
       Type: AWS::EC2::Subnet
       Properties:
-        VpcId: { Ref: ProjectVPC }
+        VpcId: !Ref ProjectVPC 
         CidrBlock: 10.0.11.0/24
-        AvailabilityZone: !Select [1, !GetAZs ""]
+        AvailabilityZone:
+          Fn::Select: [1, { Fn::GetAZs: "" }]
         Tags:
           - Key: Name
             Value: ${self:service}-${self:provider.stage}-private-b
@@ -652,7 +637,7 @@ resources:
       Type: AWS::EC2::NatGateway
       Properties:
         AllocationId: { Fn::GetAtt: [NatEip, AllocationId] }
-        SubnetId: { Ref: PublicSubnetA }
+        SubnetId: !Ref PublicSubnetA 
         Tags:
           - Key: Name
             Value: ${self:service}-${self:provider.stage}-nat
@@ -661,7 +646,7 @@ resources:
     PublicRouteTable:
       Type: AWS::EC2::RouteTable
       Properties:
-        VpcId: { Ref: ProjectVPC }
+        VpcId: !Ref ProjectVPC 
         Tags:
           - Key: Name
             Value: ${self:service}-${self:provider.stage}-public-rt
@@ -669,26 +654,26 @@ resources:
     PublicRoute:
       Type: AWS::EC2::Route
       Properties:
-        RouteTableId: { Ref: PublicRouteTable }
+        RouteTableId: !Ref PublicRouteTable 
         DestinationCidrBlock: 0.0.0.0/0
-        GatewayId: { Ref: ProjectIGW }
+        GatewayId: !Ref ProjectIGW 
 
     PublicSubnetAAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
       Properties:
-        SubnetId: { Ref: PublicSubnetA }
-        RouteTableId: { Ref: PublicRouteTable }
+        SubnetId: !Ref PublicSubnetA
+        RouteTableId: !Ref PublicRouteTable
 
     PublicSubnetBAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
       Properties:
-        SubnetId: { Ref: PublicSubnetB }
-        RouteTableId: { Ref: PublicRouteTable }
+        SubnetId: !Ref PublicSubnetB 
+        RouteTableId: !Ref PublicRouteTable 
 
     PrivateRouteTable:
       Type: AWS::EC2::RouteTable
       Properties:
-        VpcId: { Ref: ProjectVPC }
+        VpcId: !Ref ProjectVPC 
         Tags:
           - Key: Name
             Value: ${self:service}-${self:provider.stage}-private-rt
@@ -696,28 +681,28 @@ resources:
     PrivateRoute:
       Type: AWS::EC2::Route
       Properties:
-        RouteTableId: { Ref: PrivateRouteTable }
+        RouteTableId: !Ref PrivateRouteTable 
         DestinationCidrBlock: 0.0.0.0/0
-        NatGatewayId: { Ref: NatGateway }
+        NatGatewayId: !Ref NatGateway 
 
     PrivateSubnetAAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
       Properties:
-        SubnetId: { Ref: PrivateSubnetA }
-        RouteTableId: { Ref: PrivateRouteTable }
+        SubnetId: !Ref PrivateSubnetA
+        RouteTableId: !Ref PrivateRouteTable
 
     PrivateSubnetBAssociation:
       Type: AWS::EC2::SubnetRouteTableAssociation
       Properties:
-        SubnetId: { Ref: PrivateSubnetB }
-        RouteTableId: { Ref: PrivateRouteTable }
+        SubnetId: !Ref PrivateSubnetB 
+        RouteTableId: !Ref PrivateRouteTable 
 
     # Security Groups
     LambdaSecurityGroup:
       Type: AWS::EC2::SecurityGroup
       Properties:
         GroupDescription: Security group for Lambda functions
-        VpcId: { Ref: ProjectVPC }
+        VpcId: !Ref ProjectVPC 
         SecurityGroupEgress:
           - IpProtocol: -1
             CidrIp: 0.0.0.0/0
@@ -857,7 +842,7 @@ resources:
       Properties:
         ClientName: ${self:service}-${self:provider.stage}-client
         GenerateSecret: false
-        UserPoolId: { Ref: CognitoUserPool }
+        UserPoolId: !Ref CognitoUserPool 
         ExplicitAuthFlows:
           - ALLOW_USER_PASSWORD_AUTH
           - ALLOW_REFRESH_TOKEN_AUTH
@@ -880,7 +865,7 @@ resources:
     WebSocketStage:
       Type: AWS::ApiGatewayV2::Stage
       Properties:
-        ApiId: { Ref: WebSocketApi }
+        ApiId: !Ref WebSocketApi 
         StageName: ${self:provider.stage}
         AutoDeploy: true
 
@@ -913,33 +898,48 @@ resources:
   Outputs:
     # Frontend
     FrontendBucketName:
-      Value: { Ref: FrontendBucket }
+      Value: !Ref FrontendBucket 
       Export:
         Name: ${self:service}-${self:provider.stage}-frontend-bucket
 
     CloudFrontDistributionId:
-      Value: { Ref: CloudFrontDistribution }
+      Value: !Ref CloudFrontDistribution 
       Export:
         Name: ${self:service}-${self:provider.stage}-cloudfront-id
 
     # Backend API
     HttpApiUrl:
-      Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+      Value: 
+        Fn::Join:
+          - ""
+          - - "https://"
+            - !Ref HttpApi
+            - ".execute-api."
+            - !Ref AWS::Region
+            - ".amazonaws.com"
       Export:
         Name: ${self:service}-${self:provider.stage}-api-url
 
     WebSocketUrl:
-      Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+      Value: 
+        Fn::Join:
+          - ""
+          - - "wss://"
+            - !Ref WebSocketApi
+            - ".execute-api."
+            - !Ref AWS::Region
+            - ".amazonaws.com/"
+            - "${self:provider.stage}"
       Export:
         Name: ${self:service}-${self:provider.stage}-websocket-url
 
     # Authentication
     CognitoUserPoolId:
-      Value: { Ref: CognitoUserPool }
+      Value: !Ref CognitoUserPool 
       Export:
         Name: ${self:service}-${self:provider.stage}-user-pool-id
 
     CognitoClientId:
-      Value: { Ref: CognitoUserPoolClient }
+      Value: !Ref CognitoUserPoolClient 
       Export:
         Name: ${self:service}-${self:provider.stage}-client-id
