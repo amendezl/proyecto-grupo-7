@@ -95,7 +95,6 @@ provider:
           - { Ref: CognitoUserPoolClient }
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
-    AWS_REGION: ${self:provider.region}
     REGION: ${self:provider.region}
     STAGE: ${self:provider.stage}
     NODE_ENV: ${self:custom.stages.${self:provider.stage}.nodeEnv}
