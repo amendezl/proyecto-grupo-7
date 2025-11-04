@@ -85,6 +85,9 @@ provider:
   # Use existing IAM role to avoid permission issues in voclabs
   iam:
     role: arn:aws:iam::975050051149:role/LabRole
+  deploymentBucket:
+    name: ${self:service}-${self:provider.stage}-deployment
+    serverSideEncryption: AES256
   httpApi:
     authorizers:
       cognitoJwt:
