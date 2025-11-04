@@ -389,15 +389,15 @@ Outputs:
   #     Name: ${self:service}-${self:provider.stage}-cloudfront-id
 
   # Backend API
-  HttpApiUrl:
+  FrontendApiUrl:
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
     Export:
-      Name: ${self:service}-${self:provider.stage}-api-url
+      Name: ${self:service}-${self:provider.stage}-frontend-api-url
 
-  WebSocketUrl:
+  FrontendWebSocketUrl:
     Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
     Export:
-      Name: ${self:service}-${self:provider.stage}-websocket-url
+      Name: ${self:service}-${self:provider.stage}-frontend-websocket-url
 
   # Authentication
   CognitoUserPoolId:

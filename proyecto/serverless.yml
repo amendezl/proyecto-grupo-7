@@ -56,7 +56,7 @@ custom:
       after:deploy:deploy:
         - echo "==> Preparing frontend..."
         - cd ../frontend && npm ci
-        - STACK_NAME=${self:service}-${self:provider.stage}; API_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='HttpApiUrl'].OutputValue" --output text 2>/dev/null); WS_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='WebSocketUrl'].OutputValue" --output text 2>/dev/null); cd ../frontend && printf "NEXT_PUBLIC_API_URL=%s\nNEXT_PUBLIC_WS_URL=%s\nNEXT_PUBLIC_STAGE=%s\nNEXT_PUBLIC_AWS_REGION=%s\n" "$API_URL" "$WS_URL" "${self:provider.stage}" "${self:provider.region}" > .env.production.local
+        - STACK_NAME=${self:service}-${self:provider.stage}; API_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='FrontendApiUrl'].OutputValue" --output text 2>/dev/null); WS_URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='FrontendWebSocketUrl'].OutputValue" --output text 2>/dev/null); cd ../frontend && printf "NEXT_PUBLIC_API_URL=%s\nNEXT_PUBLIC_WS_URL=%s\nNEXT_PUBLIC_STAGE=%s\nNEXT_PUBLIC_AWS_REGION=%s\n" "$API_URL" "$WS_URL" "${self:provider.stage}" "${self:provider.region}" > .env.production.local
         - cd ../frontend && npm run build
         - cd ../frontend && npm run export
         - echo "==> Uploading frontend to S3..."
