@@ -6,8 +6,7 @@ Resources:
       BucketName: ${self:service}-frontend-${self:provider.stage}
       OwnershipControls:
         Rules:
-          - ObjectOwnership: ObjectWriter
-      AccessControl: PublicRead
+          - ObjectOwnership: BucketOwnerPreferred
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false
         BlockPublicPolicy: false
