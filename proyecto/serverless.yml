@@ -88,6 +88,15 @@ provider:
   runtime: nodejs22.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  httpApi:
+    authorizers:
+      cognitoJwt:
+        type: jwt
+        identitySource: '$request.header.Authorization'
+        issuerUrl:
+          Fn::Sub: https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}
+        audience:
+          - { Ref: CognitoUserPoolClient }
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
     AWS_REGION: ${self:provider.region}
