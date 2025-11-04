@@ -1,21 +1,4 @@
 Resources:
-  # S3 Bucket for frontend (managed by serverless-finch plugin)
-  # FrontendBucket:
-  #   Type: AWS::S3::Bucket
-  #   Properties:
-  #     BucketName: ${self:service}-frontend-${self:provider.stage}
-  #     OwnershipControls:
-  #       Rules:
-  #         - ObjectOwnership: BucketOwnerPreferred
-  #     PublicAccessBlockConfiguration:
-  #       BlockPublicAcls: false
-  #       BlockPublicPolicy: false
-  #       IgnorePublicAcls: false
-  #       RestrictPublicBuckets: false
-  #     WebsiteConfiguration:
-  #       IndexDocument: index.html
-  #       ErrorDocument: 404.html
-
   # S3 Bucket Policy for public read access (disabled due to IAM restrictions in voclabs)
   # FrontendBucketPolicy:
   #   Type: AWS::S3::BucketPolicy
@@ -392,11 +375,11 @@ Resources:
         }
 
 Outputs:
-  # Frontend
-  FrontendBucketName:
-    Value: { Ref: FrontendBucket }
-    Export:
-      Name: ${self:service}-${self:provider.stage}-frontend-bucket
+  # Frontend (bucket managed by serverless-finch plugin)
+  # FrontendBucketName:
+  #   Value: { Ref: FrontendBucket }
+  #   Export:
+  #     Name: ${self:service}-${self:provider.stage}-frontend-bucket
 
   # CloudFrontDistributionId (disabled - no CloudFront in voclabs)
   # CloudFrontDistributionId:
