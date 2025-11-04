@@ -8,24 +8,35 @@ const program = new Command();
 
 program
   .description('Start an HTTP proxy that can inject latency and error responses for resilience testing')
-  .requiredOption('-t, --target <url>', 'Target upstream server URL (e.g. http://localhost:3000)')
-  .option('-p, --port <number>', 'Port for the proxy to listen on', 9000)
-  .option('-l, --latency <ms>', 'Fixed latency to inject (ms)', 0)
-  .option('-e, --error-rate <percent>', 'Percentage of requests to fail (0-100)', 0)
-  .option('-s, --error-status <code>', 'HTTP status code to return for injected errors', 500)
+  .option('-t, --target <url>', 'Target upstream server URL (e.g. http://localhost:3000). Falls back to CHAOS_TARGET env var')
+  .option('-p, --port <number>', 'Port for the proxy to listen on. Falls back to CHAOS_PORT env var', 9000)
+  .option('-l, --latency <ms>', 'Fixed latency to inject (ms). Falls back to CHAOS_LATENCY env var', 0)
+  .option('-e, --error-rate <percent>', 'Percentage of requests to fail (0-100). Falls back to CHAOS_ERROR_RATE env var', 0)
+  .option('-s, --error-status <code>', 'HTTP status code to return for injected errors. Falls back to CHAOS_ERROR_STATUS env var', 500)
   .option('--show-config', 'Print resolved configuration and exit')
   .parse(process.argv);
 
 const opts = program.opts();
-const target = opts.target;
-const port = Number(opts.port);
-const latency = Number(opts.latency);
-const errorRate = Math.min(100, Math.max(0, Number(opts.errorRate)));
-const errorStatus = Number(opts.errorStatus);
+
+const toNumber = (value, fallback) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const target = opts.target ?? process.env.CHAOS_TARGET;
+const port = toNumber(opts.port ?? process.env.CHAOS_PORT, 9000);
+const latency = toNumber(opts.latency ?? process.env.CHAOS_LATENCY, 0);
+const errorRate = Math.min(100, Math.max(0, toNumber(opts.errorRate ?? process.env.CHAOS_ERROR_RATE, 0)));
+const errorStatus = toNumber(opts.errorStatus ?? process.env.CHAOS_ERROR_STATUS, 500);
 
 if (opts.showConfig) {
   console.log({ target, port, latency, errorRate, errorStatus });
-  process.exit(0);
+  process.exit(target ? 0 : 1);
+}
+
+if (!target) {
+  console.error('Error: target upstream URL is required (pass --target or set CHAOS_TARGET).');
+  process.exit(1);
 }
 
 const app = express();

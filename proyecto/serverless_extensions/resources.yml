@@ -1,370 +1,411 @@
-  Resources:
-    # S3 Bucket for frontend
-    FrontendBucket:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: ${self:service}-frontend-${self:provider.stage}
-        PublicAccessBlockConfiguration:
-          BlockPublicAcls: false
-          BlockPublicPolicy: false
-          IgnorePublicAcls: false
-          RestrictPublicBuckets: false
-        WebsiteConfiguration:
-          IndexDocument: index.html
-          ErrorDocument: 404.html
+Resources:
+  # S3 Bucket for frontend
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:service}-frontend-${self:provider.stage}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: 404.html
 
-    # CloudFront Distribution
-    CloudFrontDistribution:
-      Type: AWS::CloudFront::Distribution
-      Properties:
-        DistributionConfig:
-          Origins:
-            - DomainName: !GetAtt FrontendBucket.RegionalDomainName
-              Id: S3Origin
-              S3OriginConfig:
-                OriginAccessIdentity: ""
-          Enabled: true
-          DefaultRootObject: index.html
-          DefaultCacheBehavior:
-            TargetOriginId: S3Origin
-            ViewerProtocolPolicy: redirect-to-https
-            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
-          PriceClass: PriceClass_100
-          CustomErrorResponses:
-            - ErrorCode: 404
-              ResponseCode: 200
-              ResponsePagePath: /index.html
-            - ErrorCode: 403
-              ResponseCode: 200
-              ResponsePagePath: /index.html
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            Id: S3Origin
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        Enabled: true
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+        PriceClass: PriceClass_100
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
 
-    # === VPC INFRASTRUCTURE (OPTIONAL FOR ADVANCED DEPLOYMENT) ===
-    # VPC Main
-    ProjectVPC:
-      Type: AWS::EC2::VPC
-      Properties:
-        CidrBlock: 10.0.0.0/16
-        EnableDnsHostnames: true
-        EnableDnsSupport: true
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-vpc
+  # === VPC INFRASTRUCTURE (OPTIONAL FOR ADVANCED DEPLOYMENT) ===
+  # VPC Main
+  ProjectVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-vpc
 
-    # Internet Gateway
-    ProjectIGW:
-      Type: AWS::EC2::InternetGateway
-      Properties:
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-igw
+  # Internet Gateway
+  ProjectIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-igw
 
-    AttachIGW:
-      Type: AWS::EC2::VPCGatewayAttachment
-      Properties:
-        InternetGatewayId: { Ref: ProjectIGW }
-        VpcId: { Ref: ProjectVPC }
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: { Ref: ProjectIGW }
+      VpcId: { Ref: ProjectVPC }
 
-    # Public Subnets
-    PublicSubnetA:
-      Type: AWS::EC2::Subnet
-      Properties:
-        VpcId: { Ref: ProjectVPC }
-        CidrBlock: 10.0.0.0/24
-        AvailabilityZone: !Select [0, !GetAZs ""]
-        MapPublicIpOnLaunch: true
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-public-a
+  # Public Subnets
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-public-a
 
-    PublicSubnetB:
-      Type: AWS::EC2::Subnet
-      Properties:
-        VpcId: { Ref: ProjectVPC }
-        CidrBlock: 10.0.1.0/24
-        AvailabilityZone: !Select [1, !GetAZs ""]
-        MapPublicIpOnLaunch: true
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-public-b
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-public-b
 
-    # Private Subnets for Lambda
-    PrivateSubnetA:
-      Type: AWS::EC2::Subnet
-      Properties:
-        VpcId: { Ref: ProjectVPC }
-        CidrBlock: 10.0.10.0/24
-        AvailabilityZone: !Select [0, !GetAZs ""]
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-private-a
+  # Private Subnets for Lambda
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      CidrBlock: 10.0.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-private-a
 
-    PrivateSubnetB:
-      Type: AWS::EC2::Subnet
-      Properties:
-        VpcId: { Ref: ProjectVPC }
-        CidrBlock: 10.0.11.0/24
-        AvailabilityZone: !Select [1, !GetAZs ""]
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-private-b
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-private-b
 
-    # NAT Gateway (optional, for Lambda in VPC)
-    NatEip:
-      Type: AWS::EC2::EIP
-      Properties:
-        Domain: vpc
+  # NAT Gateway (optional, for Lambda in VPC)
+  NatEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
 
-    NatGateway:
-      Type: AWS::EC2::NatGateway
-      Properties:
-        AllocationId: { Fn::GetAtt: [NatEip, AllocationId] }
-        SubnetId: { Ref: PublicSubnetA }
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-nat
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: { Fn::GetAtt: [NatEip, AllocationId] }
+      SubnetId: { Ref: PublicSubnetA }
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-nat
 
-    # Route Tables
-    PublicRouteTable:
-      Type: AWS::EC2::RouteTable
-      Properties:
-        VpcId: { Ref: ProjectVPC }
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-public-rt
+  # Route Tables
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-public-rt
 
-    PublicRoute:
-      Type: AWS::EC2::Route
-      Properties:
-        RouteTableId: { Ref: PublicRouteTable }
-        DestinationCidrBlock: 0.0.0.0/0
-        GatewayId: { Ref: ProjectIGW }
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: { Ref: PublicRouteTable }
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: { Ref: ProjectIGW }
 
-    PublicSubnetAAssociation:
-      Type: AWS::EC2::SubnetRouteTableAssociation
-      Properties:
-        SubnetId: { Ref: PublicSubnetA }
-        RouteTableId: { Ref: PublicRouteTable }
+  PublicSubnetAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: { Ref: PublicSubnetA }
+      RouteTableId: { Ref: PublicRouteTable }
 
-    PublicSubnetBAssociation:
-      Type: AWS::EC2::SubnetRouteTableAssociation
-      Properties:
-        SubnetId: { Ref: PublicSubnetB }
-        RouteTableId: { Ref: PublicRouteTable }
+  PublicSubnetBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: { Ref: PublicSubnetB }
+      RouteTableId: { Ref: PublicRouteTable }
 
-    PrivateRouteTable:
-      Type: AWS::EC2::RouteTable
-      Properties:
-        VpcId: { Ref: ProjectVPC }
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-private-rt
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-private-rt
 
-    PrivateRoute:
-      Type: AWS::EC2::Route
-      Properties:
-        RouteTableId: { Ref: PrivateRouteTable }
-        DestinationCidrBlock: 0.0.0.0/0
-        NatGatewayId: { Ref: NatGateway }
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: { Ref: PrivateRouteTable }
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: { Ref: NatGateway }
 
-    PrivateSubnetAAssociation:
-      Type: AWS::EC2::SubnetRouteTableAssociation
-      Properties:
-        SubnetId: { Ref: PrivateSubnetA }
-        RouteTableId: { Ref: PrivateRouteTable }
+  PrivateSubnetAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: { Ref: PrivateSubnetA }
+      RouteTableId: { Ref: PrivateRouteTable }
 
-    PrivateSubnetBAssociation:
-      Type: AWS::EC2::SubnetRouteTableAssociation
-      Properties:
-        SubnetId: { Ref: PrivateSubnetB }
-        RouteTableId: { Ref: PrivateRouteTable }
+  PrivateSubnetBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: { Ref: PrivateSubnetB }
+      RouteTableId: { Ref: PrivateRouteTable }
 
-    # Security Groups
-    LambdaSecurityGroup:
-      Type: AWS::EC2::SecurityGroup
-      Properties:
-        GroupDescription: Security group for Lambda functions
-        VpcId: { Ref: ProjectVPC }
-        SecurityGroupEgress:
-          - IpProtocol: -1
-            CidrIp: 0.0.0.0/0
-        Tags:
-          - Key: Name
-            Value: ${self:service}-${self:provider.stage}-lambda-sg
+  # Security Groups
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Lambda functions
+      VpcId: { Ref: ProjectVPC }
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-lambda-sg
 
-    # === BACKEND INFRASTRUCTURE ===
-    # Main DynamoDB Table
-    MainDynamoDBTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:service}-${self:provider.stage}-main
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: PK
-            AttributeType: S
-          - AttributeName: SK
-            AttributeType: S
-          - AttributeName: GSI1PK
-            AttributeType: S
-          - AttributeName: GSI1SK
-            AttributeType: S
-        KeySchema:
-          - AttributeName: PK
-            KeyType: HASH
-          - AttributeName: SK
-            KeyType: RANGE
-        GlobalSecondaryIndexes:
-          - IndexName: GSI1
-            KeySchema:
-              - AttributeName: GSI1PK
-                KeyType: HASH
-              - AttributeName: GSI1SK
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-        StreamSpecification:
-          StreamViewType: NEW_AND_OLD_IMAGES
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
+  # === BACKEND INFRASTRUCTURE ===
+  # Main DynamoDB Table
+  MainDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${self:provider.stage}-main
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
 
-    # WebSocket Connections Table
-    WebSocketConnectionsTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:service}-${self:provider.stage}-connections
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: connectionId
-            AttributeType: S
-        KeySchema:
-          - AttributeName: connectionId
-            KeyType: HASH
-        TimeToLiveSpecification:
-          AttributeName: ttl
-          Enabled: true
+  # WebSocket Connections Table
+  WebSocketConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${self:provider.stage}-connections
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connectionId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
 
-    # Circuit Breaker State Table
-    CircuitStateTable:
-      Type: AWS::DynamoDB::Table
-      Properties:
-        TableName: ${self:service}-${self:provider.stage}-circuit-state
-        BillingMode: PAY_PER_REQUEST
-        AttributeDefinitions:
-          - AttributeName: serviceName
-            AttributeType: S
-        KeySchema:
-          - AttributeName: serviceName
-            KeyType: HASH
+  # Circuit Breaker State Table
+  CircuitStateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${self:provider.stage}-circuit-state
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: serviceName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: serviceName
+          KeyType: HASH
 
-    # === MESSAGING INFRASTRUCTURE ===
-    # Main Processing Queue
-    MainQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:service}-${self:provider.stage}-main-queue
-        VisibilityTimeout: 300
-        MessageRetentionPeriod: 1209600
-        RedrivePolicy:
-          deadLetterTargetArn: { Fn::GetAtt: [DeadLetterQueue, Arn] }
-          maxReceiveCount: 3
+  # === MESSAGING INFRASTRUCTURE ===
+  # Main Processing Queue
+  MainQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:service}-${self:provider.stage}-main-queue
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: { Fn::GetAtt: [DeadLetterQueue, Arn] }
+        maxReceiveCount: 3
 
-    # Dead Letter Queue
-    DeadLetterQueue:
-      Type: AWS::SQS::Queue
-      Properties:
-        QueueName: ${self:service}-${self:provider.stage}-dlq
-        MessageRetentionPeriod: 1209600
+  # Dead Letter Queue
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:service}-${self:provider.stage}-dlq
+      MessageRetentionPeriod: 1209600
 
-    # === SNS TOPICS ===
-    SpaceNotificationsTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: ${self:service}-${self:provider.stage}-space-notifications
-        DisplayName: Space Management Notifications
+  # DevOps Automation Queue
+  DevOpsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:service}-${self:provider.stage}-devops-queue
+      VisibilityTimeout: 360
+      MessageRetentionPeriod: 1209600
 
-    SystemAlertsTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: ${self:service}-${self:provider.stage}-system-alerts
-        DisplayName: System Alerts
+  # === SNS TOPICS ===
+  SpaceNotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:service}-${self:provider.stage}-space-notifications
+      DisplayName: Space Management Notifications
 
-    AdminNotificationsTopic:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: ${self:service}-${self:provider.stage}-admin-notifications
-        DisplayName: Admin Notifications
+  SystemAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:service}-${self:provider.stage}-system-alerts
+      DisplayName: System Alerts
 
-    # === COGNITO AUTHENTICATION ===
-    CognitoUserPool:
-      Type: AWS::Cognito::UserPool
-      Properties:
-        UserPoolName: ${self:service}-${self:provider.stage}-pool
-        UsernameAttributes:
-          - email
-        AutoVerifiedAttributes:
-          - email
-        Policies:
-          PasswordPolicy:
-            MinimumLength: 8
-            RequireLowercase: true
-            RequireNumbers: true
-            RequireSymbols: false
-            RequireUppercase: true
+  AdminNotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:service}-${self:provider.stage}-admin-notifications
+      DisplayName: Admin Notifications
 
-    CognitoUserPoolClient:
-      Type: AWS::Cognito::UserPoolClient
-      Properties:
-        ClientName: ${self:service}-${self:provider.stage}-client
-        GenerateSecret: false
-        UserPoolId: { Ref: CognitoUserPool }
-        ExplicitAuthFlows:
-          - ALLOW_USER_PASSWORD_AUTH
-          - ALLOW_REFRESH_TOKEN_AUTH
-        AccessTokenValidity: 60
-        IdTokenValidity: 60
-        RefreshTokenValidity: 30
-        TokenValidityUnits:
-          AccessToken: minutes
-          IdToken: minutes
-          RefreshToken: days
+  # === COGNITO AUTHENTICATION ===
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: ${self:service}-${self:provider.stage}-pool
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          RequireUppercase: true
 
-    # === WEBSOCKET API ===
-    WebSocketApi:
-      Type: AWS::ApiGatewayV2::Api
-      Properties:
-        Name: ${self:service}-websocket-${self:provider.stage}
-        ProtocolType: WEBSOCKET
-        RouteSelectionExpression: "$request.body.action"
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: ${self:service}-${self:provider.stage}-client
+      GenerateSecret: false
+      UserPoolId: { Ref: CognitoUserPool }
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
 
-    WebSocketStage:
-      Type: AWS::ApiGatewayV2::Stage
-      Properties:
-        ApiId: { Ref: WebSocketApi }
-        StageName: ${self:provider.stage}
-        AutoDeploy: true
+  # === WEBSOCKET API ===
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: ${self:service}-websocket-${self:provider.stage}
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: "$request.body.action"
 
-    # === MONITORING & ALERTING ===
-    # CloudWatch Dashboard
-    MonitoringDashboard:
-      Type: AWS::CloudWatch::Dashboard
-      Properties:
-        DashboardName: ${self:service}-${self:provider.stage}-monitoring
-        DashboardBody: !Sub |
-          {
-            "widgets": [
-              {
-                "type": "metric",
-                "properties": {
-                  "metrics": [
-                    ["AWS/Lambda", "Duration", "FunctionName", "${self:service}-${self:provider.stage}-login"],
-                    ["AWS/Lambda", "Errors", "FunctionName", "${self:service}-${self:provider.stage}-login"]
-                  ],
-                  "period": 300,
-                  "stat": "Average",
-                  "region": "${AWS::Region}",
-                  "title": "Lambda Performance"
-                }
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: { Ref: WebSocketApi }
+      StageName: ${self:provider.stage}
+      AutoDeploy: true
+
+  # === MONITORING & ALERTING ===
+  # CloudWatch Dashboard
+  MonitoringDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: ${self:service}-${self:provider.stage}-monitoring
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${self:service}-${self:provider.stage}-login"],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${self:service}-${self:provider.stage}-login"]
+                ],
+                "period": 300,
+                "stat": "Average",
+                "region": "${AWS::Region}",
+                "title": "Lambda Performance"
               }
-            ]
-          }
+            }
+          ]
+        }
 
-  
+Outputs:
+  # Frontend
+  FrontendBucketName:
+    Value: { Ref: FrontendBucket }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-frontend-bucket
+
+  CloudFrontDistributionId:
+    Value: { Ref: CloudFrontDistribution }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-cloudfront-id
+
+  # Backend API
+  HttpApiUrl:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Export:
+      Name: ${self:service}-${self:provider.stage}-api-url
+
+  WebSocketUrl:
+    Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+    Export:
+      Name: ${self:service}-${self:provider.stage}-websocket-url
+
+  # Authentication
+  CognitoUserPoolId:
+    Value: { Ref: CognitoUserPool }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-user-pool-id
+
+  CognitoClientId:
+    Value: { Ref: CognitoUserPoolClient }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-client-id
+

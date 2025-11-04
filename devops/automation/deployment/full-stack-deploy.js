@@ -42,7 +42,12 @@ function main() {
 
   runStep('Validaciones previas', 'bash', [join(scriptsDir, 'pre-deploy-checks.sh')]);
 
-  runStep('Despliegue backend Serverless', 'npm', ['run', 'deploy:backend'], { cwd: proyectoDir });
+  runStep(
+    'Despliegue backend Serverless',
+    process.platform === 'win32' ? 'npx.cmd' : 'npx',
+    ['serverless', 'deploy', '--stage', stage, '--region', region],
+    { cwd: proyectoDir }
+  );
 
   runStep('Exportación estática del frontend', 'npm', ['run', 'export'], { cwd: frontendDir });
 

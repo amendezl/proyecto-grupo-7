@@ -20,6 +20,39 @@ cd chaos-engineering; npm install
 node index.js --target http://localhost:3000 --port 9000 --latency 300 --error-rate 10 --error-status 503
 ```
 
+Environment variables are supported as fallbacks when running locally or inside Docker:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `CHAOS_TARGET` | Upstream URL (required if `--target` flag omitted) | — |
+| `CHAOS_PORT` | Listening port (maps to `--port`) | `9000` |
+| `CHAOS_LATENCY` | Injected latency in ms | `0` |
+| `CHAOS_ERROR_RATE` | Percentage of failed requests | `0` |
+| `CHAOS_ERROR_STATUS` | HTTP status for injected failures | `500` |
+
+### Smoke test
+
+Run the bundled smoke test (used by the deployment pipeline) which spins up an in-memory upstream server and validates the proxy path:
+
+```powershell
+npm run smoke
+```
+
+### Docker usage
+
+Build and run the proxy as a container. Provide configuration via environment variables.
+
+```powershell
+docker build -t chaos-proxy .
+docker run --rm -p 9000:9000 `
+  -e CHAOS_TARGET=http://host.docker.internal:3000 `
+  -e CHAOS_LATENCY=250 `
+  -e CHAOS_ERROR_RATE=5 `
+  chaos-proxy
+```
+
+`host.docker.internal` lets the container reach services running on the host machine when using Docker Desktop. Adjust the env vars to suit your experiment.
+
 3. Point your client (or browser) at `http://localhost:9000` instead of the upstream. The proxy will forward requests to the configured upstream but will sometimes delay responses or return injected errors.
 
 Safety and guidance
