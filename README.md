@@ -1,4 +1,4 @@
-# Sistema de Gestión de Espacios - Enterprise Grade
+# Sistema de Gestión de Espacios - Guía de Despliegue
 
 **Proyecto Arquitectura de Sistemas 2025-2**
 
@@ -6,48 +6,404 @@
 
 **Docente**: Mauricio Alex Vásquez Duque
 
+---
+
+## 📋 Tabla de Contenidos
+
+1. [Requisitos Previos](#requisitos-previos)
+2. [Configuración de la Instancia EC2](#configuración-de-la-instancia-ec2)
+3. [Instalación de Dependencias](#instalación-de-dependencias)
+4. [Configuración de AWS CLI](#configuración-de-aws-cli)
+5. [Clonación y Preparación del Proyecto](#clonación-y-preparación-del-proyecto)
+6. [Despliegue del Sistema](#despliegue-del-sistema)
+7. [Verificación del Despliegue](#verificación-del-despliegue)
+8. [URLs de la Aplicación](#urls-de-la-aplicación)
+
+---
+
+## 🔧 Requisitos Previos
+
+- **AWS Academy Account** con acceso a voclabs
+- **Instancia EC2 Ubuntu** (recomendado t2.medium o superior)
+- **Credenciales de AWS Academy** (Access Key ID y Secret Access Key)
+- **Puerto 22 (SSH)** habilitado en el Security Group
+
+---
+
+## 🖥️ Configuración de la Instancia EC2
+
+### 1. Conectar a la instancia
+
+```bash
+ssh -i tu-llave.pem ubuntu@tu-ip-publica
+```
+
+---
+
+## 📦 Instalación de Dependencias
+
+### 1. Actualizar el sistema
+
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+### 2. Instalar Node.js 22.x
+
+```bash
+# Agregar repositorio de Node.js 22.x
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+
+# Instalar Node.js y herramientas básicas
+sudo apt-get install -y nodejs git unzip curl
+
+# Verificar instalación
+node --version  # Debe mostrar v22.x.x
+npm --version   # Debe mostrar 10.x.x o superior
+```
+
+### 3. Instalar AWS CLI v2
+
+```bash
+# Descargar e instalar AWS CLI v2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+# Verificar instalación
+aws --version  # Debe mostrar aws-cli/2.x.x
+
+# Limpiar archivos temporales
+rm -rf awscliv2.zip aws/
+```
+
+### 4. Instalar Serverless Framework
+
+```bash
+# Instalar Serverless Framework globalmente con sudo
+sudo npm install -g serverless@4.22.0
+
+# Verificar instalación
+serverless --version  # Debe mostrar Framework Core: 4.22.0
+```
+
+---
+
+## 🔐 Configuración de AWS CLI
+
+### 1. Configurar credenciales de AWS Academy
+
+```bash
+aws configure
+```
+
+Ingresar los siguientes valores:
+- **AWS Access Key ID**: `[Tu Access Key de AWS Academy]`
+- **AWS Secret Access Key**: `[Tu Secret Key de AWS Academy]`
+- **Default region name**: `us-east-1`
+- **Default output format**: `json`
+
+### 2. Verificar configuración
+
+```bash
+# Verificar que las credenciales funcionen
+aws sts get-caller-identity
+```
+
+---
+
+## 📂 Clonación y Preparación del Proyecto
+
+### 1. Clonar el repositorio
+
+```bash
+cd ~
+git clone https://github.com/amendezl/proyecto-grupo-7.git
+cd proyecto-grupo-7
+```
+
+### 2. Instalar dependencias del backend
+
+```bash
+cd proyecto
+npm install
+```
+
+### 3. Instalar dependencias del frontend
+
+```bash
+cd ../frontend
+npm install
+cd ..
+```
+
+---
+
+## 🚀 Despliegue del Sistema
+
+### 1. Desplegar el stack completo
+
+```bash
+cd proyecto
+npx serverless deploy --stage dev
+```
+
+**⏱️ Tiempo estimado**: 3-5 minutos
+
+El despliegue incluye automáticamente:
+- ✅ **Backend**: 35 funciones Lambda
+- ✅ **Base de datos**: DynamoDB con 340 registros de prueba
+- ✅ **Frontend**: Compilación y subida a S3
+- ✅ **Autenticación**: AWS Cognito User Pool
+- ✅ **APIs**: API Gateway HTTP y WebSocket
+- ✅ **Tests**: Chaos engineering smoke tests
+
+### 2. Salida esperada
+
+Al finalizar, verás algo similar a:
+
+```
+✔ Service deployed to stack sistema-gestion-espacios-dev (297s)
+
+endpoints:
+  POST - https://[api-id].execute-api.us-east-1.amazonaws.com/auth/login
+  GET - https://[api-id].execute-api.us-east-1.amazonaws.com/health
+  ...
+
+functions:
+  login: sistema-gestion-espacios-dev-login (10 MB)
+  register: sistema-gestion-espacios-dev-register (10 MB)
+  ...
+
+Success! Your site should be available at http://sistema-gestion-espacios-frontend-dev.s3-website-us-east-1.amazonaws.com/
+```
+
+---
+
+## ✅ Verificación del Despliegue
+
+### 1. Verificar el stack de CloudFormation
+
+```bash
+aws cloudformation describe-stacks --stack-name sistema-gestion-espacios-dev
+```
+
+### 2. Probar el health check
+
+```bash
+# Reemplaza [api-id] con el ID de tu API Gateway
+curl https://[api-id].execute-api.us-east-1.amazonaws.com/health
+```
+
+### 3. Ver logs de una función Lambda
+
+```bash
+cd ~/proyecto-grupo-7/proyecto
+npx serverless logs -f healthCheck --stage dev
+```
+
+---
+
+## 🌐 URLs de la Aplicación
+
+### Frontend (Interfaz Web)
+
+```
+http://sistema-gestion-espacios-frontend-dev.s3-website-us-east-1.amazonaws.com/
+```
+
+### API Endpoints Principales
+
+**Base URL**: `https://[api-id].execute-api.us-east-1.amazonaws.com`
+
+- **Health Check**: `GET /health`
+- **Login**: `POST /auth/login`
+- **Registro**: `POST /auth/register`
+- **Usuarios**: `GET /users`
+- **Espacios**: `GET /espacios`
+- **Reservas**: `GET /reservas`
+
+### Dashboard y Métricas
+
+**Base URL**: `https://[api-id-2].execute-api.us-east-1.amazonaws.com/dev`
+
+- **Métricas**: `GET /dashboard/metrics`
+- **Estadísticas**: `GET /dashboard/stats`
+- **Responsables**: `GET /responsables`
+- **Zonas**: `GET /zonas`
+
+### WebSocket (Tiempo Real)
+
+```
+wss://[websocket-id].execute-api.us-east-1.amazonaws.com/dev
+```
+
+---
+
+## 🧪 Probar la Aplicación
+
+### 1. Abrir el frontend en el navegador
+
+Visita la URL del frontend y explora la interfaz:
+- Página de inicio
+- Registro de usuarios
+- Login
+- Dashboard
+- Gestión de espacios y reservas
+
+### 2. Probar APIs con curl
+
+```bash
+# Health check
+curl https://[api-id].execute-api.us-east-1.amazonaws.com/health
+
+# Ver usuarios (datos de prueba)
+curl https://[api-id].execute-api.us-east-1.amazonaws.com/users
+
+# Dashboard metrics
+curl https://[api-id-2].execute-api.us-east-1.amazonaws.com/dev/dashboard/metrics
+```
+
+### 3. Usar Postman o Thunder Client
+
+Importa los endpoints y prueba las diferentes funcionalidades del sistema.
+
+---
+
+## 🔄 Redespliegue y Actualizaciones
+
+### 1. Actualizar código
+
+```bash
+cd ~/proyecto-grupo-7
+git pull origin main
+```
+
+### 2. Redesplegar solo backend
+
+```bash
+cd proyecto
+npx serverless deploy --stage dev
+```
+
+### 3. Redesplegar solo frontend
+
+```bash
+cd proyecto
+npx serverless client deploy --no-confirm
+```
+
+---
+
+## 🗑️ Eliminar el Despliegue
+
+Para eliminar completamente el stack y todos los recursos:
+
+```bash
+cd ~/proyecto-grupo-7/proyecto
+npx serverless remove --stage dev
+```
+
+**⚠️ ADVERTENCIA**: Esto eliminará:
+- Todas las funciones Lambda
+- La tabla DynamoDB (y todos los datos)
+- El bucket S3 del frontend
+- El User Pool de Cognito
+- Todas las APIs
+
+---
+
+## 🐛 Solución de Problemas
+
+### Error: "No configuration file found"
+
+```bash
+# Asegúrate de estar en el directorio correcto
+cd ~/proyecto-grupo-7/proyecto
+```
+
+### Error: "EACCES: permission denied"
+
+```bash
+# Usar sudo para instalaciones globales
+sudo npm install -g serverless@4.22.0
+```
+
+### Error: "Credentials expired"
+
+```bash
+# Reconfigurar AWS CLI con nuevas credenciales de AWS Academy
+aws configure
+```
+
+### Frontend muestra 403 Forbidden
+
+```bash
+# Resubir frontend con permisos públicos
+cd ~/proyecto-grupo-7/proyecto
+aws s3 sync ../frontend/out s3://sistema-gestion-espacios-frontend-dev --acl public-read --delete
+```
+
+---
+
+## 📝 Notas Importantes
+
+- **AWS Academy**: Las credenciales expiran después de 4 horas. Reconfigura con `aws configure` cuando sea necesario.
+- **Región**: Siempre usar `us-east-1` para compatibilidad con AWS Academy.
+- **Costos**: El sistema serverless tiene costos mínimos. La capa gratuita de AWS cubre la mayoría del uso de desarrollo.
+- **Limpieza**: No olvides ejecutar `serverless remove` al finalizar para evitar costos innecesarios.
+
+---
+
+## 🎯 Arquitectura del Sistema
+
 ☁️ **Arquitectura 100% Serverless**
 
 ### **🎪 Backend Serverless (AWS)**
 - **Runtime**: Node.js 22 en AWS Lambda
 - **Database**: DynamoDB serverless
-- **API**: AWS API Gateway
+- **API**: AWS API Gateway (HTTP + WebSocket)
 - **Auth**: AWS Cognito
 - **Mensajes**: SQS + SNS
 - **Escalado**: Automático e infinito
 - **Costo**: $0 cuando no se usa
 
-### **🌐 Frontend Serverless (AWS S3 + CloudFront)**
-
-| **Característica** | **Implementación** | **Beneficio** |
-|-------------------|-------------------|---------------|
-| **🪣 Storage** | AWS S3 | Almacenamiento escalable y confiable |
-| **🌐 CDN** | CloudFront | Distribución global y baja latencia |
-| **🔒 HTTPS** | ACM Certificate | Seguridad de extremo a extremo |
-| **🚀 Deploy** | Automatizado | Despliegue unificado con backend |
+### **🌐 Frontend Serverless (AWS S3)**
+- **Storage**: AWS S3 con hosting web estático
+- **Framework**: Next.js 15 con exportación estática
+- **Despliegue**: Automatizado con serverless-finch
+- **Acceso**: URL pública del bucket S3
 
 ### **🎯 Beneficios Serverless Completo**
 - ✅ **Costo**: Solo pagas por requests reales
 - ✅ **Escalado**: De 0 a millones automáticamente  
 - ✅ **Mantenimiento**: Cero servidores que mantener
-- ✅ **Performance**: Edge computing global
+- ✅ **Performance**: Baja latencia global
 - ✅ **Seguridad**: Managed services enterprise
 - ✅ **Deploy**: Git push = deploy automático
 
-## 🏥 Optimizaciones Móviles
+---
 
-## 🎯 Descripción
+## 📚 Recursos Adicionales
 
-Sistema empresarial de gestión de espacios desarrollado con **Node.js**, **AWS Serverless** y **Arquitectura Enterprise**. Diseñado para la administración eficiente de espacios en organizaciones (oficinas, centros educativos, hospitales, centros de conferencias, etc.). Sistema **100% funcional web y móvil** con garantías anti-scroll y optimizaciones para todas las orientaciones de pantalla.
+- **Documentación de Serverless Framework**: https://www.serverless.com/framework/docs/
+- **AWS Lambda**: https://aws.amazon.com/lambda/
+- **AWS DynamoDB**: https://aws.amazon.com/dynamodb/
+- **AWS Cognito**: https://aws.amazon.com/cognito/
+- **Next.js**: https://nextjs.org/
 
-## 🚀 Tecnologías
+---
 
-- **Runtime**: Node.js 22
-- **Cloud**: AWS Lambda + API Gateway + DynamoDB + Cognito + SQS + SNS  
-- **Framework**: Serverless Framework v4
-- **Arquitectura**: Clean Architecture (api/ · core/ · infrastructure/ · shared/) + Microservicios Serverless + ARM64
-- **Autenticación**: AWS Cognito JWT
-- **Resiliencia**: Retry + Circuit Breaker + Bulkhead Patterns
+## 👥 Soporte
+
+Para preguntas o problemas:
+1. Revisar la sección de [Solución de Problemas](#solución-de-problemas)
+2. Consultar la documentación oficial de AWS y Serverless Framework
+3. Contactar al equipo de desarrollo
+
+---
+
+**🎉 ¡Listo! Tu sistema está desplegado y funcionando en AWS.**
 
 ### 🧱 Clean Architecture y Desacoplamiento
 
