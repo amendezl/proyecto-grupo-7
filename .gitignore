@@ -21,9 +21,7 @@ lerna-debug.log*
 !.yarn/versions
 .pnp.*
 
-# Package files
-package-lock.json
-yarn.lock
+# Package manager config
 .npmrc
 
 # ============================================================================
