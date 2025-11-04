@@ -4,6 +4,10 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: ${self:service}-frontend-${self:provider.stage}
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+      AccessControl: PublicRead
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false
         BlockPublicPolicy: false
