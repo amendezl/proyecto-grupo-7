@@ -13,18 +13,18 @@ Resources:
         IndexDocument: index.html
         ErrorDocument: 404.html
 
-  # S3 Bucket Policy for public read access
-  FrontendBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref FrontendBucket
-      PolicyDocument:
-        Statement:
-          - Sid: PublicReadGetObject
-            Effect: Allow
-            Principal: "*"
-            Action: s3:GetObject
-            Resource: !Sub "${FrontendBucket}/*"
+  # S3 Bucket Policy for public read access (disabled due to IAM restrictions in voclabs)
+  # FrontendBucketPolicy:
+  #   Type: AWS::S3::BucketPolicy
+  #   Properties:
+  #     Bucket: !Ref FrontendBucket
+  #     PolicyDocument:
+  #       Statement:
+  #         - Sid: PublicReadGetObject
+  #           Effect: Allow
+  #           Principal: "*"
+  #           Action: s3:GetObject
+  #           Resource: !Sub "${FrontendBucket}/*"
 
   # CloudFront Distribution (disabled due to IAM restrictions in voclabs)
   # CloudFrontDistribution:
