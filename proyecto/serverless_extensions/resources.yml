@@ -38,158 +38,158 @@ Resources:
   #           ResponseCode: 200
   #           ResponsePagePath: /index.html
 
-  # === VPC INFRASTRUCTURE (OPTIONAL FOR ADVANCED DEPLOYMENT) ===
-  # VPC Main
-  ProjectVPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsHostnames: true
-      EnableDnsSupport: true
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-vpc
+  # === VPC INFRASTRUCTURE (DISABLED FOR VOCLABS) ===
+  # Using default VPC instead of custom VPC to avoid network conflicts in AWS Academy
+  # ProjectVPC:
+  #   Type: AWS::EC2::VPC
+  #   Properties:
+  #     CidrBlock: 10.0.0.0/16
+  #     EnableDnsHostnames: true
+  #     EnableDnsSupport: true
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-vpc
 
   # Internet Gateway
-  ProjectIGW:
-    Type: AWS::EC2::InternetGateway
-    Properties:
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-igw
+  # ProjectIGW:
+  #   Type: AWS::EC2::InternetGateway
+  #   Properties:
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-igw
 
-  AttachIGW:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      InternetGatewayId: { Ref: ProjectIGW }
-      VpcId: { Ref: ProjectVPC }
+  # AttachIGW:
+  #   Type: AWS::EC2::VPCGatewayAttachment
+  #   Properties:
+  #     InternetGatewayId: { Ref: ProjectIGW }
+  #     VpcId: { Ref: ProjectVPC }
 
   # Public Subnets
-  PublicSubnetA:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: { Ref: ProjectVPC }
-      CidrBlock: 10.0.0.0/24
-      AvailabilityZone: !Select [0, !GetAZs ""]
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-public-a
+  # PublicSubnetA:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     VpcId: { Ref: ProjectVPC }
+  #     CidrBlock: 10.0.0.0/24
+  #     AvailabilityZone: !Select [0, !GetAZs ""]
+  #     MapPublicIpOnLaunch: true
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-public-a
 
-  PublicSubnetB:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: { Ref: ProjectVPC }
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [1, !GetAZs ""]
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-public-b
+  # PublicSubnetB:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     VpcId: { Ref: ProjectVPC }
+  #     CidrBlock: 10.0.1.0/24
+  #     AvailabilityZone: !Select [1, !GetAZs ""]
+  #     MapPublicIpOnLaunch: true
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-public-b
 
   # Private Subnets for Lambda
-  PrivateSubnetA:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: { Ref: ProjectVPC }
-      CidrBlock: 10.0.10.0/24
-      AvailabilityZone: !Select [0, !GetAZs ""]
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-private-a
+  # PrivateSubnetA:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     VpcId: { Ref: ProjectVPC }
+  #     CidrBlock: 10.0.10.0/24
+  #     AvailabilityZone: !Select [0, !GetAZs ""]
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-private-a
 
-  PrivateSubnetB:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: { Ref: ProjectVPC }
-      CidrBlock: 10.0.11.0/24
-      AvailabilityZone: !Select [1, !GetAZs ""]
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-private-b
+  # PrivateSubnetB:
+  #   Type: AWS::EC2::Subnet
+  #   Properties:
+  #     VpcId: { Ref: ProjectVPC }
+  #     CidrBlock: 10.0.11.0/24
+  #     AvailabilityZone: !Select [1, !GetAZs ""]
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-private-b
 
   # NAT Gateway (optional, for Lambda in VPC)
-  NatEip:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
+  # NatEip:
+  #   Type: AWS::EC2::EIP
+  #   Properties:
+  #     Domain: vpc
 
-  NatGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: { Fn::GetAtt: [NatEip, AllocationId] }
-      SubnetId: { Ref: PublicSubnetA }
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-nat
+  # NatGateway:
+  #   Type: AWS::EC2::NatGateway
+  #   Properties:
+  #     AllocationId: { Fn::GetAtt: [NatEip, AllocationId] }
+  #     SubnetId: { Ref: PublicSubnetA }
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-nat
 
   # Route Tables
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: { Ref: ProjectVPC }
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-public-rt
+  # PublicRouteTable:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: { Ref: ProjectVPC }
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-public-rt
 
-  PublicRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: { Ref: PublicRouteTable }
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: { Ref: ProjectIGW }
+  # PublicRoute:
+  #   Type: AWS::EC2::Route
+  #   Properties:
+  #     RouteTableId: { Ref: PublicRouteTable }
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     GatewayId: { Ref: ProjectIGW }
 
-  PublicSubnetAAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: { Ref: PublicSubnetA }
-      RouteTableId: { Ref: PublicRouteTable }
+  # PublicSubnetAAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     SubnetId: { Ref: PublicSubnetA }
+  #     RouteTableId: { Ref: PublicRouteTable }
 
-  PublicSubnetBAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: { Ref: PublicSubnetB }
-      RouteTableId: { Ref: PublicRouteTable }
+  # PublicSubnetBAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     SubnetId: { Ref: PublicSubnetB }
+  #     RouteTableId: { Ref: PublicRouteTable }
 
-  PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: { Ref: ProjectVPC }
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-private-rt
+  # PrivateRouteTable:
+  #   Type: AWS::EC2::RouteTable
+  #   Properties:
+  #     VpcId: { Ref: ProjectVPC }
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-private-rt
 
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: { Ref: PrivateRouteTable }
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: { Ref: NatGateway }
+  # PrivateRoute:
+  #   Type: AWS::EC2::Route
+  #   Properties:
+  #     RouteTableId: { Ref: PrivateRouteTable }
+  #     DestinationCidrBlock: 0.0.0.0/0
+  #     NatGatewayId: { Ref: NatGateway }
 
-  PrivateSubnetAAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: { Ref: PrivateSubnetA }
-      RouteTableId: { Ref: PrivateRouteTable }
+  # PrivateSubnetAAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     SubnetId: { Ref: PrivateSubnetA }
+  #     RouteTableId: { Ref: PrivateRouteTable }
 
-  PrivateSubnetBAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: { Ref: PrivateSubnetB }
-      RouteTableId: { Ref: PrivateRouteTable }
+  # PrivateSubnetBAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Properties:
+  #     SubnetId: { Ref: PrivateSubnetB }
+  #     RouteTableId: { Ref: PrivateRouteTable }
 
   # Security Groups
-  LambdaSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for Lambda functions
-      VpcId: { Ref: ProjectVPC }
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: ${self:service}-${self:provider.stage}-lambda-sg
+  # LambdaSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Security group for Lambda functions
+  #     VpcId: { Ref: ProjectVPC }
+  #     SecurityGroupEgress:
+  #       - IpProtocol: -1
+  #         CidrIp: 0.0.0.0/0
+  #     Tags:
+  #       - Key: Name
+  #         Value: ${self:service}-${self:provider.stage}-lambda-sg
 
   # === BACKEND INFRASTRUCTURE ===
   # Main DynamoDB Table
