@@ -375,12 +375,6 @@ Resources:
         }
 
 Outputs:
-  # Frontend (bucket managed by serverless-finch plugin)
-  # FrontendBucketName:
-  #   Value: { Ref: FrontendBucket }
-  #   Export:
-  #     Name: ${self:service}-${self:provider.stage}-frontend-bucket
-
   # CloudFrontDistributionId (disabled - no CloudFront in voclabs)
   # CloudFrontDistributionId:
   #   Value: { Ref: CloudFrontDistribution }
