@@ -14,7 +14,7 @@ custom:
     region: ${self:provider.region}
     acl: public-read
     createDistribution: false # CAMBIAR A "true" SI TIENE PERMISO PARA CREAR CLOUDFRONT
-    manageResources: false
+    manageResources: true
     uploadConcurrency: 5
   
   # === SPLIT STACKS FOR LARGE DEPLOYMENTS ===
