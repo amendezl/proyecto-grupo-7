@@ -5,5 +5,11 @@
 
 const businessLogic = require('../../api/system/healthCheck.js');
 
+// Main handler for /health endpoint
+module.exports.handler = businessLogic.getResilienceHealth;
+
 // Export all functions from business logic as Lambda handlers
-module.exports = businessLogic;
+module.exports = {
+    ...module.exports,
+    ...businessLogic
+};
