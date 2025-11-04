@@ -141,42 +141,85 @@ cd ..
 
 ## 🚀 Despliegue del Sistema
 
-### 1. Desplegar el stack completo
+### 1. Crear el bucket de deployment (solo primera vez)
 
 ```bash
-cd proyecto
+# Crear bucket para el despliegue de Serverless Framework
+aws s3 mb s3://sistema-gestion-espacios-dev-deployment --region us-east-1
+```
+
+### 2. Desplegar el stack completo
+
+```bash
+cd ~/proyecto-grupo-7/proyecto
 npx serverless deploy --stage dev
 ```
 
-**⏱️ Tiempo estimado**: 3-5 minutos
+**⏱️ Tiempo estimado**: 4-6 minutos
 
-El despliegue incluye automáticamente:
-- ✅ **Backend**: 35 funciones Lambda
-- ✅ **Base de datos**: DynamoDB con 340 registros de prueba
-- ✅ **Frontend**: Compilación y subida a S3
-- ✅ **Autenticación**: AWS Cognito User Pool
-- ✅ **APIs**: API Gateway HTTP y WebSocket
-- ✅ **Tests**: Chaos engineering smoke tests
+El despliegue ejecuta automáticamente estos pasos (mediante hooks configurados en `serverless.yml`):
 
-### 2. Salida esperada
+1. **Preparación del Frontend**
+   - `npm ci` para instalar dependencias
+   - Genera `.env.production.local` con URLs de las APIs desde CloudFormation outputs
+   
+2. **Compilación del Frontend**
+   - `npm run build` - Compila Next.js 15.5.3 en modo producción
+   - `npm run export` - Genera exportación estática en `out/`
 
-Al finalizar, verás algo similar a:
+3. **Despliegue del Backend**
+   - ✅ **35 funciones Lambda** (Node.js 22.x, ~10 MB cada una)
+   - ✅ **DynamoDB** - Tabla principal con streams
+   - ✅ **AWS Cognito** - User Pool y App Client
+   - ✅ **API Gateway HTTP** - APIs RESTful
+   - ✅ **API Gateway WebSocket** - Comunicación en tiempo real
+   - ✅ **SQS + SNS** - Colas y notificaciones
+   
+4. **Subida del Frontend a S3**
+   - `serverless client deploy` - Plugin serverless-finch sube archivos estáticos
+   - Configura bucket como website hosting
+   - Aplica ACL `public-read` a todos los objetos
+
+5. **Población de Base de Datos**
+   - Script `seed-dynamodb.js` inserta **340 registros de prueba**
+   - Incluye: usuarios, espacios, reservas, responsables, zonas
+
+6. **Tests de Chaos Engineering**
+   - Smoke tests en `chaos-engineering/`
+   - Verifica resiliencia de las APIs
+
+### 3. Salida esperada
+
+### 3. Salida esperada
+
+Al finalizar exitosamente, verás:
 
 ```
-✔ Service deployed to stack sistema-gestion-espacios-dev (297s)
+✔ Service deployed to stack sistema-gestion-espacios-dev (234-297s)
 
 endpoints:
   POST - https://[api-id].execute-api.us-east-1.amazonaws.com/auth/login
+  POST - https://[api-id].execute-api.us-east-1.amazonaws.com/auth/register
   GET - https://[api-id].execute-api.us-east-1.amazonaws.com/health
-  ...
+  GET - https://[api-id].execute-api.us-east-1.amazonaws.com/users
+  GET - https://[api-id].execute-api.us-east-1.amazonaws.com/espacios
+  GET - https://[api-id].execute-api.us-east-1.amazonaws.com/reservas
+  GET - https://[api-id-2].execute-api.us-east-1.amazonaws.com/dev/dashboard/metrics
+  GET - https://[api-id-2].execute-api.us-east-1.amazonaws.com/dev/dashboard/stats
+  wss://[websocket-id].execute-api.us-east-1.amazonaws.com/dev
 
 functions:
   login: sistema-gestion-espacios-dev-login (10 MB)
   register: sistema-gestion-espacios-dev-register (10 MB)
-  ...
+  healthCheck: sistema-gestion-espacios-dev-healthCheck (10 MB)
+  ... (35 funciones en total)
 
 Success! Your site should be available at http://sistema-gestion-espacios-frontend-dev.s3-website-us-east-1.amazonaws.com/
+Seeding finished. (340 items inserted)
+Smoke test finished (Chaos engineering tests)
 ```
+
+**Nota**: Copia y guarda las URLs de los endpoints, las necesitarás para probar la aplicación.
 
 ---
 
@@ -282,15 +325,31 @@ git pull origin main
 ### 2. Redesplegar solo backend
 
 ```bash
-cd proyecto
+cd ~/proyecto-grupo-7/proyecto
 npx serverless deploy --stage dev
 ```
 
-### 3. Redesplegar solo frontend
+**Nota**: Esto también ejecutará los hooks post-deploy (frontend build, seeding, tests).
+
+### 3. Redesplegar solo frontend (sin backend)
 
 ```bash
-cd proyecto
+# Opción 1: Usando serverless-finch
+cd ~/proyecto-grupo-7/proyecto
 npx serverless client deploy --no-confirm
+
+# Opción 2: Compilar y subir manualmente
+cd ~/proyecto-grupo-7/frontend
+npm run build
+cd ../proyecto
+aws s3 sync ../frontend/out s3://sistema-gestion-espacios-frontend-dev --acl public-read --delete
+```
+
+### 4. Solo sembrar base de datos
+
+```bash
+cd ~/proyecto-grupo-7/proyecto
+DYNAMODB_TABLE=sistema-gestion-espacios-dev-main node scripts/seed-dynamodb.js --stage dev --yes
 ```
 
 ---
@@ -338,20 +397,73 @@ aws configure
 
 ### Frontend muestra 403 Forbidden
 
+El frontend está configurado con `serverless-finch` que aplica automáticamente ACL `public-read`. Si aún ves 403:
+
 ```bash
-# Resubir frontend con permisos públicos
+# Verificar que el bucket existe
+aws s3 ls s3://sistema-gestion-espacios-frontend-dev/
+
+# Resubir frontend con permisos públicos explícitos
 cd ~/proyecto-grupo-7/proyecto
+npx serverless client deploy --no-confirm
+
+# O manualmente con AWS CLI
 aws s3 sync ../frontend/out s3://sistema-gestion-espacios-frontend-dev --acl public-read --delete
 ```
+
+### Error: "The CloudFormation template is invalid"
+
+```bash
+# Limpiar caché de Serverless
+cd ~/proyecto-grupo-7/proyecto
+rm -rf .serverless
+
+# Volver a desplegar
+npx serverless deploy --stage dev
+```
+
+### Despliegue se queda colgado o toma mucho tiempo
+
+- El despliegue normal toma **4-6 minutos**
+- La primera vez puede tardar más (creación de recursos)
+- Si pasa de 10 minutos, cancela (Ctrl+C) y vuelve a intentar
 
 ---
 
 ## 📝 Notas Importantes
 
-- **AWS Academy**: Las credenciales expiran después de 4 horas. Reconfigura con `aws configure` cuando sea necesario.
-- **Región**: Siempre usar `us-east-1` para compatibilidad con AWS Academy.
-- **Costos**: El sistema serverless tiene costos mínimos. La capa gratuita de AWS cubre la mayoría del uso de desarrollo.
-- **Limpieza**: No olvides ejecutar `serverless remove` al finalizar para evitar costos innecesarios.
+### AWS Academy Voclabs
+- **Credenciales**: Expiran después de **4 horas**. Reconfigura con `aws configure` cuando veas errores de autenticación.
+- **IAM Role**: El sistema usa `LabRole` existente (ARN: `arn:aws:iam::975050051149:role/LabRole`)
+- **Restricciones**: No se pueden crear nuevos roles IAM ni políticas de bucket (por eso usamos ACLs)
+
+### Configuración Específica
+- **Región**: Siempre usar `us-east-1` para compatibilidad con AWS Academy
+- **Node.js**: Requiere versión 22.x o superior (compatible con Lambda nodejs22.x runtime)
+- **Serverless Framework**: Versión 4.22.0 específica para compatibilidad
+
+### Deployment Bucket
+- Nombre: `sistema-gestion-espacios-dev-deployment`
+- Se crea automáticamente en el primer despliegue
+- Almacena los artefactos de CloudFormation y el código de las funciones Lambda
+
+### Frontend
+- Build output: `frontend/out/` (18 páginas estáticas)
+- Bucket S3: `sistema-gestion-espacios-frontend-dev`
+- ACL: `public-read` aplicada por serverless-finch
+- Tamaño: ~45MB de archivos JavaScript/CSS/HTML
+
+### Costos Estimados
+- **Desarrollo**: ~$0-2/día (dentro de capa gratuita de AWS)
+- **Lambda**: 1M requests/mes gratis, luego $0.20/1M requests
+- **DynamoDB**: 25GB storage gratis, luego $0.25/GB/mes
+- **S3**: 5GB storage gratis, luego $0.023/GB/mes
+- **Limpieza**: Ejecuta `serverless remove` al finalizar para evitar costos
+
+### Base de Datos
+- Tabla principal: `sistema-gestion-espacios-dev-main`
+- Datos de prueba: 340 registros insertados automáticamente
+- Incluye: 100 usuarios, 80 espacios, 100 reservas, 30 responsables, 30 zonas
 
 ---
 
@@ -360,18 +472,23 @@ aws s3 sync ../frontend/out s3://sistema-gestion-espacios-frontend-dev --acl pub
 ☁️ **Arquitectura 100% Serverless**
 
 ### **🎪 Backend Serverless (AWS)**
-- **Runtime**: Node.js 22 en AWS Lambda
-- **Database**: DynamoDB serverless
+- **Runtime**: Node.js 22.x en AWS Lambda
+- **Database**: DynamoDB serverless con streams
 - **API**: AWS API Gateway (HTTP + WebSocket)
-- **Auth**: AWS Cognito
-- **Mensajes**: SQS + SNS
-- **Escalado**: Automático e infinito
-- **Costo**: $0 cuando no se usa
+- **Auth**: AWS Cognito User Pool + JWT
+- **Mensajes**: Amazon SQS (colas) + Amazon SNS (notificaciones)
+- **Monitoring**: CloudWatch Logs + Métricas personalizadas
+- **Deployment**: Serverless Framework 4.22.0 con split-stacks
+- **Escalado**: Automático e infinito (0 a millones)
+- **Costo**: $0 cuando no se usa (pay-per-use)
 
 ### **🌐 Frontend Serverless (AWS S3)**
 - **Storage**: AWS S3 con hosting web estático
-- **Framework**: Next.js 15 con exportación estática
-- **Despliegue**: Automatizado con serverless-finch
+- **Framework**: Next.js 15.5.3 con exportación estática
+- **UI**: React 19.1.0 + TailwindCSS 3.4.0
+- **Despliegue**: Automatizado con serverless-finch plugin
+- **ACL**: `public-read` para acceso público
+- **CDN**: Compatible con CloudFront (deshabilitado en voclabs)
 - **Acceso**: URL pública del bucket S3
 
 ### **🎯 Beneficios Serverless Completo**
