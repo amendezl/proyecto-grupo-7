@@ -390,17 +390,26 @@ Outputs:
   # Backend API
   HttpApiUrl:
     Value:
-      Fn::GetAtt:
-        - HttpApi
-        - ApiEndpoint
+      Fn::Join:
+        - ''
+        - - 'https://'
+          - { Ref: HttpApi }
+          - '.execute-api.'
+          - { Ref: 'AWS::Region' }
+          - '.amazonaws.com'
     Export:
       Name: ${self:service}-${self:provider.stage}-api-url
 
   WebSocketUrl:
     Value:
-      Fn::GetAtt:
-        - WebSocketApi
-        - ApiEndpoint
+      Fn::Join:
+        - ''
+        - - 'wss://'
+          - { Ref: WebSocketApi }
+          - '.execute-api.'
+          - { Ref: 'AWS::Region' }
+          - '.amazonaws.com/'
+          - { Ref: WebSocketStage }
     Export:
       Name: ${self:service}-${self:provider.stage}-websocket-url
 
