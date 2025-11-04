@@ -44,7 +44,7 @@ Sistema empresarial de gestión de espacios desarrollado con **Node.js**, **AWS 
 
 - **Runtime**: Node.js 22
 - **Cloud**: AWS Lambda + API Gateway + DynamoDB + Cognito + SQS + SNS  
-- **Framework**: Serverless Framework v3
+- **Framework**: Serverless Framework v4
 - **Arquitectura**: Clean Architecture (api/ · core/ · infrastructure/ · shared/) + Microservicios Serverless + ARM64
 - **Autenticación**: AWS Cognito JWT
 - **Resiliencia**: Retry + Circuit Breaker + Bulkhead Patterns

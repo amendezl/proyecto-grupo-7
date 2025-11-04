@@ -47,7 +47,7 @@ aws configure
 ## 3) Instalar Serverless Framework
 
 ```bash
-npm i -g serverless@^3
+npm i -g serverless@^4
 sls --version
 ```
 
@@ -75,7 +75,7 @@ export SENTRY_RELEASE="$(git rev-parse --short HEAD)"
 
 ```bash
 # Despliegue rápido a dev en us-east-1
-# Nota: si tu CLI 3.x advierte por nodejs22.x, apunta a una versión 3.x reciente
+# Nota: si tu CLI 4.x advierte por nodejs22.x, asegúrate de usar una versión 4.x reciente
 # (ya dejamos configValidationMode: warn en serverless.yml).
 # No uses --disable-configuration-validation (no es una opción válida en 3.40).
 serverless deploy --stage dev --region us-east-1
@@ -109,7 +109,7 @@ Todas las variables definidas en `provider.environment` dentro de `proyecto/serv
 ## 8) Troubleshooting
 
 - Error de permisos: valida que la IAM del usuario/rol tenga permisos para los servicios usados (CloudFormation, Lambda, DynamoDB, Cognito, API Gateway, SNS, SQS).
-- Runtime: Asegúrate que la instancia tiene Node.js 22 (`node -v`). Si el CLI marca advertencia por `nodejs22.x`, actualiza Serverless a 3.x reciente; en `serverless.yml` ya se configuró `configValidationMode: warn`.
+- Runtime: Asegúrate que la instancia tiene Node.js 22 (`node -v`). Si el CLI marca advertencia por `nodejs22.x`, actualiza Serverless a una versión 4.x reciente; en `serverless.yml` ya se configuró `configValidationMode: warn`.
 - Serverless plugins: ejecuta `npm run verify:plugins` para validar configuración de plugins.
 - Región y stage: usa `--stage` y `--region` explícitos si no se inyectan por variables.
 - Next.js SWC: si compilas el frontend en la misma VM, ejecuta `npm ci` dentro de `frontend/` para parchear dependencias de SWC.
