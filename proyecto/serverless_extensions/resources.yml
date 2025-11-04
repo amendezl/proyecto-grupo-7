@@ -389,12 +389,18 @@ Outputs:
 
   # Backend API
   HttpApiUrl:
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Value:
+      Fn::GetAtt:
+        - HttpApi
+        - ApiEndpoint
     Export:
       Name: ${self:service}-${self:provider.stage}-api-url
 
   WebSocketUrl:
-    Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+    Value:
+      Fn::GetAtt:
+        - WebSocketApi
+        - ApiEndpoint
     Export:
       Name: ${self:service}-${self:provider.stage}-websocket-url
 
