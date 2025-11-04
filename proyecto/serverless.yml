@@ -81,6 +81,9 @@ provider:
   runtime: nodejs22.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  # Use existing IAM role to avoid permission issues in voclabs
+  iam:
+    role: arn:aws:iam::975050051149:role/LabRole
   httpApi:
     authorizers:
       cognitoJwt:
