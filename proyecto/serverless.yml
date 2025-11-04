@@ -32,14 +32,17 @@ custom:
       logLevel: INFO
       tracing: false
       memorySize: 256
+      nodeEnv: development
     staging:
       logLevel: WARN
       tracing: true
       memorySize: 512
+      nodeEnv: staging
     prod:
       logLevel: ERROR
       tracing: true
       memorySize: 1024
+      nodeEnv: production
   
   # === AUTOMATION HOOKS ===
   scriptable:
@@ -85,6 +88,39 @@ provider:
   runtime: nodejs22.x
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    AWS_REGION: ${self:provider.region}
+    REGION: ${self:provider.region}
+    STAGE: ${self:provider.stage}
+    NODE_ENV: ${self:custom.stages.${self:provider.stage}.nodeEnv}
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}-main
+    MAIN_TABLE: ${self:service}-${self:provider.stage}-main
+    CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
+    CIRCUIT_STATE_TABLE: ${self:service}-${self:provider.stage}-circuit-state
+    HTTP_API_URL:
+      Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    WEBSOCKET_ENDPOINT:
+      Fn::Sub: "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+    MAIN_QUEUE_URL:
+      Ref: MainQueue
+    SNS_TOPIC_ARN:
+      Ref: SpaceNotificationsTopic
+    SNS_ALERTS_TOPIC_ARN:
+      Ref: SystemAlertsTopic
+    SNS_ADMIN_TOPIC_ARN:
+      Ref: AdminNotificationsTopic
+    SYSTEM_ALERTS_TOPIC:
+      Ref: SystemAlertsTopic
+    SNS_PERSONALIZATION_TOPIC_ARN: ${env:SNS_PERSONALIZATION_TOPIC_ARN, ''}
+    USER_POOL_ID:
+      Ref: CognitoUserPool
+    USER_POOL_CLIENT_ID:
+      Ref: CognitoUserPoolClient
+    RESILIENCE_METRICS_NAMESPACE: ${self:service}/${self:provider.stage}
+    SENTRY_DSN: ${env:SENTRY_DSN, ''}
+    SENTRY_TRACES_SAMPLE_RATE: ${env:SENTRY_TRACES_SAMPLE_RATE, '0'}
+    SENTRY_RELEASE: ${env:SENTRY_RELEASE, ''}
 
 functions: ${file(serverless_extensions/functions.yml)}
 

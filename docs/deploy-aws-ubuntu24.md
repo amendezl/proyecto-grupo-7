@@ -106,29 +106,15 @@ serverless logs -f getEspacios -t
 
 Todas las variables definidas en `provider.environment` dentro de `proyecto/serverless.yml` son inyectadas en las funciones.
 
+> Nota: el proyecto ya no utiliza `serverless-dotenv-plugin`. Exporta las variables sensibles en tu shell (o usa SSM/Secrets Manager) antes de ejecutar `serverless deploy`.
+
 ## 8) Troubleshooting
 
 - Error de permisos: valida que la IAM del usuario/rol tenga permisos para los servicios usados (CloudFormation, Lambda, DynamoDB, Cognito, API Gateway, SNS, SQS).
 - Runtime: Asegúrate que la instancia tiene Node.js 22 (`node -v`). Si el CLI marca advertencia por `nodejs22.x`, actualiza Serverless a una versión 4.x reciente; en `serverless.yml` ya se configuró `configValidationMode: warn`.
-- Serverless plugins: ejecuta `npm run verify:plugins` para validar configuración de plugins.
+- Serverless plugins: ejecuta `npx serverless plugin list` para verificar la configuración cargada.
 - Región y stage: usa `--stage` y `--region` explícitos si no se inyectan por variables.
 - Next.js SWC: si compilas el frontend en la misma VM, ejecuta `npm ci` dentro de `frontend/` para parchear dependencias de SWC.
-
-### Problema: "DOTENV: Loading environment variables..." y luego "Maximum call stack size exceeded"
-
-Esto indica casi siempre que el `.env` tiene referencias circulares o mal formadas. Implementamos una salida segura para no cargar dotenv si no es necesario.
-
-Opciones:
-
-1. Deshabilitar dotenv temporalmente para desplegar:
-```bash
-export DISABLE_DOTENV=1
-serverless deploy --stage dev --region us-east-1
-```
-
-2. Eliminar o corregir el `.env` local (evita claves que se autoreferencian, ejemplo: `FOO=${FOO}`).
-
-3. Dependiendo del entorno, setea variables directamente en el shell o en parámetros seguros (SSM/Secrets Manager) y evita `.env` en producción.
 
 ### Problema: FATAL ERROR JavaScript heap out of memory durante "Packaging"
 
@@ -151,9 +137,9 @@ npx serverless deploy --stage dev --region us-east-1
 ```
 
 3) El proyecto ya incluye optimizaciones de empaquetado en `serverless.yml`:
-	- `package.individually: true`
-	- Lista blanca: solo `src/**`, `package.json`, `package-lock.json`, `serverless-plugins.js`, `node_modules/**`
-	- Excluye tests y markdown
+  - `package.individually: true`
+  - Lista blanca: solo `src/**`, `package.json`, `package-lock.json`, `node_modules/**`
+  - Excluye tests y markdown
 
 Si aún falla en una instancia muy pequeña, sube temporalmente el tamaño de la instancia o ejecuta el deploy desde una máquina con más memoria.
 
@@ -170,7 +156,6 @@ Si actualizaste el repo (`git pull`) y el error persiste:
 cd ~/proyecto-grupo-7/proyecto
 git pull
 export NODE_OPTIONS="--max-old-space-size=4096"
-export DISABLE_DOTENV=1
 npx serverless deploy --stage dev --region us-east-1
 ```
 
@@ -182,4 +167,4 @@ serverless remove --stage dev --region us-east-1
 
 ---
 
-Actualizado: 2025-10-26
+Actualizado: 2025-11-03

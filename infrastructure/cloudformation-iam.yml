@@ -39,16 +39,17 @@ Resources:
                   - dynamodb:DeleteItem
                   - dynamodb:Query
                   - dynamodb:Scan
+                Resource:
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main"
-               - Effect: Allow
-                 Action:
-                   - dynamodb:DescribeTable
-                   - dynamodb:DescribeStream
-                   - dynamodb:GetRecords
-                   - dynamodb:GetShardIterator
-                 Resource:
-                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main"
-                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main/stream/*"
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:DescribeStream
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main/stream/*"
 
   # Rol para Lambda Tiempo Real
   LambdaRealtimeRole:
@@ -79,11 +80,11 @@ Resources:
                   - dynamodb:Scan
                 Resource:
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-connections"
-               - Effect: Allow
-                 Action:
-                   - dynamodb:DescribeTable
-                 Resource:
-                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-connections"
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-connections"
 
   # Rol para Lambda de Operaciones y Circuit Breaker
   LambdaOpsRole:
@@ -114,18 +115,18 @@ Resources:
                   - dynamodb:Scan
                 Resource:
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-circuit-state"
-               - Effect: Allow
-                 Action:
-                   - dynamodb:DescribeTable
-                 Resource:
-                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-circuit-state"
-               - Effect: Allow
-                 Action:
-                   - dynamodb:PutItem
-                   - dynamodb:UpdateItem
-                   - dynamodb:GetItem
-                 Resource:
-                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main"
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-circuit-state"
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:GetItem
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ServiceName}-${Environment}-main"
 
 Outputs:
   LambdaApiRoleArn:
