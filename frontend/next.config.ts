@@ -2,8 +2,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'export',
   distDir: '.next',
+  trailingSlash: true,
   images: {
+    unoptimized: true,
     domains: [
       `${process.env.NEXT_PUBLIC_S3_BUCKET}.s3.${process.env.NEXT_PUBLIC_AWS_REGION}.amazonaws.com`
     ]

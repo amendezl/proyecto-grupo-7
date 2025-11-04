@@ -8,9 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "deploy:vercel": "vercel --prod",
-    "deploy:netlify": "netlify deploy --prod --dir=.next",
+    "deploy:netlify": "netlify deploy --prod --dir=out",
     "deploy:aws": "amplify publish",
-    "export": "next build && next export"
+    "export": "next build"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.8",
