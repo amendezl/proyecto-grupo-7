@@ -12,7 +12,7 @@ custom:
     indexDocument: index.html
     errorDocument: 404.html
     region: ${self:provider.region}
-    createDistribution: true
+    createDistribution: false # CAMBIAR A "true" SI TIENE PERMISO PARA CREAR CLOUDFRONT
     manageResources: false
     uploadConcurrency: 5
   

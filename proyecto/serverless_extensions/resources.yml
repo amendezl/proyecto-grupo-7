@@ -13,30 +13,30 @@ Resources:
         IndexDocument: index.html
         ErrorDocument: 404.html
 
-  # CloudFront Distribution
-  CloudFrontDistribution:
-    Type: AWS::CloudFront::Distribution
-    Properties:
-      DistributionConfig:
-        Origins:
-          - DomainName: !GetAtt FrontendBucket.RegionalDomainName
-            Id: S3Origin
-            S3OriginConfig:
-              OriginAccessIdentity: ""
-        Enabled: true
-        DefaultRootObject: index.html
-        DefaultCacheBehavior:
-          TargetOriginId: S3Origin
-          ViewerProtocolPolicy: redirect-to-https
-          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
-        PriceClass: PriceClass_100
-        CustomErrorResponses:
-          - ErrorCode: 404
-            ResponseCode: 200
-            ResponsePagePath: /index.html
-          - ErrorCode: 403
-            ResponseCode: 200
-            ResponsePagePath: /index.html
+  # CloudFront Distribution (disabled due to IAM restrictions in voclabs)
+  # CloudFrontDistribution:
+  #   Type: AWS::CloudFront::Distribution
+  #   Properties:
+  #     DistributionConfig:
+  #       Origins:
+  #         - DomainName: !GetAtt FrontendBucket.RegionalDomainName
+  #           Id: S3Origin
+  #           S3OriginConfig:
+  #             OriginAccessIdentity: ""
+  #       Enabled: true
+  #       DefaultRootObject: index.html
+  #       DefaultCacheBehavior:
+  #         TargetOriginId: S3Origin
+  #         ViewerProtocolPolicy: redirect-to-https
+  #         CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+  #       PriceClass: PriceClass_100
+  #       CustomErrorResponses:
+  #         - ErrorCode: 404
+  #           ResponseCode: 200
+  #           ResponsePagePath: /index.html
+  #         - ErrorCode: 403
+  #           ResponseCode: 200
+  #           ResponsePagePath: /index.html
 
   # === VPC INFRASTRUCTURE (OPTIONAL FOR ADVANCED DEPLOYMENT) ===
   # VPC Main
@@ -382,34 +382,20 @@ Outputs:
     Export:
       Name: ${self:service}-${self:provider.stage}-frontend-bucket
 
-  CloudFrontDistributionId:
-    Value: { Ref: CloudFrontDistribution }
-    Export:
-      Name: ${self:service}-${self:provider.stage}-cloudfront-id
+  # CloudFrontDistributionId (disabled - no CloudFront in voclabs)
+  # CloudFrontDistributionId:
+  #   Value: { Ref: CloudFrontDistribution }
+  #   Export:
+  #     Name: ${self:service}-${self:provider.stage}-cloudfront-id
 
   # Backend API
   HttpApiUrl:
-    Value:
-      Fn::Join:
-        - ''
-        - - 'https://'
-          - { Ref: HttpApi }
-          - '.execute-api.'
-          - { Ref: 'AWS::Region' }
-          - '.amazonaws.com'
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
     Export:
       Name: ${self:service}-${self:provider.stage}-api-url
 
   WebSocketUrl:
-    Value:
-      Fn::Join:
-        - ''
-        - - 'wss://'
-          - { Ref: WebSocketApi }
-          - '.execute-api.'
-          - { Ref: 'AWS::Region' }
-          - '.amazonaws.com/'
-          - { Ref: WebSocketStage }
+    Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
     Export:
       Name: ${self:service}-${self:provider.stage}-websocket-url
 
