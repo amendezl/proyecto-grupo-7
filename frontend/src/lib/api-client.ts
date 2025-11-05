@@ -7,6 +7,7 @@ export interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
+  status?: number;
 }
 
 // Tipos de datos del dominio
@@ -31,6 +32,7 @@ export interface Zona {
   capacidadTotal: number;
   espaciosDisponibles: number;
   color: string;
+  activa?: boolean;
 }
 
 export interface Reserva {
@@ -47,10 +49,14 @@ export interface Reserva {
 export interface Usuario {
   id: string;
   nombre: string;
+  apellido?: string;
   email: string;
-  rol: 'admin' | 'staff' | 'usuario';
-  departamento: string;
+  rol: 'admin' | 'responsable' | 'usuario';
+  departamento?: string;
+  telefono?: string;
   activo: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Responsable {
@@ -164,21 +170,21 @@ class ApiClient {
     }
   }
 
-  async refreshToken(): Promise<ApiResponse<{ token: string }>> {
+  async refreshToken(): Promise<ApiResponse<{ accessToken: string; refreshToken?: string; idToken?: string; expiresIn?: number }>> {
     if (!this.tokens?.refreshToken) {
       throw new Error('No refresh token available');
     }
 
-    const response = await this.post<{ token: string }>('/auth/refresh', {
+    const response = await this.post<{ accessToken: string; refreshToken?: string; idToken?: string; expiresIn?: number }>('/auth/refresh', {
       refreshToken: this.tokens.refreshToken,
     });
 
     if (response.ok && response.data) {
-      // Actualizar tokens locales
+      const expiresInSeconds = response.data.expiresIn ?? 3600;
       const newTokens = {
-        accessToken: response.data.token,
-        refreshToken: response.data.token, // En producción usar refresh token separado
-        expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 horas
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken ?? this.tokens.refreshToken,
+        expiresAt: Date.now() + expiresInSeconds * 1000,
       };
       this.setTokens(newTokens);
     }
@@ -197,15 +203,58 @@ class ApiClient {
   }
 
   // Métodos HTTP genéricos
+  private normalizeResponse<T>(payload: any, status: number): ApiResponse<T> {
+    const ok = Boolean(payload?.ok ?? payload?.success ?? (status >= 200 && status < 300));
+
+    let data: T | undefined;
+    if (ok) {
+      if (payload?.data !== undefined) {
+        data = payload.data as T;
+      } else if (payload?.result !== undefined) {
+        data = payload.result as T;
+      } else if (payload !== undefined) {
+        if (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) {
+          const { ok: _ok, success, status: _status, statusCode, message, error, ...rest } = payload;
+          data = (Object.keys(rest).length ? (rest as T) : undefined);
+        } else {
+          data = payload as T;
+        }
+      }
+    }
+
+    let errorMessage: string | undefined;
+    if (!ok) {
+      errorMessage = payload?.error?.message || payload?.error || payload?.message;
+    }
+
+    const message = payload?.message;
+
+    return {
+      ok,
+      data,
+      error: errorMessage,
+      message,
+      status,
+    };
+  }
+
+  private normalizeErrorResponse<T>(error: any): ApiResponse<T> {
+    if (error?.response) {
+      return this.normalizeResponse<T>(error.response.data, error.response.status);
+    }
+
+    return {
+      ok: false,
+      error: error?.message || 'Error desconocido',
+    };
+  }
+
   async get<T>(endpoint: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await this.client.get(endpoint, config);
-      return response.data;
+      const response: AxiosResponse<any> = await this.client.get(endpoint, config);
+      return this.normalizeResponse<T>(response.data, response.status);
     } catch (error: any) {
-      return {
-        ok: false,
-        error: error.response?.data?.error || error.message || 'Error desconocido',
-      };
+      return this.normalizeErrorResponse<T>(error);
     }
   }
 
@@ -215,13 +264,10 @@ class ApiClient {
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await this.client.post(endpoint, data, config);
-      return response.data;
+      const response: AxiosResponse<any> = await this.client.post(endpoint, data, config);
+      return this.normalizeResponse<T>(response.data, response.status);
     } catch (error: any) {
-      return {
-        ok: false,
-        error: error.response?.data?.error || error.message || 'Error desconocido',
-      };
+      return this.normalizeErrorResponse<T>(error);
     }
   }
 
@@ -231,37 +277,28 @@ class ApiClient {
     config?: AxiosRequestConfig
   ): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await this.client.put(endpoint, data, config);
-      return response.data;
+      const response: AxiosResponse<any> = await this.client.put(endpoint, data, config);
+      return this.normalizeResponse<T>(response.data, response.status);
     } catch (error: any) {
-      return {
-        ok: false,
-        error: error.response?.data?.error || error.message || 'Error desconocido',
-      };
+      return this.normalizeErrorResponse<T>(error);
     }
   }
 
   async delete<T>(endpoint: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await this.client.delete(endpoint, config);
-      return response.data;
+      const response: AxiosResponse<any> = await this.client.delete(endpoint, config);
+      return this.normalizeResponse<T>(response.data, response.status);
     } catch (error: any) {
-      return {
-        ok: false,
-        error: error.response?.data?.error || error.message || 'Error desconocido',
-      };
+      return this.normalizeErrorResponse<T>(error);
     }
   }
 
   async patch<T>(endpoint: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
-      const response: AxiosResponse<ApiResponse<T>> = await this.client.patch(endpoint, data, config);
-      return response.data;
+      const response: AxiosResponse<any> = await this.client.patch(endpoint, data, config);
+      return this.normalizeResponse<T>(response.data, response.status);
     } catch (error: any) {
-      return {
-        ok: false,
-        error: error.response?.data?.error || error.message || 'Error desconocido',
-      };
+      return this.normalizeErrorResponse<T>(error);
     }
   }
 
@@ -321,9 +358,12 @@ class ApiClient {
     return this.delete(endpoint);
   }
 
-  async toggleEspacioEstado(id: string): Promise<ApiResponse<Espacio>> {
+  async toggleEspacioEstado(
+    id: string,
+    estado: 'disponible' | 'ocupado' | 'mantenimiento'
+  ): Promise<ApiResponse<Espacio>> {
     const endpoint = this.getOptimizedEndpoint(`/espacios/${id}/toggle-estado`);
-    return this.patch(endpoint);
+    return this.patch(endpoint, { estado });
   }
 
   async getReservas(filters?: {
@@ -420,9 +460,9 @@ class ApiClient {
     return this.delete(endpoint);
   }
 
-  async toggleResponsableEstado(id: string): Promise<ApiResponse<Responsable>> {
+  async toggleResponsableEstado(id: string, activo: boolean): Promise<ApiResponse<Responsable>> {
     const endpoint = this.getOptimizedEndpoint(`/responsables/${id}/toggle-estado`);
-    return this.patch(endpoint);
+    return this.patch(endpoint, { activo });
   }
 
   async asignarEspacios(responsableId: string, espaciosIds: string[]): Promise<ApiResponse<{ message: string }>> {
@@ -461,9 +501,14 @@ class ApiClient {
     return this.delete(endpoint);
   }
 
-  async toggleUsuarioEstado(id: string): Promise<ApiResponse<Usuario>> {
+  async toggleUsuarioEstado(id: string, activo: boolean): Promise<ApiResponse<Usuario>> {
     const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}/toggle-estado`);
-    return this.patch(endpoint);
+    return this.patch(endpoint, { activo });
+  }
+
+  async toggleZonaEstado(id: string, activa: boolean): Promise<ApiResponse<Zona>> {
+    const endpoint = this.getOptimizedEndpoint(`/zonas/${id}/toggle-estado`);
+    return this.patch(endpoint, { activa });
   }
 
   // Métodos WebSocket
@@ -520,8 +565,19 @@ class ApiClient {
   }
 
   // Métodos de autenticación
-  async login(email: string, password: string): Promise<ApiResponse<{ user: any; token: string }>> {
-    return this.post('/auth/login', { email, password });
+  async login(email: string, password: string): Promise<ApiResponse<{ accessToken: string; refreshToken?: string; idToken?: string; expiresIn?: number }>> {
+    const response = await this.post<{ accessToken: string; refreshToken?: string; idToken?: string; expiresIn?: number }>('/auth/login', { username: email, password });
+
+    if (response.ok && response.data?.accessToken) {
+      const expiresInSeconds = response.data.expiresIn ?? 3600;
+      this.setTokens({
+        accessToken: response.data.accessToken,
+        refreshToken: response.data.refreshToken ?? response.data.idToken ?? '',
+        expiresAt: Date.now() + expiresInSeconds * 1000,
+      });
+    }
+
+    return response;
   }
 
   async register(userData: {
@@ -536,15 +592,19 @@ class ApiClient {
   }
 
   async getCurrentUser(): Promise<ApiResponse<any>> {
-    return this.get('/me');
+    return this.get('/auth/me');
   }
 
-  async updateProfile(userData: any): Promise<ApiResponse<{ user: any }>> {
+  async getCurrentUserProfile(): Promise<ApiResponse<Usuario>> {
+    return this.get('/usuarios/perfil');
+  }
+
+  async updateProfile(userData: any): Promise<ApiResponse<Usuario>> {
     return this.put('/usuarios/perfil', userData);
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
-    return this.post('/usuarios/cambiar-password', { currentPassword, newPassword });
+    return this.post('/usuarios/cambiar-password', { passwordActual: currentPassword, passwordNuevo: newPassword });
   }
 }
 

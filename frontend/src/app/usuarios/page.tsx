@@ -38,9 +38,9 @@ export default function UsuariosPage() {
     const activos = usuarios.filter(u => u.activo).length;
     const inactivos = usuarios.filter(u => !u.activo).length;
     const admins = usuarios.filter(u => u.rol === 'admin').length;
-    const staff = usuarios.filter(u => u.rol === 'staff').length;
+    const responsables = usuarios.filter(u => u.rol === 'responsable').length;
     
-    return { activos, inactivos, admins, staff };
+    return { activos, inactivos, admins, responsables };
   }, [usuarios]);
 
   const departamentos = useMemo(() => {
@@ -52,7 +52,7 @@ export default function UsuariosPage() {
     switch (rol) {
       case 'admin':
         return 'urgente';
-      case 'staff':
+      case 'responsable':
         return 'reservado';
       case 'usuario':
         return 'disponible';
@@ -160,7 +160,7 @@ export default function UsuariosPage() {
             >
               <option value="">Todos los roles</option>
               <option value="admin">Administrador</option>
-              <option value="staff">Staff</option>
+              <option value="responsable">Responsable</option>
               <option value="usuario">Usuario</option>
             </select>
           </div>
@@ -265,7 +265,7 @@ function UsuarioCard({
     switch (rol) {
       case 'admin':
         return Shield;
-      case 'staff':
+      case 'responsable':
         return UserCheck;
       case 'usuario':
         return User2;

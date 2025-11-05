@@ -1,7 +1,8 @@
 // Contexto de Autenticación para la aplicación
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { apiClient, Usuario } from '@/lib/api-client';
 import usePersonalizationSocket from '../hooks/usePersonalizationSocket';
 
 // Interfaces de autenticación
@@ -48,6 +49,18 @@ export interface RegisterData {
   telefono?: string;
 }
 
+const mapUsuarioToUser = (usuario: Usuario): User => ({
+  id: usuario.id,
+  email: usuario.email,
+  nombre: usuario.nombre,
+  apellido: usuario.apellido ?? '',
+  rol: usuario.rol ?? 'usuario',
+  activo: usuario.activo !== false,
+  departamento: usuario.departamento,
+  telefono: usuario.telefono,
+  created_at: usuario.createdAt,
+});
+
 // Crear contexto
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -74,11 +87,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   });
 
   
-
-  // Funciones auxiliares de autenticación
-  // Función para limpiar el storage
-  const clearAuthStorage = () => {
-    localStorage.removeItem('auth_tokens');
+  const clearAuthStorage = useCallback(() => {
+    apiClient.clearTokens();
     localStorage.removeItem('auth_user');
     setAuthState({
       user: null,
@@ -86,90 +96,112 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       isAuthenticated: false,
       isLoading: false,
     });
-  };
+  }, [setAuthState]);
 
-  // Función para guardar en storage
-  const saveAuthToStorage = (user: User, tokens: AuthTokens) => {
+  const persistAuthState = useCallback((user: User, tokens: AuthTokens) => {
     localStorage.setItem('auth_user', JSON.stringify(user));
-    localStorage.setItem('auth_tokens', JSON.stringify(tokens));
-  };
+    setAuthState({
+      user,
+      tokens,
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  }, [setAuthState]);
 
-  // Función para refrescar autenticación
-  const refreshAuth = async (): Promise<boolean> => {
-    if (!authState.tokens?.refreshToken) {
+  const updateStoredUser = useCallback((user: User) => {
+    localStorage.setItem('auth_user', JSON.stringify(user));
+    setAuthState(prev => ({
+      ...prev,
+      user,
+    }));
+  }, [setAuthState]);
+
+  const loadUserProfile = useCallback(async (): Promise<User | null> => {
+    try {
+      const profileResponse = await apiClient.getCurrentUserProfile();
+      if (profileResponse.ok && profileResponse.data) {
+        return mapUsuarioToUser(profileResponse.data);
+      }
+
+      const meResponse = await apiClient.getCurrentUser();
+      if (meResponse.ok && meResponse.data?.user) {
+        const claims = meResponse.data.user as any;
+        return {
+          id: claims.sub ?? 'unknown',
+          email: claims.email ?? '',
+          nombre: claims.given_name ?? claims.name ?? claims.email ?? 'Usuario',
+          apellido: claims.family_name ?? '',
+          rol: (claims['custom:role'] as User['rol']) ?? 'usuario',
+          activo: true,
+          departamento: claims['custom:department'] ?? undefined,
+          telefono: claims.phone_number ?? undefined,
+        };
+      }
+    } catch (error) {
+      console.warn('No se pudo cargar el perfil del usuario:', error);
+    }
+
+    return null;
+  }, []);
+
+  const refreshAuth = useCallback(async (): Promise<boolean> => {
+    const storedTokens = apiClient.getTokens();
+    if (!storedTokens?.refreshToken) {
       return false;
     }
 
     try {
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken: authState.tokens.refreshToken }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.ok) {
-        const { token } = data.data;
-
-        const newTokens: AuthTokens = {
-          accessToken: token,
-          refreshToken: token,
-          expiresAt: Date.now() + (24 * 60 * 60 * 1000),
-        };
-
-        setAuthState(prev => ({
-          ...prev,
-          tokens: newTokens,
-          isAuthenticated: true,
-          isLoading: false,
-        }));
-
-        // Actualizar localStorage
-        if (authState.user) {
-          saveAuthToStorage(authState.user, newTokens);
-        }
-
-        return true;
-      } else {
+      const response = await apiClient.refreshToken();
+      if (!response.ok || !response.data?.accessToken) {
         clearAuthStorage();
         return false;
       }
+
+      const updatedTokens = apiClient.getTokens();
+      if (!updatedTokens) {
+        clearAuthStorage();
+        return false;
+      }
+
+      const user = await loadUserProfile();
+      if (!user) {
+        clearAuthStorage();
+        return false;
+      }
+
+      persistAuthState(user, updatedTokens);
+      return true;
     } catch (error) {
       console.error('Error refrescando token:', error);
       clearAuthStorage();
       return false;
     }
-  };
+  }, [clearAuthStorage, loadUserProfile, persistAuthState]);
 
-  // Cargar tokens del localStorage al inicializar
   useEffect(() => {
     const loadStoredAuth = async () => {
       try {
-        const storedTokens = localStorage.getItem('auth_tokens');
-        const storedUser = localStorage.getItem('auth_user');
+        const storedUserRaw = localStorage.getItem('auth_user');
+        const storedTokens = apiClient.getTokens();
 
-        if (storedTokens && storedUser) {
-          const tokens: AuthTokens = JSON.parse(storedTokens);
-          const user: User = JSON.parse(storedUser);
-
-          // Verificar si el token no ha expirado
-          if (tokens.expiresAt > Date.now()) {
-            setAuthState({
-              user,
-              tokens,
-              isAuthenticated: true,
-              isLoading: false,
-            });
+        if (storedTokens && storedTokens.expiresAt && storedTokens.expiresAt > Date.now()) {
+          let user: User | null = null;
+          if (storedUserRaw) {
+            user = JSON.parse(storedUserRaw) as User;
           } else {
-            // Token expirado, intentar refresh
-            const refreshed = await refreshAuth();
-            if (!refreshed) {
-              // Si no se puede refrescar, limpiar storage
-              clearAuthStorage();
-            }
+            user = await loadUserProfile();
+          }
+
+          if (user) {
+            persistAuthState(user, storedTokens);
+            return;
+          }
+        }
+
+        if (storedTokens) {
+          const refreshed = await refreshAuth();
+          if (!refreshed) {
+            clearAuthStorage();
           }
         } else {
           setAuthState(prev => ({ ...prev, isLoading: false }));
@@ -181,193 +213,127 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     loadStoredAuth();
-  }, []);
+  }, [clearAuthStorage, loadUserProfile, persistAuthState, refreshAuth]);
 
-  // Connect to personalization WebSocket when authenticated
   usePersonalizationSocket({
-  onUpdate: async (payload: any) => {
+    onUpdate: async (payload: any) => {
       console.log('Personalization update received:', payload);
-      // Optionally trigger a UI refresh or refetch of personalization data
-      // Example: call backend to refresh cached config (you can implement a handler)
+      if (!authState.user) {
+        return;
+      }
+
       try {
-        // Trigger a lightweight refresh endpoint if exists
-        if (authState.user) {
-          await fetch(`/api/personalization/client/${payload.clientId}/user/${authState.user.id}/complete`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${authState.tokens?.accessToken}` }
-          });
-        }
+        await apiClient.get(`/personalization/client/${payload.clientId}/user/${authState.user.id}/complete`);
       } catch (err) {
         console.warn('Error refreshing personalization after update', err);
       }
     }
   });
 
-  
-
-  // Función de login
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     setAuthState(prev => ({ ...prev, isLoading: true }));
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await apiClient.login(email, password);
 
-      const data = await response.json();
-
-      if (response.ok && data.ok) {
-        const { user, token } = data.data;
-        
-        // Crear objeto de tokens
-        const tokens: AuthTokens = {
-          accessToken: token,
-          refreshToken: token, // En producción, usar refresh token separado
-          expiresAt: Date.now() + (24 * 60 * 60 * 1000), // 24 horas
-        };
-
-        // Actualizar estado
-        setAuthState({
-          user,
-          tokens,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-
-        // Guardar en localStorage
-        saveAuthToStorage(user, tokens);
-
-        return { success: true };
-      } else {
+      if (!response.ok || !response.data?.accessToken) {
+        apiClient.clearTokens();
         setAuthState(prev => ({ ...prev, isLoading: false }));
-        return { success: false, error: data.error || 'Error en el login' };
+        return { success: false, error: response.error || 'Credenciales inválidas' };
       }
+
+      const tokens = apiClient.getTokens();
+      if (!tokens) {
+        apiClient.clearTokens();
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        return { success: false, error: 'No se pudieron obtener los tokens de autenticación' };
+      }
+
+      const userProfile = await loadUserProfile();
+      if (!userProfile) {
+        apiClient.clearTokens();
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+        return { success: false, error: 'No se pudo obtener la información del usuario' };
+      }
+
+      persistAuthState(userProfile, tokens);
+      return { success: true };
     } catch (error) {
+      console.error('Error en login:', error);
+      apiClient.clearTokens();
       setAuthState(prev => ({ ...prev, isLoading: false }));
       return { success: false, error: 'Error de conexión' };
     }
-  };
+  }, [loadUserProfile, persistAuthState]);
 
-  // Función de logout
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      // Intentar hacer logout en el servidor
-      if (authState.tokens?.accessToken) {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authState.tokens.accessToken}`,
-            'Content-Type': 'application/json',
-          },
-        });
-      }
+      await apiClient.logout();
     } catch (error) {
       console.error('Error en logout del servidor:', error);
     } finally {
-      // Limpiar estado local independientemente del resultado del servidor
       clearAuthStorage();
     }
-  };
+  }, [clearAuthStorage]);
 
-  // Función de registro
-  const register = async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
+  const register = useCallback(async (userData: RegisterData): Promise<{ success: boolean; error?: string }> => {
     setAuthState(prev => ({ ...prev, isLoading: true }));
 
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
+      const response = await apiClient.register(userData);
+      setAuthState(prev => ({ ...prev, isLoading: false }));
 
-      const data = await response.json();
-
-      if (response.ok && data.ok) {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
+      if (response.ok) {
         return { success: true };
-      } else {
-        setAuthState(prev => ({ ...prev, isLoading: false }));
-        return { success: false, error: data.error || 'Error en el registro' };
       }
+
+      return { success: false, error: response.error || response.message || 'Error en el registro' };
     } catch (error) {
+      console.error('Error en registro:', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
       return { success: false, error: 'Error de conexión' };
     }
-  };
+  }, []);
 
-  // Función para actualizar perfil
-  const updateProfile = async (userData: Partial<User>): Promise<{ success: boolean; error?: string }> => {
-    if (!authState.tokens?.accessToken) {
+  const updateProfile = useCallback(async (userData: Partial<User>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await apiClient.updateProfile(userData);
+
+      if (response.ok && response.data) {
+        const mappedUser = mapUsuarioToUser(response.data);
+        const mergedUser: User = authState.user
+          ? { ...authState.user, ...mappedUser }
+          : mappedUser;
+
+        updateStoredUser(mergedUser);
+        return { success: true };
+      }
+
+      return { success: false, error: response.error || response.message || 'Error actualizando perfil' };
+    } catch (error) {
+      console.error('Error actualizando perfil:', error);
+      return { success: false, error: 'Error de conexión' };
+    }
+  }, [authState.user, updateStoredUser]);
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    if (!authState.isAuthenticated) {
       return { success: false, error: 'No autenticado' };
     }
 
     try {
-      const response = await fetch('/api/usuarios/perfil', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${authState.tokens.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
+      const response = await apiClient.changePassword(currentPassword, newPassword);
 
-      const data = await response.json();
-
-      if (response.ok && data.ok) {
-        const updatedUser = { ...authState.user, ...userData } as User;
-        
-        setAuthState(prev => ({
-          ...prev,
-          user: updatedUser,
-        }));
-
-        // Actualizar localStorage
-        if (authState.tokens) {
-          saveAuthToStorage(updatedUser, authState.tokens);
-        }
-
+      if (response.ok) {
         return { success: true };
-      } else {
-        return { success: false, error: data.error || 'Error actualizando perfil' };
       }
+
+      return { success: false, error: response.error || response.message || 'Error cambiando contraseña' };
     } catch (error) {
+      console.error('Error cambiando contraseña:', error);
       return { success: false, error: 'Error de conexión' };
     }
-  };
-
-  // Función para cambiar contraseña
-  const changePassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
-    if (!authState.tokens?.accessToken) {
-      return { success: false, error: 'No autenticado' };
-    }
-
-    try {
-      const response = await fetch('/api/usuarios/cambiar-password', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authState.tokens.accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.ok) {
-        return { success: true };
-      } else {
-        return { success: false, error: data.error || 'Error cambiando contraseña' };
-      }
-    } catch (error) {
-      return { success: false, error: 'Error de conexión' };
-    }
-  };
+  }, [authState.isAuthenticated]);
 
 
   // Renovación automática del access token cada 4 minutos si está autenticado

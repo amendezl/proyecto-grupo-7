@@ -8,7 +8,7 @@ interface ToggleEstadoButtonProps {
   currentEstado: 'activo' | 'inactivo' | 'disponible' | 'ocupado' | 'mantenimiento';
   entityType: 'usuario' | 'responsable' | 'zona' | 'espacio';
   entityName: string;
-  onToggle: (id: string) => Promise<void>;
+  onToggle: (id: string, nextEstadoActivo: boolean) => Promise<void>;
   disabled?: boolean;
   size?: 'sm' | 'md' | 'lg';
 }
@@ -27,7 +27,8 @@ export default function ToggleEstadoButton({
   const handleToggle = async () => {
     setIsLoading(true);
     try {
-      await onToggle(id);
+      const isActive = currentEstado === 'activo' || currentEstado === 'disponible';
+      await onToggle(id, !isActive);
     } catch (error) {
       console.error(`Error toggling ${entityType} estado:`, error);
     } finally {

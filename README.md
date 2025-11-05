@@ -2,15 +2,14 @@
 
 **Proyecto Arquitectura de Sistemas 2025-2**
 
-**Autores**: Benjamin Bennett Ramírez, Marcial Ibáñez Saenz, Antonio Méndez Leiva, Tomás Rodríguez Álvarez
+**Autores**: Benjamin Bennett Ramírez, Antonio Méndez Leiva, Tomás Rodríguez Álvarez
 
 **Docente**: Mauricio Alex Vásquez Duque
 
 ## 🔧 Requisitos Previos
 
-- **AWS Academy Account** con acceso a voclabs
 - **Instancia EC2 Ubuntu** (recomendado t2.medium o superior)
-- **Credenciales de AWS Academy** (Access Key ID y Secret Access Key)
+- **Credenciales de AWS** (Access Key ID y Secret Access Key)
 - **Puerto 22 (SSH)** habilitado en el Security Group
 
 ---

@@ -178,26 +178,31 @@ export function useZonas(filters?: {
     
     try {
       const response = await apiClient.getZonas();
-      if (response.ok && response.data) {
-        let zonasData = response.data.zonas;
-        
-        // Aplicar filtros localmente si no se soportan en el backend
+
+      const normalizeZona = (zona: Zona): Zona => ({
+        ...zona,
+        activa: zona.activa ?? zona.capacidadTotal > 0,
+      });
+
+      const applyLocalFilters = (data: Zona[]): Zona[] => {
+        let result = data;
         if (filters?.activo !== undefined) {
-          zonasData = zonasData.filter(z => {
-            // Usar capacidadTotal > 0 como indicador de activo
-            return filters.activo ? z.capacidadTotal > 0 : z.capacidadTotal === 0;
-          });
+          result = result.filter(z => (z.activa ?? false) === filters.activo);
         }
         if (filters?.edificio) {
-          zonasData = zonasData.filter(z => z.nombre.includes(filters.edificio!));
+          const target = filters.edificio.toLowerCase();
+          result = result.filter(z => z.nombre.toLowerCase().includes(target));
         }
-        
-        setZonas(zonasData);
-        setTotal(zonasData.length);
+        return result;
+      };
+
+      let zonasBase: Zona[];
+
+      if (response.ok && response.data) {
+        zonasBase = response.data.zonas.map(normalizeZona);
       } else {
         setError(response.error || 'Error al cargar zonas');
-        // Fallback con datos simulados
-        setZonas([
+        const fallbackData: Zona[] = [
           {
             id: 'zona-1',
             nombre: 'Piso 1 - Norte',
@@ -205,7 +210,8 @@ export function useZonas(filters?: {
             piso: 1,
             capacidadTotal: 50,
             espaciosDisponibles: 35,
-            color: '#3B82F6'
+            color: '#3B82F6',
+            activa: true,
           },
           {
             id: 'zona-2',
@@ -214,7 +220,8 @@ export function useZonas(filters?: {
             piso: 2,
             capacidadTotal: 80,
             espaciosDisponibles: 60,
-            color: '#10B981'
+            color: '#10B981',
+            activa: true,
           },
           {
             id: 'zona-3',
@@ -223,11 +230,18 @@ export function useZonas(filters?: {
             piso: 3,
             capacidadTotal: 100,
             espaciosDisponibles: 75,
-            color: '#F59E0B'
+            color: '#F59E0B',
+            activa: false,
           }
-        ]);
-        setTotal(3);
+        ];
+
+        zonasBase = fallbackData.map(normalizeZona);
       }
+
+      const zonasFiltradas = applyLocalFilters(zonasBase);
+
+      setZonas(zonasFiltradas);
+      setTotal(zonasFiltradas.length);
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching zonas:', err);
@@ -477,7 +491,7 @@ export function useUsuarios(filters?: {
             id: '2',
             nombre: 'Dra. María García',
             email: 'maria.garcia@hospital.com',
-            rol: 'staff',
+            rol: 'responsable',
             departamento: 'Cardiología',
             activo: true
           },

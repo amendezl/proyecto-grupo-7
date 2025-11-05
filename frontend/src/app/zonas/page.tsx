@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useZonas, useEspacios } from '@/hooks/useApi';
 import ToggleEstadoButton from '@/components/ToggleEstadoButton';
-import { Button, Badge, Input } from '@/components/ui/components';
+import { Button, Badge, Input, Alert } from '@/components/ui/components';
+import { apiClient } from '@/lib/api-client';
+import type { Zona } from '@/lib/api-client';
 import { Card, CardHeader, CardBody, CardFooter } from '@/components/ui/Card';
 import { 
   Building2, 
@@ -25,6 +27,7 @@ export default function ZonasPage() {
   const [filtroActivo, setFiltroActivo] = useState<string>('');
   const [filtroEdificio, setFiltroEdificio] = useState<string>('');
   const [showModalCrear, setShowModalCrear] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const filters = useMemo(() => {
     const f: any = {};
@@ -35,6 +38,22 @@ export default function ZonasPage() {
 
   const { zonas, loading, error, total, refetch } = useZonas(filters);
   const { espacios } = useEspacios();
+
+  const handleToggleZonaEstado = useCallback(
+    async (zonaId: string, nextEstadoActivo: boolean) => {
+      setActionError(null);
+      const response = await apiClient.toggleZonaEstado(zonaId, nextEstadoActivo);
+
+      if (!response.ok) {
+        const message = response.error || response.message || 'No se pudo actualizar el estado de la zona.';
+        setActionError(message);
+        throw new Error(message);
+      }
+
+      refetch();
+    },
+    [refetch]
+  );
 
   const zonasFiltradas = useMemo(() => {
     if (!searchTerm) return zonas;
@@ -47,8 +66,8 @@ export default function ZonasPage() {
 
   // Estadísticas calculadas
   const estadisticas = useMemo(() => {
-    const activas = zonas.filter(z => z.capacidadTotal > 0).length;
-    const inactivas = zonas.filter(z => z.capacidadTotal === 0).length;
+    const activas = zonas.filter(z => z.activa !== false).length;
+    const inactivas = zonas.filter(z => z.activa === false).length;
     const capacidadTotal = zonas.reduce((sum, z) => sum + z.capacidadTotal, 0);
     const espaciosTotal = zonas.reduce((sum, z) => sum + z.espaciosDisponibles, 0);
     
@@ -117,6 +136,14 @@ export default function ZonasPage() {
           Crear Zona
         </Button>
       </div>
+
+      {actionError && (
+        <Alert
+          type="warning"
+          title="Acción no completada"
+          message={actionError}
+        />
+      )}
 
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -251,7 +278,7 @@ export default function ZonasPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {zonasFiltradas.map((zona) => {
           const stats = getZonaStats(zona.id);
-          const isActive = zona.capacidadTotal > 0;
+          const isActive = zona.activa ?? zona.capacidadTotal > 0;
           
           return (
             <ZonaCard 
@@ -259,7 +286,7 @@ export default function ZonasPage() {
               zona={zona}
               stats={stats}
               isActive={isActive}
-              onRefetch={refetch}
+              onToggleEstado={handleToggleZonaEstado}
             />
           );
         })}
@@ -290,12 +317,12 @@ function ZonaCard({
   zona, 
   stats,
   isActive,
-  onRefetch
+  onToggleEstado
 }: { 
-  zona: any;
+  zona: Zona;
   stats: any;
   isActive: boolean;
-  onRefetch: () => void;
+  onToggleEstado: (id: string, nextEstadoActivo: boolean) => Promise<void>;
 }) {
   return (
     <Card className={`transition-all duration-200 hover:shadow-lg ${
@@ -324,7 +351,7 @@ function ZonaCard({
             entityType="zona"
             entityName={zona.nombre}
             currentEstado={isActive ? 'disponible' : 'inactivo'}
-            onToggle={async (id: string) => { await onRefetch(); return Promise.resolve(); }}
+            onToggle={onToggleEstado}
             size="sm"
           />
         </div>
