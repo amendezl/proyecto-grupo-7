@@ -1,17 +1,26 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useUsuarios } from '@/hooks/useApi';
 import { Button, Input, Badge, MetricCard } from '@/components/ui/components';
 import { Card } from '@/components/ui/Card';
 import { Users, UserPlus, Search, Filter, User2, Shield, UserCheck, UserX } from 'lucide-react';
 import { Usuario } from '@/lib/api-client';
+import UsuarioModal from '@/components/UsuarioModal';
+import { useNotificationsContext } from '@/context/NotificationsContext';
 
 export default function UsuariosPage() {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroRol, setFiltroRol] = useState<string>('');
   const [filtroEstado, setFiltroEstado] = useState<string>('');
   const [filtroDepartamento, setFiltroDepartamento] = useState<string>('');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<Usuario | null>(null);
+  const { showSuccess, showError } = useNotificationsContext();
 
   const filters = useMemo(() => {
     const f: any = {};
@@ -21,7 +30,7 @@ export default function UsuariosPage() {
     return f;
   }, [filtroRol, filtroEstado, filtroDepartamento]);
 
-  const { usuarios, loading, error, total, refetch } = useUsuarios(filters);
+  const { usuarios, loading, error, total, refetch, toggleUsuarioEstado, createUsuario, updateUsuario } = useUsuarios(filters);
 
   const usuariosFiltrados = useMemo(() => {
     if (!searchTerm) return usuarios;
@@ -29,7 +38,7 @@ export default function UsuariosPage() {
     return usuarios.filter(usuario =>
       usuario.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
       usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usuario.departamento.toLowerCase().includes(searchTerm.toLowerCase())
+      (usuario.departamento ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [usuarios, searchTerm]);
 
@@ -44,9 +53,90 @@ export default function UsuariosPage() {
   }, [usuarios]);
 
   const departamentos = useMemo(() => {
-    const depts = [...new Set(usuarios.map(u => u.departamento))];
+    const depts = [...new Set(
+      usuarios
+        .map((u) => u.departamento)
+        .filter((dept): dept is string => typeof dept === 'string' && dept.length > 0)
+    )];
     return depts.sort();
   }, [usuarios]);
+
+  const handleToggleEstado = useCallback(async (usuario: Usuario) => {
+    setTogglingId(usuario.id);
+    try {
+      await toggleUsuarioEstado(usuario.id, !usuario.activo);
+      const nuevoEstado = !usuario.activo ? t('status.active') : t('status.inactive');
+      showSuccess(
+        t('usuariosModule.stateChanged.title'),
+        t('usuariosModule.stateChanged.message', { name: usuario.nombre, status: nuevoEstado })
+      );
+    } catch (err) {
+      console.error('Error actualizando estado de usuario', err);
+      showError(
+        t('usuariosModule.stateError.title'),
+        t('usuariosModule.stateError.message')
+      );
+    } finally {
+      setTogglingId(null);
+    }
+  }, [toggleUsuarioEstado, showSuccess, showError, t]);
+
+  const handleCreateClick = useCallback(() => {
+    setUsuarioSeleccionado(null);
+    setModalMode('create');
+    setShowModal(true);
+  }, []);
+
+  const handleEditClick = useCallback((usuario: Usuario) => {
+    setUsuarioSeleccionado(usuario);
+    setModalMode('edit');
+    setShowModal(true);
+  }, []);
+
+  const handleModalClose = useCallback(() => {
+    setShowModal(false);
+    setUsuarioSeleccionado(null);
+  }, []);
+
+  const handleModalSubmit = useCallback(async (payload: Partial<Usuario> & { password?: string }) => {
+    try {
+      if (modalMode === 'create') {
+        const nuevoUsuario: Omit<Usuario, 'id'> & { password?: string } = {
+          nombre: payload.nombre ?? '',
+          email: payload.email ?? '',
+          departamento: payload.departamento ?? '',
+          rol: payload.rol ?? 'usuario',
+          activo: payload.activo ?? true,
+        };
+
+        if (payload.apellido) nuevoUsuario.apellido = payload.apellido;
+        if (payload.telefono) nuevoUsuario.telefono = payload.telefono;
+        if (payload.password) nuevoUsuario.password = payload.password;
+
+        await createUsuario(nuevoUsuario);
+        showSuccess(
+          t('usuariosModule.created.title'),
+          t('usuariosModule.created.message', { name: nuevoUsuario.nombre })
+        );
+      } else if (usuarioSeleccionado) {
+        await updateUsuario(usuarioSeleccionado.id, payload);
+        const nombreReferencia = payload.nombre ?? usuarioSeleccionado.nombre;
+        showSuccess(
+          t('usuariosModule.updated.title'),
+          t('usuariosModule.updated.message', { name: nombreReferencia })
+        );
+      }
+
+      await refetch();
+    } catch (err) {
+      console.error('Error guardando usuario', err);
+      showError(
+        t('usuariosModule.saveError.title'),
+        t('usuariosModule.saveError.message')
+      );
+      throw err;
+    }
+  }, [modalMode, usuarioSeleccionado, createUsuario, updateUsuario, refetch, showSuccess, showError, t]);
 
   const getRolColor = (rol: string) => {
     switch (rol) {
@@ -81,7 +171,8 @@ export default function UsuariosPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -90,7 +181,7 @@ export default function UsuariosPage() {
             Administra los usuarios del sistema y sus permisos
           </p>
         </div>
-        <Button variant="primary">
+        <Button variant="primary" onClick={handleCreateClick}>
           <UserPlus className="w-4 h-4 mr-2" />
           Crear Usuario
         </Button>
@@ -227,7 +318,9 @@ export default function UsuariosPage() {
           <UsuarioCard 
             key={usuario.id}
             usuario={usuario}
-            onRefetch={refetch}
+            onToggleEstado={handleToggleEstado}
+            processing={togglingId === usuario.id}
+            onEdit={handleEditClick}
             rolColor={getRolColor(usuario.rol)}
           />
         ))}
@@ -247,19 +340,32 @@ export default function UsuariosPage() {
           </p>
         </Card>
       )}
-    </div>
+      </div>
+      <UsuarioModal
+        isOpen={showModal}
+        mode={modalMode}
+        usuario={usuarioSeleccionado ?? undefined}
+        departamentos={departamentos}
+        onClose={handleModalClose}
+        onSubmit={handleModalSubmit}
+      />
+    </>
   );
 }
 
 // Componente para cada tarjeta de usuario
 function UsuarioCard({ 
   usuario, 
-  onRefetch, 
-  rolColor 
+  rolColor,
+  onToggleEstado,
+  processing,
+  onEdit,
 }: { 
   usuario: Usuario;
-  onRefetch: () => void;
   rolColor: 'disponible' | 'ocupado' | 'mantenimiento' | 'reservado' | 'urgente';
+  onToggleEstado: (usuario: Usuario) => Promise<void> | void;
+  processing: boolean;
+  onEdit: (usuario: Usuario) => void;
 }) {
   const getRolIcon = (rol: string) => {
     switch (rol) {
@@ -299,12 +405,10 @@ function UsuarioCard({
         
         <Button
           variant={usuario.activo ? "danger" : "success"}
-          onClick={() => {
-            // TODO: Implementar toggle de estado
-            console.log('Toggle estado usuario:', usuario.id);
-          }}
+          onClick={() => onToggleEstado(usuario)}
+          disabled={processing}
         >
-          {usuario.activo ? 'Desactivar' : 'Activar'}
+          {processing ? 'Actualizando...' : usuario.activo ? 'Desactivar' : 'Activar'}
         </Button>
       </div>
       
@@ -335,10 +439,7 @@ function UsuarioCard({
         <Button
           variant="secondary"
           className="w-full"
-          onClick={() => {
-            // TODO: Implementar modal de edición
-            console.log('Editar usuario:', usuario.id);
-          }}
+          onClick={() => onEdit(usuario)}
         >
           Editar Usuario
         </Button>

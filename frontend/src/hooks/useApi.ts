@@ -93,7 +93,6 @@ export function useEspacios(filters?: {
     refetch
   };
 }
-
 // Hook para datos de reservas
 export function useReservas(filters?: {
   usuario_id?: string;
@@ -519,14 +518,58 @@ export function useUsuarios(filters?: {
   }, [fetchUsuarios]);
 
   const refetch = useCallback(() => {
-    fetchUsuarios();
+    return fetchUsuarios();
   }, [fetchUsuarios]);
+
+  const toggleUsuarioEstado = useCallback(async (id: string, activo: boolean) => {
+    try {
+      const response = await apiClient.toggleUsuarioEstado(id, activo);
+      if (response.ok && response.data) {
+        setUsuarios((prev) => prev.map((user) => (user.id === id ? response.data as Usuario : user)));
+        return response.data as Usuario;
+      }
+
+      const message = response.error || 'No se pudo actualizar el estado del usuario';
+      throw new Error(message);
+    } catch (err) {
+      if (err instanceof Error) {
+        throw err;
+      }
+      throw new Error('No se pudo actualizar el estado del usuario');
+    }
+  }, []);
+
+  const createUsuario = useCallback(async (data: Omit<Usuario, 'id'> & { password?: string }) => {
+    const response = await apiClient.createUsuario(data);
+    if (response.ok && response.data) {
+      setUsuarios((prev) => [response.data as Usuario, ...prev]);
+      setTotal((prev) => prev + 1);
+      return response.data as Usuario;
+    }
+
+    const message = response.error || 'No se pudo crear el usuario';
+    throw new Error(message);
+  }, []);
+
+  const updateUsuario = useCallback(async (id: string, data: Partial<Usuario> & { password?: string }) => {
+    const response = await apiClient.updateUsuario(id, data);
+    if (response.ok && response.data) {
+      setUsuarios((prev) => prev.map((user) => (user.id === id ? response.data as Usuario : user)));
+      return response.data as Usuario;
+    }
+
+    const message = response.error || 'No se pudo actualizar el usuario';
+    throw new Error(message);
+  }, []);
 
   return {
     usuarios,
     loading,
     error,
     total,
-    refetch
+    refetch,
+    toggleUsuarioEstado,
+    createUsuario,
+    updateUsuario
   };
 }

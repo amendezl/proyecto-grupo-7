@@ -1,12 +1,10 @@
 import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
+import { initReactI18next } from 'react-i18next';
 
-// Recursos de traducción
 const resources = {
   es: {
     translation: {
-      // Navegación
       nav: {
         dashboard: 'Dashboard',
         reservas: 'Reservas',
@@ -18,7 +16,6 @@ const resources = {
         configuracion: 'Configuración',
         perfil: 'Perfil'
       },
-      // Configuración
       config: {
         title: 'Configuración',
         subtitle: 'Personaliza la aplicación según tus preferencias',
@@ -78,7 +75,6 @@ const resources = {
           active: 'Activa'
         }
       },
-      // Notificaciones
       notifications: {
         title: 'Notificaciones',
         close: 'Cerrar',
@@ -112,156 +108,26 @@ const resources = {
           error: 'Error'
         }
       },
-      // Dashboard
-      dashboard: {
-        title: 'Dashboard',
-        welcome: 'Bienvenido',
-        overview: 'Resumen del Sistema',
-        totalSpaces: 'Espacios Totales',
-        availableSpaces: 'Espacios Disponibles',
-        occupiedSpaces: 'Espacios Ocupados',
-        maintenanceSpaces: 'En Mantenimiento',
-        totalReservations: 'Reservas Totales',
-        activeUsers: 'Usuarios Activos',
-        lastUpdate: 'Última actualización'
-      },
-      // Común
-      common: {
-        search: 'Buscar',
-        filter: 'Filtrar',
-        add: 'Agregar',
-        edit: 'Editar',
-        delete: 'Eliminar',
-        save: 'Guardar',
-        cancel: 'Cancelar',
-        loading: 'Cargando...',
-        noResults: 'No se encontraron resultados',
-        actions: 'Acciones',
-        status: 'Estado',
-        active: 'Activo',
-        inactive: 'Inactivo',
-        available: 'Disponible',
-        occupied: 'Ocupado',
-        maintenance: 'Mantenimiento',
-        reserved: 'Reservado'
-      },
-      // Estados
-      status: {
-        available: 'Disponible',
-        occupied: 'Ocupado',
-        maintenance: 'Mantenimiento',
-        reserved: 'Reservado',
-        active: 'Activo',
-        inactive: 'Inactivo'
-      }
-    }
-  },
-  en: {
-    translation: {
-      // Navigation
-      nav: {
-        dashboard: 'Dashboard',
-        reservas: 'Reservations',
-        espacios: 'Spaces',
-        zonas: 'Zones',
-        usuarios: 'Users',
-        responsables: 'Managers',
-        reportes: 'Reports',
-        configuracion: 'Settings',
-        perfil: 'Profile'
-      },
-      // Configuration
-      config: {
-        title: 'Settings',
-        subtitle: 'Customize the application according to your preferences',
-        save: 'Save',
-        saved: 'Saved',
-        reset: 'Reset',
-        savedSuccess: 'Settings saved successfully',
-        general: {
-          title: 'General Settings',
-          theme: 'Application theme',
-          themeLight: 'Light',
-          themeDark: 'Dark',
-          themeAuto: 'Automatic',
-          language: 'Language',
-          notifications: 'Enable notifications',
-          sounds: 'Application sounds',
-          autoSave: 'Auto save',
-          sessionTime: 'Session time (minutes)'
+      usuariosModule: {
+        created: {
+          title: 'Usuario creado',
+          message: '{{name}} se ha registrado correctamente.'
         },
-        notifications: {
-          title: 'Notification Settings',
-          types: 'Notification types',
-          reservations: 'New reservations and modifications',
-          statusChanges: 'Space status changes',
-          maintenance: 'Maintenance alerts',
-          channels: 'Notification channels',
-          email: 'Email',
-          push: 'Push notifications',
-          frequency: 'Notification frequency',
-          immediate: 'Immediate',
-          grouped: 'Grouped (hourly)',
-          daily: 'Daily summary'
+        updated: {
+          title: 'Usuario actualizado',
+          message: '{{name}} se actualizó correctamente.'
         },
-        system: {
-          title: 'System Settings',
-          dateFormat: 'Date format',
-          timeFormat: 'Time format',
-          timezone: 'Time zone',
-          advanced: 'Advanced settings',
-          auditLogs: 'Audit logs',
-          autoBackup: 'Automatic backup',
-          autoCleanup: 'Automatic log cleanup (days)'
+        stateChanged: {
+          title: 'Estado actualizado',
+          message: '{{name}} ahora está {{status}}.'
         },
-        security: {
-          title: 'Security Settings',
-          changePassword: 'Change password',
-          currentPassword: 'Current password',
-          newPassword: 'New password',
-          confirmPassword: 'Confirm new password',
-          twoFactor: 'Two-factor authentication',
-          twoFactorDesc: 'Add an additional layer of security to your account',
-          setup2FA: 'Setup 2FA',
-          activeSessions: 'Active sessions',
-          currentSession: 'Current session',
-          closeAllSessions: 'Close all sessions',
-          recommended: 'Recommended',
-          active: 'Active'
-        }
-      },
-      // Notifications
-      notifications: {
-        title: 'Notifications',
-        close: 'Close',
-        markRead: 'Mark as read',
-        markAllRead: 'Mark all as read',
-        clearAll: 'Clear all',
-        remove: 'Remove',
-        search: 'Search notifications...',
-        settings: 'Settings',
-        noNotifications: 'No notifications',
-        noFilterResults: 'No notifications found',
-        justNow: 'Just now',
-        minutesAgo: '{{count}} minute ago',
-        minutesAgo_plural: '{{count}} minutes ago',
-        hoursAgo: '{{count}} hour ago',
-        hoursAgo_plural: '{{count}} hours ago',
-        daysAgo: '{{count}} day ago',
-        daysAgo_plural: '{{count}} days ago',
-        filters: {
-          all: 'All',
-          unread: 'Unread',
-          read: 'Read',
-          statusLabel: 'Filter by status',
-          typeLabel: 'Filter by type'
+        stateError: {
+          title: 'No se pudo actualizar el estado',
+          message: 'Intenta nuevamente en unos segundos.'
         },
-        types: {
-          all: 'All types',
-          info: 'Information',
-          success: 'Success',
-          warning: 'Warning',
-          error: 'Error'
+        saveError: {
+          title: 'No se pudo guardar el usuario',
+          message: 'Por favor intenta nuevamente en unos segundos.'
         }
       },
       // Dashboard
@@ -414,6 +280,28 @@ const resources = {
           success: 'Sucesso',
           warning: 'Aviso',
           error: 'Erro'
+        }
+      },
+      usuariosModule: {
+        created: {
+          title: 'Usuário criado',
+          message: '{{name}} foi registrado com sucesso.'
+        },
+        updated: {
+          title: 'Usuário atualizado',
+          message: '{{name}} foi atualizado com sucesso.'
+        },
+        stateChanged: {
+          title: 'Status atualizado',
+          message: '{{name}} agora está {{status}}.'
+        },
+        stateError: {
+          title: 'Não foi possível atualizar o status',
+          message: 'Tente novamente em alguns segundos.'
+        },
+        saveError: {
+          title: 'Não foi possível salvar o usuário',
+          message: 'Por favor, tente novamente em alguns segundos.'
         }
       },
       // Dashboard

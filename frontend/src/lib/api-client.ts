@@ -19,6 +19,8 @@ export interface Espacio {
   estado: 'disponible' | 'ocupado' | 'mantenimiento';
   tipo: string;
   zona: string;
+  zonaId?: string;
+  edificio?: string;
   piso: number;
   equipamiento: string[];
   ultimaActualizacion: string;
@@ -27,12 +29,14 @@ export interface Espacio {
 export interface Zona {
   id: string;
   nombre: string;
-  descripcion: string;
+  descripcion?: string;
   piso: number;
   capacidadTotal: number;
   espaciosDisponibles: number;
-  color: string;
+  color?: string;
   activa?: boolean;
+  edificio?: string;
+  tipoZona?: string;
 }
 
 export interface Reserva {
@@ -103,6 +107,327 @@ export interface AuthTokens {
   refreshToken: string;
   expiresAt: number;
 }
+
+const safeString = (value: unknown, fallback = ''): string => {
+  if (typeof value === 'string') return value;
+  if (value === null || value === undefined) return fallback;
+  return String(value);
+};
+
+const safeNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number' && !Number.isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+};
+
+const safeBoolean = (value: unknown, fallback = false): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  return fallback;
+};
+
+const ensureArray = <T = string>(value: unknown, mapItem?: (item: any) => T): T[] => {
+  if (Array.isArray(value)) {
+    return mapItem ? value.map(mapItem) : value as T[];
+  }
+  if (value === null || value === undefined) {
+    return [];
+  }
+  const mapped = mapItem ? mapItem(value) : (value as T);
+  return [mapped];
+};
+
+const normalizeEstadoEspacio = (estado: string): Espacio['estado'] => {
+  const normalized = estado.toLowerCase();
+  if (normalized === 'disponible' || normalized === 'ocupado' || normalized === 'mantenimiento') {
+    return normalized;
+  }
+  return 'disponible';
+};
+
+const normalizeEstadoReserva = (estado: string): Reserva['estado'] => {
+  const normalized = estado.toLowerCase();
+  if (normalized === 'pendiente' || normalized === 'confirmada' || normalized === 'cancelada') {
+    return normalized;
+  }
+  return 'pendiente';
+};
+
+const normalizeRol = (rol: string): Usuario['rol'] => {
+  const normalized = rol.toLowerCase();
+  if (normalized === 'admin' || normalized === 'responsable' || normalized === 'usuario') {
+    return normalized;
+  }
+  return 'usuario';
+};
+
+const mapEspacioFromApi = (raw: any): Espacio => {
+  const ubicacion = raw?.ubicacion ?? {};
+  const zonaId = safeString(raw?.zona_id ?? raw?.zonaId ?? '', '');
+  const zonaNombre = safeString(raw?.zonaNombre ?? raw?.zona ?? ubicacion?.zona ?? zonaId);
+
+  let equipamiento: string[] = [];
+  if (Array.isArray(raw?.equipamiento)) {
+    equipamiento = raw.equipamiento;
+  } else if (typeof raw?.equipamiento === 'string') {
+    equipamiento = raw.equipamiento.split(',').map((item: string) => item.trim()).filter(Boolean);
+  }
+
+  const estado = safeString(raw?.estado ?? 'disponible');
+
+  return {
+    id: safeString(raw?.id ?? raw?.PK ?? ''),
+    nombre: safeString(raw?.nombre ?? 'Espacio sin nombre'),
+    descripcion: safeString(raw?.descripcion ?? ''),
+    capacidad: safeNumber(raw?.capacidad ?? raw?.capacidad_total ?? 0),
+    estado: normalizeEstadoEspacio(estado),
+    tipo: safeString(raw?.tipo ?? 'otro'),
+    zona: zonaNombre,
+    zonaId: zonaId || undefined,
+    edificio: safeString(ubicacion?.edificio ?? raw?.edificio ?? ''),
+    piso: safeNumber(ubicacion?.piso ?? raw?.piso ?? 0),
+    equipamiento,
+    ultimaActualizacion: safeString(
+      raw?.updatedAt ?? raw?.updated_at ?? raw?.fecha_actualizacion ?? raw?.ultimaActualizacion ?? new Date().toISOString()
+    ),
+  };
+};
+
+const mapZonaFromApi = (raw: any): Zona => {
+  const capacidad = safeNumber(
+    raw?.capacidadTotal ?? raw?.capacidad_total ?? raw?.capacidadMaxima ?? raw?.capacidad_maxima ?? raw?.capacidad ?? 0
+  );
+
+  const espaciosDisponibles = safeNumber(
+    raw?.espaciosDisponibles ?? raw?.espacios_disponibles ?? raw?.metricas?.disponibles ?? raw?.estadisticas?.disponibles ?? 0
+  );
+
+  let activa: boolean | undefined;
+  if (typeof raw?.activa === 'boolean') {
+    activa = raw.activa;
+  } else if (typeof raw?.estado === 'string') {
+    activa = raw.estado.toLowerCase() === 'activa';
+  }
+
+  return {
+    id: safeString(raw?.id ?? raw?.PK ?? ''),
+    nombre: safeString(raw?.nombre ?? 'Zona sin nombre'),
+    descripcion: raw?.descripcion ? safeString(raw.descripcion) : undefined,
+    piso: safeNumber(raw?.piso ?? raw?.ubicacion?.piso ?? 0),
+    capacidadTotal: capacidad,
+    espaciosDisponibles,
+    color: raw?.color ? safeString(raw.color) : undefined,
+    activa,
+    edificio: raw?.edificio ? safeString(raw.edificio) : raw?.ubicacion?.edificio ? safeString(raw.ubicacion.edificio) : undefined,
+    tipoZona: raw?.tipoZona ? safeString(raw.tipoZona) : raw?.tipo_zona ? safeString(raw.tipo_zona) : undefined,
+  };
+};
+
+const mapReservaFromApi = (raw: any): Reserva => {
+  const fechaInicioRaw = raw?.fecha_inicio ?? raw?.fechaInicio ?? raw?.fecha_reserva ?? raw?.inicio;
+  const fechaFinRaw = raw?.fecha_fin ?? raw?.fechaFin ?? raw?.fin ?? raw?.fecha_reserva;
+  const estado = safeString(raw?.estado ?? 'pendiente');
+
+  return {
+    id: safeString(raw?.id ?? raw?.PK ?? ''),
+    espacioId: safeString(raw?.espacio_id ?? raw?.espacioId ?? ''),
+    usuarioId: safeString(raw?.usuario_id ?? raw?.usuarioId ?? ''),
+    fechaInicio: safeString(fechaInicioRaw ?? new Date().toISOString()),
+    fechaFin: safeString(fechaFinRaw ?? new Date().toISOString()),
+    estado: normalizeEstadoReserva(estado),
+    proposito: safeString(raw?.proposito ?? raw?.motivo ?? ''),
+    participantes: safeNumber(raw?.participantes ?? raw?.numero_asistentes ?? raw?.asistentes ?? 0),
+  };
+};
+
+const mapUsuarioFromApi = (raw: any): Usuario => {
+  const rolRaw = safeString(raw?.rol ?? raw?.role ?? 'usuario');
+
+  return {
+    id: safeString(raw?.id ?? raw?.PK ?? ''),
+    nombre: safeString(raw?.nombre ?? raw?.first_name ?? ''),
+    apellido: raw?.apellido ? safeString(raw.apellido) : raw?.last_name ? safeString(raw.last_name) : undefined,
+    email: safeString(raw?.email ?? ''),
+    rol: normalizeRol(rolRaw),
+    departamento: safeString(raw?.departamento ?? raw?.department ?? ''),
+    telefono: safeString(raw?.telefono ?? raw?.phone ?? ''),
+    activo: raw?.activo !== undefined ? safeBoolean(raw.activo, true) : true,
+    createdAt: raw?.createdAt ?? raw?.fecha_creacion ?? raw?.created_at,
+    updatedAt: raw?.updatedAt ?? raw?.fecha_actualizacion ?? raw?.updated_at,
+  };
+};
+
+const mapResponsableFromApi = (raw: any): Responsable => {
+  const estado = typeof raw?.estado === 'string'
+    ? raw.estado.toLowerCase() === 'inactivo' ? 'inactivo' : 'activo'
+    : safeBoolean(raw?.activo, true) ? 'activo' : 'inactivo';
+
+  const estadisticas = raw?.estadisticas ?? {
+    espaciosGestionados: safeNumber(raw?.espaciosGestionados ?? 0),
+    reservasAprobadas: safeNumber(raw?.reservasAprobadas ?? 0),
+    incidentesResueltos: safeNumber(raw?.incidentesResueltos ?? 0),
+  };
+
+  return {
+    id: safeString(raw?.id ?? raw?.PK ?? ''),
+    nombre: safeString(raw?.nombre ?? ''),
+    apellido: safeString(raw?.apellido ?? ''),
+    email: safeString(raw?.email ?? ''),
+    telefono: safeString(raw?.telefono ?? raw?.phone ?? ''),
+    departamento: safeString(raw?.departamento ?? raw?.area ?? raw?.area_responsabilidad ?? ''),
+    especialidad: raw?.especialidad ? safeString(raw.especialidad) : raw?.cargo ? safeString(raw.cargo) : undefined,
+    areas: ensureArray<string>(raw?.areas ?? raw?.area ? [raw.area] : [], (item) => safeString(item)),
+    espaciosAsignados: ensureArray<string>(raw?.espaciosAsignados ?? raw?.espacios_asignados ?? []),
+    estado,
+    fechaCreacion: safeString(raw?.fechaCreacion ?? raw?.fecha_creacion ?? raw?.createdAt ?? new Date().toISOString()),
+    ultimoAcceso: raw?.ultimoAcceso ? safeString(raw.ultimoAcceso) : raw?.lastLogin ? safeString(raw.lastLogin) : undefined,
+    estadisticas: {
+      espaciosGestionados: safeNumber(estadisticas?.espaciosGestionados ?? 0),
+      reservasAprobadas: safeNumber(estadisticas?.reservasAprobadas ?? 0),
+      incidentesResueltos: safeNumber(estadisticas?.incidentesResueltos ?? 0),
+    },
+  };
+};
+
+const mapDashboardMetricsFromApi = (raw: any): DashboardMetrics => {
+  const data = raw?.estadisticas ?? raw ?? {};
+  const espacios = data?.espacios ?? {};
+  const reservas = data?.reservas ?? {};
+
+  const totalEspacios = safeNumber(espacios?.total ?? 0);
+  const espaciosDisponibles = safeNumber(espacios?.disponibles ?? 0);
+  const espaciosOcupados = safeNumber(espacios?.ocupados ?? 0);
+  const espaciosMantenimiento = safeNumber(espacios?.mantenimiento ?? 0);
+  const reservasHoy = safeNumber(reservas?.hoy ?? reservas?.total ?? 0);
+  const ocupacionPromedio = totalEspacios > 0
+    ? Math.min(100, Math.max(0, Math.round((espaciosOcupados / totalEspacios) * 100)))
+    : 0;
+
+  return {
+    totalEspacios,
+    espaciosDisponibles,
+    espaciosOcupados,
+    espaciosMantenimiento,
+    reservasHoy,
+    ocupacionPromedio,
+  };
+};
+
+const serializeEspacioInput = (data: Partial<Espacio>) => {
+  const payload: Record<string, any> = {};
+
+  if (data.nombre !== undefined) payload.nombre = data.nombre;
+  if (data.descripcion !== undefined) payload.descripcion = data.descripcion;
+  if (data.tipo !== undefined) payload.tipo = data.tipo;
+  if (data.capacidad !== undefined) payload.capacidad = data.capacidad;
+  if (data.estado !== undefined) payload.estado = data.estado;
+  if (data.equipamiento !== undefined) payload.equipamiento = data.equipamiento;
+  if (data.zonaId !== undefined) payload.zona_id = data.zonaId;
+  if (data.zona !== undefined && data.zonaId === undefined) payload.zona_id = data.zona;
+  if (data.edificio !== undefined || data.piso !== undefined || data.zona !== undefined) {
+    const ubicacion: Record<string, any> = {};
+    if (data.edificio !== undefined) ubicacion.edificio = data.edificio;
+    if (data.piso !== undefined) ubicacion.piso = data.piso;
+    if (data.zona !== undefined) ubicacion.zona = data.zona;
+    if (Object.keys(ubicacion).length > 0) {
+      payload.ubicacion = ubicacion;
+    }
+  }
+
+  return payload;
+};
+
+const serializeZonaInput = (data: Partial<Zona>) => {
+  const payload: Record<string, any> = {};
+
+  if (data.nombre !== undefined) payload.nombre = data.nombre;
+  if (data.descripcion !== undefined) payload.descripcion = data.descripcion;
+  if (data.piso !== undefined) payload.piso = data.piso;
+  if (data.edificio !== undefined) payload.edificio = data.edificio;
+  if (data.capacidadTotal !== undefined) {
+    payload.capacidadMaxima = data.capacidadTotal;
+    payload.capacidad_total = data.capacidadTotal;
+  }
+  if (data.espaciosDisponibles !== undefined) payload.espaciosDisponibles = data.espaciosDisponibles;
+  if (data.tipoZona !== undefined) {
+    payload.tipoZona = data.tipoZona;
+    payload.tipo_zona = data.tipoZona;
+  }
+  if (data.activa !== undefined) payload.activa = data.activa;
+  if (data.color !== undefined) payload.color = data.color;
+
+  return payload;
+};
+
+const serializeResponsableInput = (data: Partial<Responsable>) => {
+  const payload: Record<string, any> = {};
+
+  if (data.nombre !== undefined) payload.nombre = data.nombre;
+  if (data.apellido !== undefined) payload.apellido = data.apellido;
+  if (data.email !== undefined) payload.email = data.email;
+  if (data.telefono !== undefined) payload.telefono = data.telefono;
+  if (data.departamento !== undefined) payload.area = data.departamento;
+  if (data.especialidad !== undefined) payload.cargo = data.especialidad;
+  if (data.estado !== undefined) payload.activo = data.estado === 'activo';
+  if (data.areas !== undefined) payload.areas = data.areas;
+  if (data.espaciosAsignados !== undefined) payload.espaciosAsignados = data.espaciosAsignados;
+
+  return payload;
+};
+
+const serializeUsuarioInput = (data: Partial<Usuario> & { password?: string }) => {
+  const payload: Record<string, any> = {};
+
+  if (data.nombre !== undefined) payload.nombre = data.nombre;
+  if (data.apellido !== undefined) payload.apellido = data.apellido;
+  if (data.email !== undefined) payload.email = data.email;
+  if (data.telefono !== undefined) payload.telefono = data.telefono;
+  if (data.departamento !== undefined) payload.departamento = data.departamento;
+  if (data.rol !== undefined) payload.rol = data.rol;
+  if (data.activo !== undefined) payload.activo = data.activo;
+  if ((data as any).password !== undefined) payload.password = (data as any).password;
+
+  return payload;
+};
+
+const serializeReservaInput = (data: Partial<Reserva>) => {
+  const payload: Record<string, any> = {};
+
+  if (data.espacioId !== undefined) payload.espacio_id = data.espacioId;
+  if (data.usuarioId !== undefined) payload.usuario_id = data.usuarioId;
+  if (data.fechaInicio !== undefined) payload.fecha_inicio = data.fechaInicio;
+  if (data.fechaFin !== undefined) payload.fecha_fin = data.fechaFin;
+  if (data.proposito !== undefined) payload.proposito = data.proposito;
+  if (data.estado !== undefined) payload.estado = data.estado;
+  if (data.participantes !== undefined) {
+    payload.participantes = data.participantes;
+    payload.numero_asistentes = data.participantes;
+  }
+
+  return payload;
+};
+
+const transformResponse = <T, U>(response: ApiResponse<T>, mapper: (data: T) => U): ApiResponse<U> => {
+  if (response.ok && response.data !== undefined) {
+    return {
+      ...response,
+      data: mapper(response.data),
+    } as ApiResponse<U>;
+  }
+  return response as unknown as ApiResponse<U>;
+};
 
 class ApiClient {
   private client: AxiosInstance;
@@ -340,17 +665,28 @@ class ApiClient {
     
     const endpoint = this.getOptimizedEndpoint('/espacios');
     const queryString = params.toString();
-    return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    const response = await this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    return transformResponse(response, (payload: any) => {
+      const items: any[] = Array.isArray(payload?.espacios) ? payload.espacios : [];
+      return {
+        espacios: items.map(mapEspacioFromApi),
+        total: safeNumber(payload?.total ?? items.length),
+      };
+    });
   }
 
   async createEspacio(data: Omit<Espacio, 'id' | 'ultimaActualizacion'>): Promise<ApiResponse<Espacio>> {
     const endpoint = this.getOptimizedEndpoint('/espacios');
-    return this.post(endpoint, data);
+    const payload = serializeEspacioInput(data);
+    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapEspacioFromApi);
   }
 
   async updateEspacio(id: string, data: Partial<Espacio>): Promise<ApiResponse<Espacio>> {
     const endpoint = this.getOptimizedEndpoint(`/espacios/${id}`);
-    return this.put(endpoint, data);
+    const payload = serializeEspacioInput(data);
+    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapEspacioFromApi);
   }
 
   async deleteEspacio(id: string): Promise<ApiResponse<{ message: string }>> {
@@ -362,8 +698,7 @@ class ApiClient {
     id: string,
     estado: 'disponible' | 'ocupado' | 'mantenimiento'
   ): Promise<ApiResponse<Espacio>> {
-    const endpoint = this.getOptimizedEndpoint(`/espacios/${id}/toggle-estado`);
-    return this.patch(endpoint, { estado });
+    return this.updateEspacio(id, { estado });
   }
 
   async getReservas(filters?: {
@@ -378,22 +713,34 @@ class ApiClient {
     
     const endpoint = this.getOptimizedEndpoint('/reservas');
     const queryString = params.toString();
-    return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    const response = await this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    return transformResponse(response, (payload: any) => {
+      const items: any[] = Array.isArray(payload?.reservas) ? payload.reservas : [];
+      return {
+        reservas: items.map(mapReservaFromApi),
+        total: safeNumber(payload?.total ?? items.length),
+      };
+    });
   }
 
   async createReserva(data: Omit<Reserva, 'id'>): Promise<ApiResponse<Reserva>> {
     const endpoint = this.getOptimizedEndpoint('/reservas');
-    return this.post(endpoint, data);
+    const payload = serializeReservaInput(data);
+    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapReservaFromApi);
   }
 
   async updateReserva(id: string, data: Partial<Reserva>): Promise<ApiResponse<Reserva>> {
     const endpoint = this.getOptimizedEndpoint(`/reservas/${id}`);
-    return this.put(endpoint, data);
+    const payload = serializeReservaInput(data);
+    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapReservaFromApi);
   }
 
-  async cancelReserva(id: string): Promise<ApiResponse<{ message: string }>> {
+  async cancelReserva(id: string): Promise<ApiResponse<Reserva>> {
     const endpoint = this.getOptimizedEndpoint(`/reservas/${id}/cancel`);
-    return this.patch(endpoint);
+    const response = await this.patch(endpoint);
+    return transformResponse(response, mapReservaFromApi);
   }
 
   async deleteReserva(id: string): Promise<ApiResponse<{ message: string }>> {
@@ -401,19 +748,31 @@ class ApiClient {
     return this.delete(endpoint);
   }
 
-  async getZonas(): Promise<ApiResponse<{ zonas: Zona[] }>> {
+  async getZonas(): Promise<ApiResponse<{ zonas: Zona[]; total?: number }>> {
     const endpoint = this.getOptimizedEndpoint('/zonas');
-    return this.get(endpoint);
+    const response = await this.get(endpoint);
+    return transformResponse(response, (payload: any) => {
+      const items: any[] = Array.isArray(payload?.zonas) ? payload.zonas : [];
+      const total = payload?.total !== undefined ? safeNumber(payload.total) : undefined;
+      return {
+        zonas: items.map(mapZonaFromApi),
+        ...(total !== undefined ? { total } : {}),
+      };
+    });
   }
 
   async createZona(data: Omit<Zona, 'id'>): Promise<ApiResponse<Zona>> {
     const endpoint = this.getOptimizedEndpoint('/zonas');
-    return this.post(endpoint, data);
+    const payload = serializeZonaInput(data);
+    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapZonaFromApi);
   }
 
   async updateZona(id: string, data: Partial<Zona>): Promise<ApiResponse<Zona>> {
     const endpoint = this.getOptimizedEndpoint(`/zonas/${id}`);
-    return this.put(endpoint, data);
+    const payload = serializeZonaInput(data);
+    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapZonaFromApi);
   }
 
   async deleteZona(id: string): Promise<ApiResponse<{ message: string }>> {
@@ -421,9 +780,16 @@ class ApiClient {
     return this.delete(endpoint);
   }
 
+  async toggleZonaEstado(id: string, activa: boolean): Promise<ApiResponse<Zona>> {
+    const endpoint = this.getOptimizedEndpoint(`/zonas/${id}/toggle-estado`);
+    const response = await this.patch(endpoint, { activa });
+    return transformResponse(response, mapZonaFromApi);
+  }
+
   async getDashboardMetrics(): Promise<ApiResponse<DashboardMetrics>> {
-    const endpoint = this.getOptimizedEndpoint('/dashboard/metrics');
-    return this.get(endpoint);
+    const endpoint = this.getOptimizedEndpoint('/dashboard');
+    const response = await this.get(endpoint);
+    return transformResponse(response, mapDashboardMetricsFromApi);
   }
 
   // Métodos para Responsables
@@ -432,27 +798,44 @@ class ApiClient {
     estado?: string;
   }): Promise<ApiResponse<{ responsables: Responsable[]; total: number }>> {
     const params = new URLSearchParams();
-    if (filters?.departamento) params.append('departamento', filters.departamento);
-    if (filters?.estado) params.append('estado', filters.estado);
+    if (filters?.departamento) params.append('area', filters.departamento);
+    if (filters?.estado) {
+      const normalized = filters.estado.toLowerCase();
+      if (normalized === 'activo' || normalized === 'inactivo') {
+        params.append('activo', normalized === 'activo' ? 'true' : 'false');
+      }
+    }
     
     const endpoint = this.getOptimizedEndpoint('/responsables');
     const queryString = params.toString();
-    return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    const response = await this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    return transformResponse(response, (payload: any) => {
+      const items: any[] = Array.isArray(payload?.responsables) ? payload.responsables : [];
+      return {
+        responsables: items.map(mapResponsableFromApi),
+        total: safeNumber(payload?.total ?? items.length),
+      };
+    });
   }
 
   async getResponsable(id: string): Promise<ApiResponse<Responsable>> {
     const endpoint = this.getOptimizedEndpoint(`/responsables/${id}`);
-    return this.get(endpoint);
+    const response = await this.get(endpoint);
+    return transformResponse(response, mapResponsableFromApi);
   }
 
   async createResponsable(data: Omit<Responsable, 'id' | 'fechaCreacion' | 'estadisticas'>): Promise<ApiResponse<Responsable>> {
     const endpoint = this.getOptimizedEndpoint('/responsables');
-    return this.post(endpoint, data);
+    const payload = serializeResponsableInput(data);
+    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapResponsableFromApi);
   }
 
   async updateResponsable(id: string, data: Partial<Responsable>): Promise<ApiResponse<Responsable>> {
     const endpoint = this.getOptimizedEndpoint(`/responsables/${id}`);
-    return this.put(endpoint, data);
+    const payload = serializeResponsableInput(data);
+    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapResponsableFromApi);
   }
 
   async deleteResponsable(id: string): Promise<ApiResponse<{ message: string }>> {
@@ -462,7 +845,8 @@ class ApiClient {
 
   async toggleResponsableEstado(id: string, activo: boolean): Promise<ApiResponse<Responsable>> {
     const endpoint = this.getOptimizedEndpoint(`/responsables/${id}/toggle-estado`);
-    return this.patch(endpoint, { activo });
+    const response = await this.patch(endpoint, { activo });
+    return transformResponse(response, mapResponsableFromApi);
   }
 
   async asignarEspacios(responsableId: string, espaciosIds: string[]): Promise<ApiResponse<{ message: string }>> {
@@ -483,17 +867,28 @@ class ApiClient {
     
     const endpoint = this.getOptimizedEndpoint('/usuarios');
     const queryString = params.toString();
-    return this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    const response = await this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    return transformResponse(response, (payload: any) => {
+      const items: any[] = Array.isArray(payload?.usuarios) ? payload.usuarios : [];
+      return {
+        usuarios: items.map(mapUsuarioFromApi),
+        total: safeNumber(payload?.total ?? items.length),
+      };
+    });
   }
 
-  async createUsuario(data: Omit<Usuario, 'id'>): Promise<ApiResponse<Usuario>> {
+  async createUsuario(data: Omit<Usuario, 'id'> & { password?: string }): Promise<ApiResponse<Usuario>> {
     const endpoint = this.getOptimizedEndpoint('/usuarios');
-    return this.post(endpoint, data);
+    const payload = serializeUsuarioInput(data);
+    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapUsuarioFromApi);
   }
 
-  async updateUsuario(id: string, data: Partial<Usuario>): Promise<ApiResponse<Usuario>> {
+  async updateUsuario(id: string, data: Partial<Usuario> & { password?: string }): Promise<ApiResponse<Usuario>> {
     const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}`);
-    return this.put(endpoint, data);
+    const payload = serializeUsuarioInput(data);
+    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    return transformResponse(response, mapUsuarioFromApi);
   }
 
   async deleteUsuario(id: string): Promise<ApiResponse<{ message: string }>> {
@@ -503,12 +898,8 @@ class ApiClient {
 
   async toggleUsuarioEstado(id: string, activo: boolean): Promise<ApiResponse<Usuario>> {
     const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}/toggle-estado`);
-    return this.patch(endpoint, { activo });
-  }
-
-  async toggleZonaEstado(id: string, activa: boolean): Promise<ApiResponse<Zona>> {
-    const endpoint = this.getOptimizedEndpoint(`/zonas/${id}/toggle-estado`);
-    return this.patch(endpoint, { activa });
+    const response = await this.patch(endpoint, { activo });
+    return transformResponse(response, mapUsuarioFromApi);
   }
 
   // Métodos WebSocket

@@ -3,11 +3,12 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Search, Settings, User, AlertTriangle, LogOut } from 'lucide-react';
-import { designSystem } from '@/lib/design-system';
 import LanguageSelector from '@/components/LanguageSelector';
+import { useNotificationsContext } from '@/context/NotificationsContext';
+import { NotificationCenter } from '@/components/NotificationCenter';
 
 interface HeaderProps {
   urgentMode?: boolean;
@@ -15,11 +16,64 @@ interface HeaderProps {
 
 export default function Header({ urgentMode = false }: HeaderProps) {
   const { t } = useTranslation();
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const {
+    notifications,
+    markAsRead,
+    markAllAsRead,
+    removeNotification,
+    clearAll,
+    stats,
+  } = useNotificationsContext();
+
+  const unreadCount = stats.unread;
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  const toggleNotifications = useCallback(() => {
+    setShowNotifications((prev) => !prev);
+  }, []);
+
+  const closeNotifications = useCallback(() => {
+    setShowNotifications(false);
+    markAllAsRead();
+  }, [markAllAsRead]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!headerRef.current) return;
+      if (!headerRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+        markAllAsRead();
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setShowNotifications(false);
+        markAllAsRead();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      if (showNotifications) {
+        markAllAsRead();
+      }
+    };
+  }, [showNotifications, markAllAsRead]);
 
   return (
     <header 
+      ref={headerRef}
       className={`
         fixed top-0 left-0 right-0 z-50 h-16
         ${urgentMode 
@@ -101,7 +155,7 @@ export default function Header({ urgentMode = false }: HeaderProps) {
             <button
               aria-label="Ver notificaciones"
               title="Ver notificaciones"
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={toggleNotifications}
               className={`
                 p-2 rounded-lg transition-colors relative
                 ${urgentMode 
@@ -111,27 +165,12 @@ export default function Header({ urgentMode = false }: HeaderProps) {
               `}
             >
               <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white">
+                  {Math.min(unreadCount, 9)}
+                </span>
+              )}
             </button>
-
-            {/* Dropdown de notificaciones */}
-            {showNotifications && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border max-h-96 overflow-y-auto">
-                <div className="p-4 border-b border-gray-100">
-                  <h3 className="font-semibold text-gray-900">{t('nav.notifications')}</h3>
-                </div>
-                <div className="p-2">
-                  <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
-                    <p className="text-sm font-medium text-gray-900">Nueva reserva creada</p>
-                    <p className="text-xs text-gray-500">Sala de reuniones A - hace 5 min</p>
-                  </div>
-                  <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
-                    <p className="text-sm font-medium text-gray-900">Espacio liberado</p>
-                    <p className="text-xs text-gray-500">Oficina 201 - hace 10 min</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Configuración */}
@@ -190,6 +229,16 @@ export default function Header({ urgentMode = false }: HeaderProps) {
           </div>
         </div>
       </div>
+      <NotificationCenter
+        notifications={notifications}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onRemove={removeNotification}
+        onClearAll={clearAll}
+        unreadCount={unreadCount}
+        isOpen={showNotifications}
+        onToggle={closeNotifications}
+      />
     </header>
   );
 }
