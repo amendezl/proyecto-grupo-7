@@ -1,736 +1,367 @@
-# === AUTHENTICATION & AUTHORIZATION ===# === CORE AUTHENTICATION ===
+﻿# === AUTHENTICATION & AUTHORIZATION ===
+authLogin:
+  handler: src/handlers/cognitoAuth.login
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /auth/login
+        method: post
 
-authLogin:login:
+authRefresh:
+  handler: src/handlers/cognitoAuth.refresh
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /auth/refresh
+        method: post
 
-  handler: src/handlers/cognitoAuth.login  handler: src/handlers/auth.login
-
-  timeout: 10  timeout: 10
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
-  events:  events:
-
-    - httpApi:    - httpApi:
-
-        path: /auth/login        path: /auth/login
-
-        method: post        method: post
-
-
-
-authRefresh:register:
-
-  handler: src/handlers/cognitoAuth.refresh  handler: src/handlers/auth.register
-
-  timeout: 10  timeout: 10
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
-  events:  events:
-
-    - httpApi:    - httpApi:
-
-        path: /auth/refresh        path: /auth/register
-
-        method: post        method: post
-
-
-
-authLogout:refreshToken:
-
-  handler: src/handlers/cognitoAuth.logout  handler: src/handlers/auth.refreshToken
-
-  timeout: 10  timeout: 5
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
-  events:  events:
-
-    - httpApi:    - httpApi:
-
-        path: /auth/logout        path: /auth/refresh
-
-        method: post        method: post
-
+authLogout:
+  handler: src/handlers/cognitoAuth.logout
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /auth/logout
+        method: post
         authorizer:
-
-          name: cognitoJwt# === HEALTH & MONITORING ===
-
-healthCheck:
-
-authMe:  handler: src/handlers/healthCheck.handler
-
-  handler: src/handlers/cognitoAuth.me  timeout: 5
-
-  timeout: 10  memorySize: 128
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  events:
-
-  events:    - httpApi:
-
-    - httpApi:        path: /health
-
-        path: /auth/me        method: get
-
-        method: get
-
-        authorizer:# === DEVOPS AUTOMATION AS LAMBDA ===
-
-          name: cognitoJwtdevopsAutomation:
-
-  handler: src/handlers/devops.automation
-
-authPermissionsCatalog:  timeout: 30
-
-  handler: src/handlers/authMetadata.getPermissionsCatalog  memorySize: 512
-
-  timeout: 10  events:
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}    - schedule:
-
-  events:        rate: rate(60 minutes)
-
-    - httpApi:        description: "DevOps automation tasks"
-
-        path: /auth/permissions    - httpApi:
-
-        method: get        path: /devops/automation
-
-        authorizer:        method: post
-
-          name: cognitoJwt        authorizer:
-
           name: cognitoJwt
 
-authRolesCatalog:  environment:
-
-  handler: src/handlers/authMetadata.getRoleDesign    DEVOPS_MODE: automation
-
+authMe:
+  handler: src/handlers/cognitoAuth.me
   timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /auth/me
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}devopsAutomationWorker:
+authPermissionsCatalog:
+  handler: src/handlers/authMetadata.getPermissionsCatalog
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /auth/permissions
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-  events:  handler: src/handlers/devops.automationWorker
+authRolesCatalog:
+  handler: src/handlers/authMetadata.getRoleDesign
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /auth/roles
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-    - httpApi:  timeout: 300
-
-        path: /auth/roles  memorySize: 512
-
-        method: get  events:
-
-        authorizer:    - sqs:
-
-          name: cognitoJwt        arn: { Fn::GetAtt: [DevOpsQueue, Arn] }
-
-        batchSize: 1
-
-# === HEALTH & MONITORING ===  environment:
-
-healthCheck:    DEVOPS_MODE: automation
-
-  handler: src/handlers/healthCheck.handler    WORKER_MODE: true
-
+# === HEALTH & MONITORING ===
+healthCheck:
+  handler: src/handlers/healthCheck.handler
   timeout: 5
-
-  memorySize: 128devopsStatus:
-
-  events:  handler: src/handlers/devops.status
-
-    - httpApi:  timeout: 30
-
-        path: /health  memorySize: 256
-
-        method: get  events:
-
+  memorySize: 128
+  events:
     - httpApi:
+        path: /health
+        method: get
 
-# === DEVOPS AUTOMATION ===        path: /devops/status
-
-devopsAutomation:        method: get
-
+# === DEVOPS AUTOMATION ===
+devopsAutomation:
   handler: src/handlers/devops.automation
-
-  timeout: 30# === CHAOS ENGINEERING AS LAMBDA ===
-
-  memorySize: 512chaosEngineering:
-
-  events:  handler: src/handlers/chaos.resilience
-
-    - schedule:  timeout: 30
-
-        rate: rate(60 minutes)  memorySize: 256
-
-        description: "DevOps automation tasks"  events:
-
-    - httpApi:    - httpApi:
-
-        path: /devops/automation        path: /chaos/test
-
-        method: post        method: post
-
-        authorizer:        authorizer:
-
-          name: cognitoJwt          name: cognitoJwt
-
-  environment:    - httpApi:
-
-    DEVOPS_MODE: automation        path: /chaos/proxy
-
-        method: any
-
-devopsAutomationWorker:  environment:
-
-  handler: src/handlers/devops.automationWorker    CHAOS_MODE: testing
-
-  timeout: 300    CHAOS_TARGET_URL:
-
-  memorySize: 512      Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
-
+  timeout: 30
+  memorySize: 512
   events:
-
-    - sqs:# === CORE BUSINESS LOGIC ===
-
-        arn: { Fn::GetAtt: [DevOpsQueue, Arn] }# Usuarios
-
-        batchSize: 1getUsers:
-
-  environment:  handler: src/handlers/usuarios.getUsers
-
-    DEVOPS_MODE: automation  timeout: 10
-
-    WORKER_MODE: true  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
-  events:
-
-devopsStatus:    - httpApi:
-
-  handler: src/handlers/devops.status        path: /users
-
-  timeout: 30        method: get
-
-  memorySize: 256        authorizer:
-
-  events:          name: cognitoJwt
-
+    - schedule:
+        rate: rate(60 minutes)
+        description: "DevOps automation tasks"
     - httpApi:
+        path: /devops/automation
+        method: post
+        authorizer:
+          name: cognitoJwt
+  environment:
+    DEVOPS_MODE: automation
 
-        path: /devops/statuscreateUser:
-
-        method: get  handler: src/handlers/usuarios.createUser
-
-        authorizer:  timeout: 10
-
-          name: cognitoJwt  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
+devopsAutomationWorker:
+  handler: src/handlers/devops.automationWorker
+  timeout: 300
+  memorySize: 512
   events:
+    - sqs:
+        arn: { Fn::GetAtt: [DevOpsQueue, Arn] }
+        batchSize: 1
+  environment:
+    DEVOPS_MODE: automation
+    WORKER_MODE: true
 
-# === CHAOS ENGINEERING ===    - httpApi:
-
-chaosEngineering:        path: /users
-
-  handler: src/handlers/chaos.resilience        method: post
-
-  timeout: 30        authorizer:
-
-  memorySize: 256          name: cognitoJwt
-
+devopsStatus:
+  handler: src/handlers/devops.status
+  timeout: 30
+  memorySize: 256
   events:
+    - httpApi:
+        path: /devops/status
+        method: get
 
-    - httpApi:# Espacios
-
-        path: /chaos/testgetEspacios:
-
-        method: post  handler: src/handlers/espacios.getEspacios
-
-        authorizer:  timeout: 10
-
-          name: cognitoJwt  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
-    - httpApi:  events:
-
-        path: /chaos/proxy    - httpApi:
-
-        method: any        path: /espacios
-
-  environment:        method: get
-
-    CHAOS_MODE: testing        authorizer:
-
-    CHAOS_TARGET_URL:          name: cognitoJwt
-
+# === CHAOS ENGINEERING ===
+chaosEngineering:
+  handler: src/handlers/chaos.resilience
+  timeout: 30
+  memorySize: 256
+  events:
+    - httpApi:
+        path: /chaos/test
+        method: post
+        authorizer:
+          name: cognitoJwt
+    - httpApi:
+        path: /chaos/proxy
+        method: any
+  environment:
+    CHAOS_MODE: testing
+    CHAOS_TARGET_URL:
       Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
 
-createEspacio:
-
-# === CORE BUSINESS DOMAINS ===  handler: src/handlers/espacios.createEspacio
-
-# Usuarios  timeout: 10
-
-usuariosListar:  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
-  handler: src/handlers/usuarios.getUsuarios  events:
-
-  timeout: 10    - httpApi:
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}        path: /espacios
-
-  events:        method: post
-
-    - httpApi:        authorizer:
-
-        path: /usuarios          name: cognitoJwt
-
-        method: get
-
-        authorizer:# Reservas
-
-          name: cognitoJwtgetReservas:
-
-  handler: src/handlers/reservas.getReservas
-
-usuariosConsultar:  timeout: 10
-
-  handler: src/handlers/usuarios.getUsuario  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
-  timeout: 10  events:
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}    - httpApi:
-
-  events:        path: /reservas
-
-    - httpApi:        method: get
-
-        path: /usuarios/{id}        authorizer:
-
-        method: get          name: cognitoJwt
-
-        authorizer:
-
-          name: cognitoJwtcreateReserva:
-
-  handler: src/handlers/reservas.createReserva
-
-usuariosCrear:  timeout: 15
-
-  handler: src/handlers/usuarios.createUsuario  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
-
-  timeout: 10  events:
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}    - httpApi:
-
-  events:        path: /reservas
-
-    - httpApi:        method: post
-
-        path: /usuarios        authorizer:
-
-        method: post          name: cognitoJwt
-
-        authorizer:
-
-          name: cognitoJwt# === WEBSOCKET REAL-TIME ===
-
-websocketConnect:
-
-usuariosActualizar:  handler: src/handlers/websocket.connect.connect
-
-  handler: src/handlers/usuarios.updateUsuario  timeout: 10
-
-  timeout: 10  memorySize: 256
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  events:
-
-  events:    - websocket:
-
-    - httpApi:        route: $connect
-
-        path: /usuarios/{id}
-
-        method: putwebsocketDisconnect:
-
-        authorizer:  handler: src/handlers/websocket.disconnect.disconnect
-
-          name: cognitoJwt  timeout: 10
-
-  memorySize: 256
-
-usuariosEliminar:  events:
-
-  handler: src/handlers/usuarios.deleteUsuario    - websocket:
-
-  timeout: 10        route: $disconnect
-
+# === CORE BUSINESS DOMAINS ===
+# Usuarios
+usuariosListar:
+  handler: src/handlers/usuarios.getUsuarios
+  timeout: 10
   memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-  events:websocketDefault:
+usuariosConsultar:
+  handler: src/handlers/usuarios.getUsuario
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios/{id}
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-    - httpApi:  handler: src/handlers/websocket.default.default
+usuariosCrear:
+  handler: src/handlers/usuarios.createUsuario
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios
+        method: post
+        authorizer:
+          name: cognitoJwt
 
-        path: /usuarios/{id}  timeout: 10
+usuariosActualizar:
+  handler: src/handlers/usuarios.updateUsuario
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios/{id}
+        method: put
+        authorizer:
+          name: cognitoJwt
 
-        method: delete  memorySize: 256
-
-        authorizer:  events:
-
-          name: cognitoJwt    - websocket:
-
-        route: $default
+usuariosEliminar:
+  handler: src/handlers/usuarios.deleteUsuario
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios/{id}
+        method: delete
+        authorizer:
+          name: cognitoJwt
 
 usuariosToggleEstado:
-
-  handler: src/handlers/usuarios.toggleUsuarioEstado# === QUEUE WORKERS ===
-
-  timeout: 10queueWorker:
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  handler: src/handlers/queueWorker.handler
-
-  events:  timeout: 60
-
-    - httpApi:  memorySize: 512
-
-        path: /usuarios/{id}/toggle-estado  events:
-
-        method: patch    - sqs:
-
-        authorizer:        arn: { Fn::GetAtt: [MainQueue, Arn] }
-
-          name: cognitoJwt        batchSize: 10
-
-        maximumBatchingWindow: 5
+  handler: src/handlers/usuarios.toggleUsuarioEstado
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios/{id}/toggle-estado
+        method: patch
+        authorizer:
+          name: cognitoJwt
 
 usuariosPerfilActual:
-
-  handler: src/handlers/usuarios.getPerfilActual# === SNS EVENT PROCESSORS ===
-
-  timeout: 10notificationProcessor:
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  handler: src/handlers/sns.handler
-
-  events:  timeout: 30
-
-    - httpApi:  memorySize: 256
-
-        path: /usuarios/perfil  events:
-
-        method: get    - sns:
-
-        authorizer:        arn: { Ref: SpaceNotificationsTopic }
-
-          name: cognitoJwt        topicName: ${self:service}-${self:provider.stage}-space-notifications
-
-    - sns:
-
-usuariosActualizarPerfil:        arn: { Ref: SystemAlertsTopic }
-
-  handler: src/handlers/usuarios.updatePerfilActual        topicName: ${self:service}-${self:provider.stage}-system-alerts
-
+  handler: src/handlers/usuarios.getPerfilActual
   timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios/perfil
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}# === MISSING BUSINESS HANDLERS ===
-
-  events:# Dashboard Analytics
-
-    - httpApi:getDashboardMetrics:
-
-        path: /usuarios/perfil  handler: src/handlers/dashboard.getDashboardMetrics
-
-        method: put  timeout: 29
-
-        authorizer:  events:
-
-          name: cognitoJwt    - http:
-
-        path: /dashboard/metrics
-
-usuariosCambioPassword:        method: get
-
-  handler: src/handlers/usuarios.cambiarPassword        cors: true
-
+usuariosActualizarPerfil:
+  handler: src/handlers/usuarios.updatePerfilActual
   timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios/perfil
+        method: put
+        authorizer:
+          name: cognitoJwt
 
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}getDashboardStats:
-
-  events:  handler: src/handlers/dashboard.getDashboardStats
-
-    - httpApi:  timeout: 29
-
-        path: /usuarios/cambiar-password  events:
-
-        method: post    - http:
-
-        authorizer:        path: /dashboard/stats
-
-          name: cognitoJwt        method: get
-
-        cors: true
+usuariosCambioPassword:
+  handler: src/handlers/usuarios.cambiarPassword
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /usuarios/cambiar-password
+        method: post
+        authorizer:
+          name: cognitoJwt
 
 # Espacios
-
-espaciosListar:# Responsables Management
-
-  handler: src/handlers/espacios.getEspaciosgetResponsables:
-
-  timeout: 10  handler: src/handlers/responsables.getResponsables
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  timeout: 29
-
-  events:  events:
-
-    - httpApi:    - http:
-
-        path: /espacios        path: /responsables
-
-        method: get        method: get
-
-        authorizer:        cors: true
-
+espaciosListar:
+  handler: src/handlers/espacios.getEspacios
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /espacios
+        method: get
+        authorizer:
           name: cognitoJwt
 
-getResponsable:
-
-espaciosConsultar:  handler: src/handlers/responsables.getResponsable
-
-  handler: src/handlers/espacios.getEspacio  timeout: 29
-
-  timeout: 10  events:
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}    - http:
-
-  events:        path: /responsables/{id}
-
-    - httpApi:        method: get
-
-        path: /espacios/{id}        cors: true
-
-        method: get
-
-        authorizer:createResponsable:
-
-          name: cognitoJwt  handler: src/handlers/responsables.createResponsable
-
-  timeout: 29
-
-espaciosCrear:  events:
-
-  handler: src/handlers/espacios.createEspacio    - http:
-
-  timeout: 10        path: /responsables
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}        method: post
-
-  events:        cors: true
-
-    - httpApi:
-
-        path: /espaciosupdateResponsable:
-
-        method: post  handler: src/handlers/responsables.updateResponsable
-
-        authorizer:  timeout: 29
-
-          name: cognitoJwt  events:
-
-    - http:
-
-espaciosActualizar:        path: /responsables/{id}
-
-  handler: src/handlers/espacios.updateEspacio        method: put
-
-  timeout: 10        cors: true
-
+espaciosConsultar:
+  handler: src/handlers/espacios.getEspacio
+  timeout: 10
   memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /espacios/{id}
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-  events:deleteResponsable:
+espaciosCrear:
+  handler: src/handlers/espacios.createEspacio
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /espacios
+        method: post
+        authorizer:
+          name: cognitoJwt
 
-    - httpApi:  handler: src/handlers/responsables.deleteResponsable
+espaciosActualizar:
+  handler: src/handlers/espacios.updateEspacio
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /espacios/{id}
+        method: put
+        authorizer:
+          name: cognitoJwt
 
-        path: /espacios/{id}  timeout: 29
-
-        method: put  events:
-
-        authorizer:    - http:
-
-          name: cognitoJwt        path: /responsables/{id}
-
-        method: delete
-
-espaciosEliminar:        cors: true
-
+espaciosEliminar:
   handler: src/handlers/espacios.deleteEspacio
-
-  timeout: 10# Zonas Management
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}getZonas:
-
-  events:  handler: src/handlers/zonas.getZonas
-
-    - httpApi:  timeout: 29
-
-        path: /espacios/{id}  events:
-
-        method: delete    - http:
-
-        authorizer:        path: /zonas
-
-          name: cognitoJwt        method: get
-
-        cors: true
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /espacios/{id}
+        method: delete
+        authorizer:
+          name: cognitoJwt
 
 espaciosEstadisticas:
-
-  handler: src/handlers/espacios.getEstadisticasEspaciosgetZona:
-
-  timeout: 10  handler: src/handlers/zonas.getZona
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}  timeout: 29
-
-  events:  events:
-
-    - httpApi:    - http:
-
-        path: /espacios/estadisticas        path: /zonas/{id}
-
-        method: get        method: get
-
-        authorizer:        cors: true
-
+  handler: src/handlers/espacios.getEstadisticasEspacios
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /espacios/estadisticas
+        method: get
+        authorizer:
           name: cognitoJwt
 
-createZona:
-
-# Reservas  handler: src/handlers/zonas.createZona
-
-reservasListar:  timeout: 29
-
-  handler: src/handlers/reservas.getReservas  events:
-
-  timeout: 10    - http:
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}        path: /zonas
-
-  events:        method: post
-
-    - httpApi:        cors: true
-
-        path: /reservas
-
-        method: getupdateZona:
-
-        authorizer:  handler: src/handlers/zonas.updateZona
-
-          name: cognitoJwt  timeout: 29
-
+# Reservas
+reservasListar:
+  handler: src/handlers/reservas.getReservas
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
   events:
-
-reservasConsultar:    - http:
-
-  handler: src/handlers/reservas.getReserva        path: /zonas/{id}
-
-  timeout: 10        method: put
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}        cors: true
-
-  events:
-
-    - httpApi:deleteZona:
-
-        path: /reservas/{id}  handler: src/handlers/zonas.deleteZona
-
-        method: get  timeout: 29
-
-        authorizer:  events:
-
-          name: cognitoJwt    - http:
-
-        path: /zonas/{id}
-
-reservasCrear:        method: delete
-
-  handler: src/handlers/reservas.createReserva        cors: true
-
-  timeout: 15
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}# DynamoDB Stream Processor (CRITICAL)
-
-  events:dynamoStreamProcessor:
-
-    - httpApi:  handler: src/handlers/dynamoStreamProcessor.handler
-
-        path: /reservas  timeout: 60
-
-        method: post  memorySize: 512
-
-        authorizer:  events:
-
-          name: cognitoJwt    - stream:
-
-        type: dynamodb
-
-reservasActualizar:        arn: { Fn::GetAtt: [MainDynamoDBTable, StreamArn] }
-
-  handler: src/handlers/reservas.updateReserva        batchSize: 10
-
-  timeout: 15        startingPosition: LATEST
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}        filterPatterns:
-
-  events:          - eventName: [INSERT, MODIFY, REMOVE]
-
     - httpApi:
+        path: /reservas
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-        path: /reservas/{id}# Alternative Cognito Authentication
-
-        method: putcognitoLogin:
-
-        authorizer:  handler: src/handlers/cognitoAuth.login
-
-          name: cognitoJwt  timeout: 29
-
+reservasConsultar:
+  handler: src/handlers/reservas.getReserva
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
   events:
+    - httpApi:
+        path: /reservas/{id}
+        method: get
+        authorizer:
+          name: cognitoJwt
 
-reservasCancelar:    - http:
-
-  handler: src/handlers/reservas.cancelReserva        path: /auth/cognito/login
-
-  timeout: 15        method: post
-
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}        cors: true
-
-  events:
-
-    - httpApi:cognitoRegister:
-
-        path: /reservas/{id}/cancel  handler: src/handlers/cognitoAuth.register
-
-        method: patch  timeout: 29
-
-        authorizer:  events:
-
-          name: cognitoJwt    - http:
-
-        path: /auth/cognito/register
-
-reservasEliminar:        method: post
-
-  handler: src/handlers/reservas.deleteReserva        cors: true
-
+reservasCrear:
+  handler: src/handlers/reservas.createReserva
   timeout: 15
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /reservas
+        method: post
+        authorizer:
+          name: cognitoJwt
 
-  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}cognitoRefresh:
+reservasActualizar:
+  handler: src/handlers/reservas.updateReserva
+  timeout: 15
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /reservas/{id}
+        method: put
+        authorizer:
+          name: cognitoJwt
 
-  events:  handler: src/handlers/cognitoAuth.refreshToken
+reservasCancelar:
+  handler: src/handlers/reservas.cancelReserva
+  timeout: 15
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /reservas/{id}/cancel
+        method: patch
+        authorizer:
+          name: cognitoJwt
 
-    - httpApi:  timeout: 29
-
-        path: /reservas/{id}  events:
-
-        method: delete    - http:
-
-        authorizer:        path: /auth/cognito/refresh
-
-          name: cognitoJwt        method: post
-
-        cors: true
+reservasEliminar:
+  handler: src/handlers/reservas.deleteReserva
+  timeout: 15
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /reservas/{id}
+        method: delete
+        authorizer:
+          name: cognitoJwt
 
 reservasEstadisticas:
   handler: src/handlers/reservas.getEstadisticasReservas
