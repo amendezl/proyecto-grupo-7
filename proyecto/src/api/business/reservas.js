@@ -1,5 +1,6 @@
 const DynamoDBManager = require('../../infrastructure/database/DynamoDBManager');
-const { withSecureAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../../core/auth/auth');
+const { withPermissions, extractQueryParams, extractPathParams, parseBody } = require('../../core/auth/auth');
+const { PERMISSIONS } = require('../../core/auth/permissions');
 const { success, badRequest, notFound, created, conflict } = require('../../shared/utils/responses');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { logger } = require('../../infrastructure/monitoring/logger');
@@ -7,7 +8,7 @@ const { validateForDynamoDB, validateBusinessRules } = require('../../core/valid
 
 const db = new DynamoDBManager();
 
-const getReservas = withSecureAuth(async (event) => {
+const getReservas = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
     const user = event.user;
     
@@ -28,9 +29,9 @@ const getReservas = withSecureAuth(async (event) => {
         reservas,
         total: reservas.length
     });
-});
+}, [PERMISSIONS.RESERVAS_READ]);
 
-const getReserva = withSecureAuth(async (event) => {
+const getReserva = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const user = event.user;
     
@@ -49,9 +50,9 @@ const getReserva = withSecureAuth(async (event) => {
     }
     
     return success(reserva);
-});
+}, [PERMISSIONS.RESERVAS_READ]);
 
-const createReserva = withSecureAuth(async (event) => {
+const createReserva = withPermissions(async (event) => {
     const reservaData = parseBody(event);
     const user = event.user;
     
@@ -196,9 +197,9 @@ const createReserva = withSecureAuth(async (event) => {
         
         return badRequest(error.message);
     }
-});
+}, [PERMISSIONS.RESERVAS_CREATE]);
 
-const updateReserva = withSecureAuth(async (event) => {
+const updateReserva = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
     const user = event.user;
@@ -289,9 +290,9 @@ const updateReserva = withSecureAuth(async (event) => {
         logger.error('[UPDATE_RESERVA] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-});
+}, [PERMISSIONS.RESERVAS_UPDATE]);
 
-const cancelReserva = withSecureAuth(async (event) => {
+const cancelReserva = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const user = event.user;
     
@@ -361,10 +362,10 @@ const cancelReserva = withSecureAuth(async (event) => {
         logger.error('[CANCEL_RESERVA] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-});
+}, [PERMISSIONS.RESERVAS_CANCEL]);
 
-const deleteReserva = withSecureAuth(async (event) => {
-    const { id } = extractPathParams(event);
+const deleteReserva = withPermissions(async (event) => {
+        const { id } = extractPathParams(event);
     
     if (!id) {
         return badRequest('ID de la reserva es requerido');
@@ -412,9 +413,9 @@ const deleteReserva = withSecureAuth(async (event) => {
         logger.error('[DELETE_RESERVA] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.RESERVAS_DELETE]);
 
-const getEstadisticasReservas = withSecureAuth(async (event) => {
+const getEstadisticasReservas = withPermissions(async (event) => {
     try {
         const stats = await resilienceManager.executeDatabase(
             async () => {
@@ -469,7 +470,7 @@ const getEstadisticasReservas = withSecureAuth(async (event) => {
         logger.error('[GET_ESTADISTICAS_RESERVAS] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-}, ['admin', 'responsable']);
+}, [PERMISSIONS.RESERVAS_STATS]);
 
 module.exports = {
     getReservas,

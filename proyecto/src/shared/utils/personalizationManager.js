@@ -1,3 +1,4 @@
+const { AppConfigDataClient, StartConfigurationSessionCommand, GetLatestConfigurationCommand } = require('@aws-sdk/client-appconfigdata');
 const DynamoDBAdapter = require('../database/DynamoDBAdapter');
 const { sendPersonalizationUpdateAsync } = require('./snsNotifications');
 const { v4: uuidv4 } = require('uuid');
@@ -7,6 +8,7 @@ const { logger } = require('../monitoring/logger');
 class PersonalizationManager {
     constructor() {
         this.db = new DynamoDBAdapter();
+        this.appConfig = new AppConfigDataClient({});
         this.cache = new Map();
         this.cacheTimeout = 5 * 60 * 1000;
     }
@@ -30,10 +32,13 @@ class PersonalizationManager {
         }
         
         try {
-            const config = await this.db.getItem('CONFIG', `CLIENT_GLOBAL#${clientId}`);
+            const [saasConfig, config] = await Promise.all([
+                this.loadFromAppConfig(clientId),
+                this.db.getItem('CONFIG', `CLIENT_GLOBAL#${clientId}`)
+            ]);
             
             const defaultConfig = this.getDefaultClientConfig();
-            const finalConfig = { ...defaultConfig, ...config?.settings };
+            const finalConfig = { ...defaultConfig, ...saasConfig, ...config?.settings };
             
             this.cache.set(cacheKey, {
                 data: finalConfig,
@@ -297,6 +302,9 @@ class PersonalizationManager {
                 case 'api':
                     externalConfig = await this.loadFromAPI(clientId);
                     break;
+                case 'saas':
+                    externalConfig = await this.loadFromAppConfig(clientId);
+                    break;
                 default:
                     logger.warn('Fuente de configuración no soportada: ${source}');
                     return {};
@@ -338,14 +346,64 @@ class PersonalizationManager {
     async loadFromAPI(clientId) {
         return {};
     }
+
+    async loadFromAppConfig(clientId) {
+        const applicationId = process.env.APP_CONFIG_APPLICATION_ID;
+        const environmentId = process.env.APP_CONFIG_ENVIRONMENT_ID;
+        const configurationProfileId = process.env.APP_CONFIG_PROFILE_ID || clientId;
+
+        if (!applicationId || !environmentId) {
+            return {};
+        }
+
+        try {
+            const session = await this.appConfig.send(new StartConfigurationSessionCommand({
+                ApplicationIdentifier: applicationId,
+                EnvironmentIdentifier: environmentId,
+                ConfigurationProfileIdentifier: configurationProfileId
+            }));
+
+            const token = session.InitialConfigurationToken;
+            if (!token) {
+                return {};
+            }
+
+            const latest = await this.appConfig.send(new GetLatestConfigurationCommand({
+                ConfigurationToken: token
+            }));
+
+            if (!latest.Configuration) {
+                return {};
+            }
+
+            const payload = Buffer.from(latest.Configuration).toString();
+            if (!payload) {
+                return {};
+            }
+
+            try {
+                return JSON.parse(payload);
+            } catch (error) {
+                logger.warn('AppConfig personalization payload is not JSON', { errorMessage: error.message });
+                return {};
+            }
+        } catch (error) {
+            logger.warn('Unable to fetch personalization from AppConfig', { errorMessage: error.message, clientId });
+            return {};
+        }
+    }
     
     async getCompleteUserConfig(clientId, userId) {
-        const userConfig = await this.getUserSpecificConfig(clientId, userId);
-        const externalConfig = await this.loadExternalConfig('environment', clientId);
+        const [userConfig, environmentConfig, saasConfig] = await Promise.all([
+            this.getUserSpecificConfig(clientId, userId),
+            this.loadExternalConfig('environment', clientId),
+            this.loadFromAppConfig(clientId)
+        ]);
         
         return {
             ...userConfig,
-            ...externalConfig,
+            ...saasConfig,
+            ...environmentConfig,
             _metadata: {
                 clientId,
                 userId,

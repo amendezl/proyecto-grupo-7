@@ -1,6 +1,7 @@
 const DynamoDBManager = require('../../infrastructure/database/DynamoDBManager');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
-const { withSecureAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody, hashPassword } = require('../../core/auth/auth');
+const { withPermissions, extractQueryParams, extractPathParams, parseBody, hashPassword } = require('../../core/auth/auth');
+const { PERMISSIONS } = require('../../core/auth/permissions');
 const { success, badRequest, notFound, created, unauthorized } = require('../../shared/utils/responses');
 const { validateForDynamoDB, validateBusinessRules } = require('../../core/validation/validator');
 const { withValidation } = require('../../core/validation/middleware');
@@ -8,7 +9,7 @@ const { logger } = require('../../infrastructure/monitoring/logger');
 
 const db = new DynamoDBManager();
 
-const getUsuarios = withSecureAuth(async (event) => {
+const getUsuarios = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
     
     try {
@@ -55,9 +56,9 @@ const getUsuarios = withSecureAuth(async (event) => {
         logger.error('[GET_USUARIOS] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.USUARIOS_READ]);
 
-const getUsuario = withSecureAuth(async (event) => {
+const getUsuario = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const user = event.user;
     
@@ -109,9 +110,9 @@ const getUsuario = withSecureAuth(async (event) => {
         logger.error('[GET_USUARIO] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-});
+}, [PERMISSIONS.USUARIOS_READ]);
 
-const createUsuario = withSecureAuth(async (event) => {
+const createUsuario = withPermissions(async (event) => {
     try {
         const userData = parseBody(event);
         
@@ -158,9 +159,9 @@ const createUsuario = withSecureAuth(async (event) => {
         }
         throw validationError;
     }
-}, ['admin']);
+}, [PERMISSIONS.USUARIOS_CREATE]);
 
-const updateUsuario = withSecureAuth(async (event) => {
+const updateUsuario = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
     const user = event.user;
@@ -234,9 +235,9 @@ const updateUsuario = withSecureAuth(async (event) => {
         }
         throw validationError;
     }
-});
+}, [PERMISSIONS.USUARIOS_UPDATE]);
 
-const deleteUsuario = withSecureAuth(async (event) => {
+const deleteUsuario = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -252,9 +253,9 @@ const deleteUsuario = withSecureAuth(async (event) => {
         }
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.USUARIOS_DELETE]);
 
-const toggleUsuarioEstado = withSecureAuth(async (event) => {
+const toggleUsuarioEstado = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const { activo } = parseBody(event);
     
@@ -278,9 +279,9 @@ const toggleUsuarioEstado = withSecureAuth(async (event) => {
         }
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.USUARIOS_TOGGLE_STATUS]);
 
-const getPerfilActual = withSecureAuth(async (event) => {
+const getPerfilActual = withPermissions(async (event) => {
     const user = event.user;
     
     const usuario = await db.getUsuarioById(user.id);
@@ -292,9 +293,9 @@ const getPerfilActual = withSecureAuth(async (event) => {
     const { password, ...usuarioSinPassword } = usuario;
     
     return success(usuarioSinPassword);
-});
+}, [PERMISSIONS.USUARIOS_READ_PROFILE]);
 
-const updatePerfilActual = withSecureAuth(async (event) => {
+const updatePerfilActual = withPermissions(async (event) => {
     const user = event.user;
     const updateData = parseBody(event);
     
@@ -317,9 +318,9 @@ const updatePerfilActual = withSecureAuth(async (event) => {
         }
         throw error;
     }
-});
+}, [PERMISSIONS.USUARIOS_UPDATE_PROFILE]);
 
-const cambiarPassword = withSecureAuth(async (event) => {
+const cambiarPassword = withPermissions(async (event) => {
     const user = event.user;
     const { passwordActual, passwordNuevo } = parseBody(event);
     
@@ -353,7 +354,7 @@ const { logger } = require('../monitoring/logger');
     } catch (error) {
         throw error;
     }
-});
+}, [PERMISSIONS.USUARIOS_CHANGE_PASSWORD]);
 
 module.exports = {
     getUsuarios,

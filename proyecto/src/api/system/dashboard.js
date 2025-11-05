@@ -1,5 +1,6 @@
 const DynamoDBManager = require('../database/DynamoDBManager');
-const { withAuth, withErrorHandling } = require('../../core/auth/auth');
+const { withPermissions } = require('../../core/auth/auth');
+const { PERMISSIONS } = require('../../core/auth/permissions');
 const { success } = require('../../shared/utils/responses');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 // FIXED: Import secure logger for structured logging
@@ -7,7 +8,7 @@ const { logger } = require('../monitoring/logger');
 
 const db = new DynamoDBManager();
 
-const getDashboard = withAuth(async (event) => {
+const getDashboard = withPermissions(async (event) => {
     const user = event.user;
     
     return await resilienceManager.executeDatabase(
@@ -20,7 +21,7 @@ const getDashboard = withAuth(async (event) => {
                 db.getEntities('zona')
             ]);
         
-        const stats = {
+    const stats = {
             espacios: {
                 total: espacios.length,
                 disponibles: espacios.filter(e => e.estado === 'disponible').length,
@@ -54,7 +55,7 @@ const getDashboard = withAuth(async (event) => {
             }
         };
         
-        let dashboardData = {
+    let dashboardData = {
             usuario: {
                 id: user.id,
                 nombre: user.nombre,
@@ -146,7 +147,7 @@ const getDashboard = withAuth(async (event) => {
             }
         }
         
-        return success(dashboardData);
+    return success(dashboardData);
         
         },
         {
@@ -156,9 +157,9 @@ const getDashboard = withAuth(async (event) => {
             priority: 'standard'
         }
     );
-});
+}, [PERMISSIONS.DASHBOARD_VIEW]);
 
-const getEstadisticasDetalladas = withAuth(async (event) => {
+const getEstadisticasDetalladas = withPermissions(async (event) => {
     try {
         const [espacios, reservas, usuarios, responsables, zonas] = await Promise.all([
             db.getEspacios(),
@@ -229,7 +230,7 @@ const getEstadisticasDetalladas = withAuth(async (event) => {
         logger.error('Error al obtener estadísticas detalladas:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.DASHBOARD_STATS_DETAILED]);
 
 module.exports = {
     getDashboard,

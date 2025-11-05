@@ -1,6 +1,7 @@
 const DynamoDBManager = require('../../infrastructure/database/DynamoDBManager');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
-const { withSecureAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../../core/auth/auth');
+const { withPermissions, extractQueryParams, extractPathParams, parseBody } = require('../../core/auth/auth');
+const { PERMISSIONS } = require('../../core/auth/permissions');
 const { success, badRequest, notFound, created } = require('../../shared/utils/responses');
 const { notifySpaceCreated, notifySpaceUpdated, notifySpaceDeleted } = require('../../infrastructure/messaging/snsNotifications');
 const { logger } = require('../../infrastructure/monitoring/logger');
@@ -8,7 +9,7 @@ const { validateForDynamoDB, validateBusinessRules } = require('../../core/valid
 
 const db = new DynamoDBManager();
 
-const getEspacios = withErrorHandling(async (event) => {
+const getEspacios = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
     
     try {
@@ -55,9 +56,9 @@ const getEspacios = withErrorHandling(async (event) => {
         logger.error('[GET_ESPACIOS] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-});
+}, [PERMISSIONS.ESPACIOS_READ]);
 
-const getEspacio = withErrorHandling(async (event) => {
+const getEspacio = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -102,9 +103,9 @@ const getEspacio = withErrorHandling(async (event) => {
         logger.error('[GET_ESPACIO] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-});
+}, [PERMISSIONS.ESPACIOS_READ]);
 
-const createEspacio = withSecureAuth(async (event) => {
+const createEspacio = withPermissions(async (event) => {
     try {
         const espacioData = parseBody(event);
         
@@ -215,9 +216,9 @@ const createEspacio = withSecureAuth(async (event) => {
         
         return badRequest(error.message);
     }
-}, ['admin', 'responsable']);
+}, [PERMISSIONS.ESPACIOS_CREATE]);
 
-const updateEspacio = withSecureAuth(async (event) => {
+const updateEspacio = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
     
@@ -276,9 +277,9 @@ const updateEspacio = withSecureAuth(async (event) => {
         logger.error('[UPDATE_ESPACIO] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-}, ['admin', 'responsable']);
+}, [PERMISSIONS.ESPACIOS_UPDATE]);
 
-const deleteEspacio = withSecureAuth(async (event) => {
+const deleteEspacio = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -350,9 +351,9 @@ const deleteEspacio = withSecureAuth(async (event) => {
         logger.error('[DELETE_ESPACIO] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.ESPACIOS_DELETE]);
 
-const getEstadisticasEspacios = withSecureAuth(async (event) => {
+const getEstadisticasEspacios = withPermissions(async (event) => {
     try {
         const stats = await resilienceManager.executeDatabase(
             async () => {
@@ -416,7 +417,7 @@ const getEstadisticasEspacios = withSecureAuth(async (event) => {
         logger.error('[GET_ESTADISTICAS_ESPACIOS] Error:', { errorMessage: error.message, errorType: error.constructor.name });
         throw error;
     }
-}, ['admin', 'responsable']);
+}, [PERMISSIONS.ESPACIOS_STATS]);
 
 module.exports = {
     getEspacios,

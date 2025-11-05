@@ -1,12 +1,13 @@
 const DynamoDBManager = require('../../infrastructure/database/DynamoDBManager');
-const { withSecureAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../../core/auth/auth');
+const { withPermissions, extractQueryParams, extractPathParams, parseBody } = require('../../core/auth/auth');
+const { PERMISSIONS } = require('../../core/auth/permissions');
 const { success, badRequest, notFound, created } = require('../../shared/utils/responses');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { validateForDynamoDB, validateBusinessRules } = require('../../core/validation/validator');
 
 const db = new DynamoDBManager();
 
-const getResponsables = withErrorHandling(async (event) => {
+const getResponsables = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
     
     return await resilienceManager.executeDatabase(
@@ -31,9 +32,9 @@ const getResponsables = withErrorHandling(async (event) => {
             filters: queryParams
         }
     );
-});
+}, [PERMISSIONS.RESPONSABLES_READ]);
 
-const getResponsable = withErrorHandling(async (event) => {
+const getResponsable = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -56,9 +57,9 @@ const getResponsable = withErrorHandling(async (event) => {
             priority: 'standard'
         }
     );
-});
+}, [PERMISSIONS.RESPONSABLES_READ]);
 
-const createResponsable = withSecureAuth(async (event) => {
+const createResponsable = withPermissions(async (event) => {
     const responsableData = parseBody(event);
     
     const { nombre, apellido, email, telefono, area, cargo } = responsableData;
@@ -100,9 +101,9 @@ const createResponsable = withSecureAuth(async (event) => {
             isCritical: esCritico
         }
     );
-}, ['admin']);
+}, [PERMISSIONS.RESPONSABLES_CREATE]);
 
-const updateResponsable = withSecureAuth(async (event) => {
+const updateResponsable = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
     
@@ -144,9 +145,9 @@ const updateResponsable = withSecureAuth(async (event) => {
             isCritical: esCritico
         }
     );
-}, ['admin']);
+}, [PERMISSIONS.RESPONSABLES_UPDATE]);
 
-const deleteResponsable = withSecureAuth(async (event) => {
+const deleteResponsable = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -167,9 +168,9 @@ const deleteResponsable = withSecureAuth(async (event) => {
         }
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.RESPONSABLES_DELETE]);
 
-const toggleResponsableEstado = withSecureAuth(async (event) => {
+const toggleResponsableEstado = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const { activo } = parseBody(event);
     
@@ -190,9 +191,9 @@ const toggleResponsableEstado = withSecureAuth(async (event) => {
         }
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.RESPONSABLES_UPDATE]);
 
-const getResponsablesPorArea = withErrorHandling(async (event) => {
+const getResponsablesPorArea = withPermissions(async (event) => {
     const { area } = extractPathParams(event);
     
     if (!area) {
@@ -207,9 +208,9 @@ const getResponsablesPorArea = withErrorHandling(async (event) => {
         total: responsables.length,
         area
     });
-});
+}, [PERMISSIONS.RESPONSABLES_READ]);
 
-const getEspaciosAsignados = withSecureAuth(async (event) => {
+const getEspaciosAsignados = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -233,9 +234,9 @@ const getEspaciosAsignados = withSecureAuth(async (event) => {
             area: responsable.area
         }
     });
-}, ['admin', 'responsable']);
+}, [PERMISSIONS.RESPONSABLES_READ]);
 
-const asignarEspacio = withSecureAuth(async (event) => {
+const asignarEspacio = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const { espacio_id } = parseBody(event);
     
@@ -268,9 +269,9 @@ const asignarEspacio = withSecureAuth(async (event) => {
     } catch (error) {
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.RESPONSABLES_ASSIGN_SPACE]);
 
-const getEstadisticasResponsables = withSecureAuth(async (event) => {
+const getEstadisticasResponsables = withPermissions(async (event) => {
     const responsables = await db.getEntities('responsable');
     const espacios = await db.getEspacios();
     
@@ -295,7 +296,7 @@ const getEstadisticasResponsables = withSecureAuth(async (event) => {
     stats.espaciosAsignados = espacios.filter(e => e.responsable_id).length;
     
     return success(stats);
-}, ['admin']);
+}, [PERMISSIONS.RESPONSABLES_STATS]);
 
 module.exports = {
     getResponsables,

@@ -1,7 +1,8 @@
 const {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
-  GetUserCommand
+  GetUserCommand,
+  GlobalSignOutCommand
 } = require("@aws-sdk/client-cognito-identity-provider");
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 // FIXED: Import secure logger for structured logging
@@ -122,6 +123,38 @@ const refresh = async (event) => {
   }
 };
 
+const logout = async (event) => {
+  try {
+    const authorization = event.headers?.Authorization || event.headers?.authorization;
+    const accessToken = authorization ? authorization.replace('Bearer ', '').trim() : null;
+
+    if (accessToken) {
+      await resilienceManager.executeAuth(
+        async () => {
+          const cmd = new GlobalSignOutCommand({ AccessToken: accessToken });
+          return await client.send(cmd);
+        },
+        {
+          operation: 'cognitoLogout',
+          hasToken: true,
+          priority: 'standard'
+        }
+      );
+    }
+
+    return response(200, {
+      ok: true,
+      message: 'Sesión finalizada'
+    });
+  } catch (error) {
+    logger.warn('[COGNITO_LOGOUT] Error:', { errorMessage: error.message, errorType: error.constructor.name });
+    return response(200, {
+      ok: true,
+      message: 'Sesión finalizada'
+    });
+  }
+};
+
 const me = async (event) => {
   try {
     const claims = event.requestContext?.authorizer?.jwt?.claims || {};
@@ -162,5 +195,6 @@ function response(statusCode, body) {
 module.exports = {
   login,
   refresh,
-  me
+  me,
+  logout
 };

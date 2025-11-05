@@ -1,12 +1,13 @@
 const DynamoDBManager = require('../../infrastructure/database/DynamoDBManager');
-const { withSecureAuth, withErrorHandling, extractQueryParams, extractPathParams, parseBody } = require('../../core/auth/auth');
+const { withPermissions, extractQueryParams, extractPathParams, parseBody } = require('../../core/auth/auth');
+const { PERMISSIONS } = require('../../core/auth/permissions');
 const { success, badRequest, notFound, created } = require('../../shared/utils/responses');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { validateForDynamoDB, validateBusinessRules } = require('../../core/validation/validator');
 
 const db = new DynamoDBManager();
 
-const getZonas = withErrorHandling(async (event) => {
+const getZonas = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
     
     return await resilienceManager.executeDatabase(
@@ -31,9 +32,9 @@ const getZonas = withErrorHandling(async (event) => {
             filters: queryParams
         }
     );
-});
+}, [PERMISSIONS.ZONAS_READ]);
 
-const getZona = withErrorHandling(async (event) => {
+const getZona = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -56,9 +57,9 @@ const getZona = withErrorHandling(async (event) => {
             priority: 'standard'
         }
     );
-});
+}, [PERMISSIONS.ZONAS_READ]);
 
-const createZona = withSecureAuth(async (event) => {
+const createZona = withPermissions(async (event) => {
     const zonaData = parseBody(event);
     
     const { nombre, descripcion, piso, edificio } = zonaData;
@@ -101,9 +102,9 @@ const createZona = withSecureAuth(async (event) => {
             isCritical: esCritica
         }
     );
-}, ['admin']);
+}, [PERMISSIONS.ZONAS_CREATE]);
 
-const updateZona = withSecureAuth(async (event) => {
+const updateZona = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const updateData = parseBody(event);
     
@@ -145,9 +146,9 @@ const updateZona = withSecureAuth(async (event) => {
             isCritical: esCritica
         }
     );
-}, ['admin']);
+}, [PERMISSIONS.ZONAS_UPDATE]);
 
-const deleteZona = withSecureAuth(async (event) => {
+const deleteZona = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -169,9 +170,9 @@ const deleteZona = withSecureAuth(async (event) => {
         }
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.ZONAS_DELETE]);
 
-const toggleZonaEstado = withSecureAuth(async (event) => {
+const toggleZonaEstado = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     const { activa } = parseBody(event);
     
@@ -192,9 +193,9 @@ const toggleZonaEstado = withSecureAuth(async (event) => {
         }
         throw error;
     }
-}, ['admin']);
+}, [PERMISSIONS.ZONAS_TOGGLE_STATUS]);
 
-const getZonasPorPiso = withErrorHandling(async (event) => {
+const getZonasPorPiso = withPermissions(async (event) => {
     const { piso } = extractPathParams(event);
     
     if (!piso) {
@@ -209,9 +210,9 @@ const getZonasPorPiso = withErrorHandling(async (event) => {
         total: zonas.length,
         piso
     });
-});
+}, [PERMISSIONS.ZONAS_READ]);
 
-const getEspaciosZona = withErrorHandling(async (event) => {
+const getEspaciosZona = withPermissions(async (event) => {
     const { id } = extractPathParams(event);
     
     if (!id) {
@@ -235,9 +236,9 @@ const getEspaciosZona = withErrorHandling(async (event) => {
             edificio: zona.edificio
         }
     });
-});
+}, [PERMISSIONS.ZONAS_READ]);
 
-const getEstadisticasZonas = withSecureAuth(async (event) => {
+const getEstadisticasZonas = withPermissions(async (event) => {
     const zonas = await db.getEntities('zona');
     const espacios = await db.getEspacios();
     
@@ -277,9 +278,9 @@ const getEstadisticasZonas = withSecureAuth(async (event) => {
     });
     
     return success(stats);
-}, ['admin', 'responsable']);
+}, [PERMISSIONS.ZONAS_STATS]);
 
-const getPisosDisponibles = withErrorHandling(async (event) => {
+const getPisosDisponibles = withPermissions(async (event) => {
     const zonas = await db.getEntities('zona');
     
     const pisos = [...new Set(zonas.map(zona => zona.piso))].sort();
@@ -297,9 +298,9 @@ const getPisosDisponibles = withErrorHandling(async (event) => {
         pisos: pisosInfo,
         total: pisos.length
     });
-});
+}, [PERMISSIONS.ZONAS_READ]);
 
-const getEdificiosDisponibles = withErrorHandling(async (event) => {
+const getEdificiosDisponibles = withPermissions(async (event) => {
     const zonas = await db.getEntities('zona');
     
     const edificios = [...new Set(zonas.map(zona => zona.edificio))].sort();
@@ -318,7 +319,7 @@ const getEdificiosDisponibles = withErrorHandling(async (event) => {
         edificios: edificiosInfo,
         total: edificios.length
     });
-});
+}, [PERMISSIONS.ZONAS_READ]);
 
 module.exports = {
     getZonas,
