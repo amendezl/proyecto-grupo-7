@@ -1,9 +1,18 @@
 /**
- * Lambda Handler Wrapper
- * Wraps business logic from src/api/business/espacios.js
+ * Lambda handlers for espacios domain with input validation and telemetry
  */
 
 const businessLogic = require('../../api/business/espacios.js');
+const { registerHandlers } = require('../core/lambda/handlerFactory');
 
-// Export all functions from business logic as Lambda handlers
-module.exports = businessLogic;
+module.exports = registerHandlers(businessLogic, {
+	createEspacio: {
+		entityType: 'espacio',
+		metricName: 'EspaciosCreated'
+	},
+	updateEspacio: {
+		entityType: 'espacio',
+		validationOptions: { allowPartial: true },
+		metricName: 'EspaciosUpdated'
+	}
+});

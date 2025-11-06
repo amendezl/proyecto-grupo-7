@@ -1,3 +1,5 @@
+const { powertoolsLogger } = require('./telemetry');
+
 const LOG_LEVELS = {
   ERROR: 'error',
   WARN: 'warn', 
@@ -75,6 +77,27 @@ function createLogEntry(level, message, context = {}) {
   };
 }
 
+function dispatchLog(level, message, context = {}) {
+  const logEntry = createLogEntry(level, message, context);
+  const { message: logMessage, ...logContext } = logEntry;
+
+  switch (level) {
+    case LOG_LEVELS.ERROR:
+      powertoolsLogger.error(logMessage, logContext);
+      break;
+    case LOG_LEVELS.WARN:
+      powertoolsLogger.warn(logMessage, logContext);
+      break;
+    case LOG_LEVELS.INFO:
+      powertoolsLogger.info(logMessage, logContext);
+      break;
+    case LOG_LEVELS.DEBUG:
+    default:
+      powertoolsLogger.debug(logMessage, logContext);
+      break;
+  }
+}
+
 class SecureLogger {
   constructor(serviceName = 'sistema-gestion-espacios') {
     this.serviceName = serviceName;
@@ -86,12 +109,10 @@ class SecureLogger {
    * @param {Object} context - Error context and metadata
    */
   error(message, context = {}) {
-    const logEntry = createLogEntry(LOG_LEVELS.ERROR, message, {
+    dispatchLog(LOG_LEVELS.ERROR, message, {
       ...context,
       service: this.serviceName
     });
-    
-    console.error(JSON.stringify(logEntry, null, this.isProduction ? 0 : 2));
   }
 
   /**
@@ -99,12 +120,10 @@ class SecureLogger {
    * @param {Object} context - Warning context and metadata
    */
   warn(message, context = {}) {
-    const logEntry = createLogEntry(LOG_LEVELS.WARN, message, {
+    dispatchLog(LOG_LEVELS.WARN, message, {
       ...context,
       service: this.serviceName
     });
-    
-    console.warn(JSON.stringify(logEntry, null, this.isProduction ? 0 : 2));
   }
 
   /**
@@ -112,12 +131,10 @@ class SecureLogger {
    * @param {Object} context - Info context and metadata
    */
   info(message, context = {}) {
-    const logEntry = createLogEntry(LOG_LEVELS.INFO, message, {
+    dispatchLog(LOG_LEVELS.INFO, message, {
       ...context,
       service: this.serviceName
     });
-    
-    console.log(JSON.stringify(logEntry, null, this.isProduction ? 0 : 2));
   }
 
   /**
@@ -128,13 +145,10 @@ class SecureLogger {
     if (this.isProduction) {
       return;
     }
-
-    const logEntry = createLogEntry(LOG_LEVELS.DEBUG, message, {
+    dispatchLog(LOG_LEVELS.DEBUG, message, {
       ...context,
       service: this.serviceName
     });
-    
-    console.log(JSON.stringify(logEntry, null, 2));
   }
 
   /**

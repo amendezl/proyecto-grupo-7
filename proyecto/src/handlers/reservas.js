@@ -1,9 +1,18 @@
 /**
- * Lambda Handler Wrapper
- * Wraps business logic from src/api/business/reservas.js
+ * Lambda handlers for reservas domain with validation and telemetry
  */
 
 const businessLogic = require('../../api/business/reservas.js');
+const { registerHandlers } = require('../core/lambda/handlerFactory');
 
-// Export all functions from business logic as Lambda handlers
-module.exports = businessLogic;
+module.exports = registerHandlers(businessLogic, {
+	createReserva: {
+		entityType: 'reserva',
+		metricName: 'ReservasCreated'
+	},
+	updateReserva: {
+		entityType: 'reserva',
+		validationOptions: { allowPartial: true },
+		metricName: 'ReservasUpdated'
+	}
+});

@@ -74,7 +74,7 @@ healthCheck:
 # === DEVOPS AUTOMATION ===
 devopsAutomation:
   handler: src/handlers/devops.automation
-  timeout: 30
+  timeout: 25
   memorySize: 512
   events:
     - schedule:
@@ -95,7 +95,7 @@ devopsAutomationWorker:
   events:
     - sqs:
         arn: { Fn::GetAtt: [DevOpsQueue, Arn] }
-        batchSize: 1
+        batchSize: 5
         functionResponseType: ReportBatchItemFailures
   environment:
     DEVOPS_MODE: automation
@@ -103,7 +103,7 @@ devopsAutomationWorker:
 
 devopsStatus:
   handler: src/handlers/devops.status
-  timeout: 30
+  timeout: 25
   memorySize: 256
   events:
     - httpApi:
@@ -113,7 +113,7 @@ devopsStatus:
 # === CHAOS ENGINEERING ===
 chaosEngineering:
   handler: src/handlers/chaos.resilience
-  timeout: 30
+  timeout: 25
   memorySize: 256
   events:
     - httpApi:

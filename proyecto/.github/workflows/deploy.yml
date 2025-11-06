@@ -2,16 +2,18 @@ name: Deploy Hospital Management System
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch: # Permite ejecución manual
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy_dev:
+    name: Deploy dev
     runs-on: ubuntu-latest
+    environment: development
     defaults:
       run:
         working-directory: ./proyecto
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,22 +22,87 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: 'npm'
-          cache-dependency-path: './proyecto/package-lock.json'
+          cache: npm
+          cache-dependency-path: ./proyecto/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Pre-deploy validation
-        run: |
-          echo "Validating serverless configuration..."
-          npx serverless print --stage prod
+      - name: Validate Serverless configuration (dev)
+        run: npx serverless print --stage dev --region us-east-1
 
-      - name: Deploy to AWS
+      - name: Deploy to AWS (dev)
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN_DEV }}
           AWS_DEFAULT_REGION: us-east-1
-        run: |
-          echo "Deploying to AWS..."
-          npx serverless deploy --stage prod --verbose
+        run: npx serverless deploy --stage dev --region us-east-1 --verbose
+
+  deploy_staging:
+    name: Deploy staging
+    needs: deploy_dev
+    runs-on: ubuntu-latest
+    environment: staging
+    defaults:
+      run:
+        working-directory: ./proyecto
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ./proyecto/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Serverless configuration (staging)
+        run: npx serverless print --stage staging --region us-east-1
+
+      - name: Deploy to AWS (staging)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN_STAGING }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: npx serverless deploy --stage staging --region us-east-1 --verbose
+
+  deploy_prod:
+    name: Deploy prod
+    needs: deploy_staging
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: ./proyecto
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ./proyecto/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Serverless configuration (prod)
+        run: npx serverless print --stage prod --region us-east-1
+
+      - name: Deploy to AWS (prod)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN_PROD }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: npx serverless deploy --stage prod --region us-east-1 --verbose

@@ -1,9 +1,18 @@
 /**
- * Lambda Handler Wrapper
- * Wraps business logic from src/api/business/usuarios.js
+ * Lambda handlers for usuarios domain with validation and observability
  */
 
 const businessLogic = require('../../api/business/usuarios.js');
+const { registerHandlers } = require('../core/lambda/handlerFactory');
 
-// Export all functions from business logic as Lambda handlers
-module.exports = businessLogic;
+module.exports = registerHandlers(businessLogic, {
+	createUsuario: {
+		entityType: 'user',
+		metricName: 'UsuariosCreated'
+	},
+	updateUsuario: {
+		entityType: 'user',
+		validationOptions: { allowPartial: true },
+		metricName: 'UsuariosUpdated'
+	}
+});

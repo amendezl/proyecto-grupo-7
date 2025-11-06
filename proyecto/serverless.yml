@@ -88,6 +88,9 @@ provider:
   deploymentBucket:
     name: ${self:service}-${self:provider.stage}-deployment
     serverSideEncryption: AES256
+  # X-Ray tracing configuration (enabled for staging and prod)
+  tracing:
+    lambda: ${self:custom.stages.${self:provider.stage}.tracing}
   httpApi:
     authorizers:
       cognitoJwt:
@@ -106,6 +109,7 @@ provider:
     MAIN_TABLE: ${self:service}-${self:provider.stage}-main
     CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
     CIRCUIT_STATE_TABLE: ${self:service}-${self:provider.stage}-circuit-state
+    IDEMPOTENCY_TABLE: ${self:service}-${self:provider.stage}-idempotency
     HTTP_API_URL:
       Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
     WEBSOCKET_ENDPOINT:
@@ -126,9 +130,70 @@ provider:
     USER_POOL_CLIENT_ID:
       Ref: CognitoUserPoolClient
     RESILIENCE_METRICS_NAMESPACE: ${self:service}/${self:provider.stage}
-    SENTRY_DSN: ${env:SENTRY_DSN, ''}
-    SENTRY_TRACES_SAMPLE_RATE: ${env:SENTRY_TRACES_SAMPLE_RATE, '0'}
-    SENTRY_RELEASE: ${env:SENTRY_RELEASE, ''}
+  # Secretos administrados vía AWS Systems Manager Parameter Store
+  SENTRY_DSN: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-dsn~true}
+  SENTRY_TRACES_SAMPLE_RATE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-traces-sample-rate, '0'}
+  SENTRY_RELEASE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-release, ''}
+
+# === PACKAGE CONFIGURATION ===
+package:
+  individually: false
+  patterns:
+    # Include
+    - 'src/**'
+    - 'package.json'
+    - 'package-lock.json'
+    
+    # Exclude development files
+    - '!.git/**'
+    - '!.github/**'
+    - '!.vscode/**'
+    - '!.idea/**'
+    - '!.serverless/**'
+    - '!.dynamodb/**'
+    
+    # Exclude documentation
+    - '!*.md'
+    - '!docs/**'
+    - '!README*'
+    - '!CHANGELOG*'
+    - '!LICENSE*'
+    
+    # Exclude tests and coverage
+    - '!tests/**'
+    - '!test/**'
+    - '!__tests__/**'
+    - '!coverage/**'
+    - '!.nyc_output/**'
+    - '!jest.config.js'
+    
+    # Exclude logs and temporary files
+    - '!*.log'
+    - '!logs/**'
+    - '!tmp/**'
+    - '!temp/**'
+    
+    # Exclude environment files
+    - '!.env*'
+    - '!.env.*.local'
+    
+    # Exclude build artifacts
+    - '!dist/**'
+    - '!build/**'
+    - '!*.zip'
+    - '!*.tar.gz'
+    
+    # Exclude CI/CD files
+    - '!.travis.yml'
+    - '!.gitlab-ci.yml'
+    - '!azure-pipelines.yml'
+    - '!circle.yml'
+    
+    # Exclude editor configs
+    - '!.editorconfig'
+    - '!.eslintrc*'
+    - '!.prettierrc*'
+    - '!tsconfig.json'
 
 functions: ${file(serverless_extensions/functions.yml)}
 
