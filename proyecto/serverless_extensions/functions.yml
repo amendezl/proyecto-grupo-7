@@ -96,6 +96,7 @@ devopsAutomationWorker:
     - sqs:
         arn: { Fn::GetAtt: [DevOpsQueue, Arn] }
         batchSize: 1
+        functionResponseType: ReportBatchItemFailures
   environment:
     DEVOPS_MODE: automation
     WORKER_MODE: true

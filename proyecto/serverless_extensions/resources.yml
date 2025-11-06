@@ -301,6 +301,19 @@ Resources:
       QueueName: ${self:service}-${self:provider.stage}-devops-queue
       VisibilityTimeout: 360
       MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: { Fn::GetAtt: [DevOpsDeadLetterQueue, Arn] }
+        maxReceiveCount: 3
+
+  # DevOps Dead Letter Queue
+  DevOpsDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: ${self:service}-${self:provider.stage}-devops-dlq
+      MessageRetentionPeriod: 1209600
+      Tags:
+        - Key: Purpose
+          Value: Dead letter queue for failed DevOps automation tasks
 
   # === SNS TOPICS ===
   SpaceNotificationsTopic:
@@ -318,6 +331,49 @@ Resources:
   AdminNotificationsTopic:
     Type: AWS::SNS::Topic
     Properties:
+      TopicName: ${self:service}-${self:provider.stage}-admin-notifications
+      DisplayName: Admin Notifications
+
+  # === CLOUDWATCH ALARMS ===
+  # Alarm for Main DLQ
+  MainDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ${self:service}-${self:provider.stage}-main-dlq-alarm
+      AlarmDescription: Alert when messages arrive in Main Dead Letter Queue
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: { Fn::GetAtt: [DeadLetterQueue, QueueName] }
+      AlarmActions:
+        - Ref: SystemAlertsTopic
+      TreatMissingData: notBreaching
+
+  # Alarm for DevOps DLQ
+  DevOpsDLQAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ${self:service}-${self:provider.stage}-devops-dlq-alarm
+      AlarmDescription: Alert when DevOps automation tasks fail and land in DLQ
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: { Fn::GetAtt: [DevOpsDeadLetterQueue, QueueName] }
+      AlarmActions:
+        - Ref: SystemAlertsTopic
+      TreatMissingData: notBreaching
       TopicName: ${self:service}-${self:provider.stage}-admin-notifications
       DisplayName: Admin Notifications
 

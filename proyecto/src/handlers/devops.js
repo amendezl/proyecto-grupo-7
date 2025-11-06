@@ -365,6 +365,158 @@ async function sendCriticalAlert(error) {
 }
 
 /**
+ * DevOps Automation Worker
+ * Procesa mensajes de SQS con manejo de errores por mensaje
+ * 
+ * Utiliza ReportBatchItemFailures para reintentar solo mensajes fallidos
+ */
+async function automationWorker(event, context) {
+  console.log('DevOps worker processing batch', {
+    messageCount: event.Records?.length || 0,
+    requestId: context.requestId
+  });
+
+  const batchItemFailures = [];
+  const results = {
+    successful: [],
+    failed: []
+  };
+
+  // CRÍTICO: Procesar cada mensaje individualmente
+  for (const record of event.Records || []) {
+    const messageId = record.messageId;
+    
+    try {
+      const message = JSON.parse(record.body);
+      console.log('Processing DevOps message', { 
+        messageId, 
+        task: message.task,
+        timestamp: message.timestamp 
+      });
+
+      // Ejecutar tarea basada en el tipo de mensaje
+      const result = await processDevOpsTask(message);
+      
+      results.successful.push({
+        messageId,
+        task: message.task,
+        result,
+        processedAt: new Date().toISOString()
+      });
+
+      console.log('Message processed successfully', { 
+        messageId,
+        task: message.task 
+      });
+
+    } catch (error) {
+      console.error('Message processing failed', {
+        messageId,
+        error: error.message,
+        stack: error.stack
+      });
+
+      // Agregar a lista de fallos para que SQS lo reintente
+      batchItemFailures.push({
+        itemIdentifier: messageId
+      });
+
+      results.failed.push({
+        messageId,
+        error: error.message,
+        failedAt: new Date().toISOString()
+      });
+
+      // Publicar métrica de fallo
+      try {
+        await cloudwatch.send(new PutMetricDataCommand({
+          Namespace: 'DevOps/Worker',
+          MetricData: [{
+            MetricName: 'MessageProcessingFailure',
+            Value: 1,
+            Unit: 'Count',
+            Timestamp: new Date()
+          }]
+        }));
+      } catch (metricError) {
+        console.error('Failed to publish failure metric', metricError);
+      }
+    }
+  }
+
+  // Publicar métricas de procesamiento
+  try {
+    await cloudwatch.send(new PutMetricDataCommand({
+      Namespace: 'DevOps/Worker',
+      MetricData: [
+        {
+          MetricName: 'MessagesProcessed',
+          Value: results.successful.length,
+          Unit: 'Count',
+          Timestamp: new Date()
+        },
+        {
+          MetricName: 'MessagesFailed',
+          Value: results.failed.length,
+          Unit: 'Count',
+          Timestamp: new Date()
+        }
+      ]
+    }));
+  } catch (metricError) {
+    console.error('Failed to publish metrics', metricError);
+  }
+
+  console.log('Batch processing completed', {
+    summary: {
+      total: event.Records?.length || 0,
+      successful: results.successful.length,
+      failed: results.failed.length
+    }
+  });
+
+  // Retornar mensajes fallidos para reintento parcial
+  // SQS solo reintentará los mensajes en batchItemFailures
+  return {
+    batchItemFailures
+  };
+}
+
+/**
+ * Procesar tarea individual de DevOps
+ */
+async function processDevOpsTask(message) {
+  const { task, params = {} } = message;
+  
+  switch (task) {
+    case 'health_check':
+      return await performHealthChecks();
+    
+    case 'collect_metrics':
+      return await collectSystemMetrics();
+    
+    case 'check_alerts':
+      return await checkPendingAlerts();
+    
+    case 'cleanup':
+      return await cleanupTempResources();
+    
+    case 'backup':
+      return await backupCriticalState();
+    
+    case 'custom':
+      // Permitir tareas personalizadas con parámetros
+      if (params.action && typeof params.action === 'function') {
+        return await params.action(params.data);
+      }
+      throw new Error('Custom task requires action function');
+    
+    default:
+      throw new Error(`Unknown DevOps task type: ${task}`);
+  }
+}
+
+/**
  * Utilidades
  */
 function getTaskName(index) {
@@ -379,5 +531,6 @@ function getServiceName(index) {
 
 module.exports = {
   automation,
+  automationWorker,
   status
 };
