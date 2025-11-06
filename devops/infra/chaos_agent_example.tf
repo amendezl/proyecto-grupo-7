@@ -25,16 +25,29 @@ resource "aws_iam_policy" "ecr_pull_policy_for_chaos" {
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
+      # GetAuthorizationToken requiere Resource = "*" (limitación de AWS)
       {
-        Effect = "Allow",
+        Sid      = "ECRGetAuthorizationToken"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      # ECR Repository Access - Limitado a repositorios del proyecto
+      {
+        Sid    = "ECRRepositoryAccess"
+        Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
           "ecr:BatchGetImage",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchCheckLayerAvailability",
           "ecr:DescribeRepositories"
-        ],
-        Resource = "*"
+        ]
+        Resource = flatten([
+          for repo in aws_ecr_repository.services : [
+            repo.arn,
+            "${repo.arn}/*"
+          ]
+        ])
       }
     ]
   })

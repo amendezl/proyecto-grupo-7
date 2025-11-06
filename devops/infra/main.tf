@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0"
+    }
   }
   
   # Configurar S3 backend para state remoto (opcional)
@@ -33,71 +37,108 @@ provider "aws" {
 }
 
 # ========================================
-# VARIABLES
+# LOCALS - VALORES CALCULADOS Y TAGS
 # ========================================
 
-variable "aws_region" {
-  description = "Región AWS para desplegar la infraestructura"
-  type        = string
-  default     = "us-east-1"
+locals {
+  # Tags comunes para todos los recursos
+  common_tags = merge(
+    {
+      Project     = "sistema-gestion-espacios"
+      Environment = var.environment
+      ManagedBy   = "terraform"
+      Team        = "devops"
+      Timestamp   = timestamp()
+    },
+    var.tags
+  )
+  
+  # Tags específicos por servicio
+  monitoring_tags = merge(
+    local.common_tags,
+    {
+      Service = "monitoring"
+    }
+  )
+  
+  cicd_tags = merge(
+    local.common_tags,
+    {
+      Service = "ci-cd"
+    }
+  )
+  
+  backend_tags = merge(
+    local.common_tags,
+    {
+      Service = "backend"
+    }
+  )
+  
+  # Nombres de recursos calculados
+  codebuild_project_name = "${var.app_name}-${var.environment}"
+  ecs_cluster_name       = "${var.app_name}-cluster"
+  
+  # ARNs base para políticas IAM
+  cloudwatch_log_arn_prefix = "arn:aws:logs:${var.aws_region}:*:log-group"
+  ssm_parameter_arn_prefix  = "arn:aws:ssm:${var.aws_region}:*:parameter/sistema-gestion/${var.environment}"
+  
+  # Configuración por entorno
+  is_production = var.environment == "prod"
+  enable_backup = local.is_production
 }
 
-variable "environment" {
-  description = "Entorno de deployment (dev, staging, prod)"
-  type        = string
-  default     = "prod"
-}
-
-variable "app_name" {
-  description = "Nombre de la aplicación"
-  type        = string
-  default     = "sistema-gestion-espacios"
-}
-
-variable "monitoring_service_name" {
-  description = "Nombre del servicio de monitoreo"
-  type        = string
-  default     = "espacios-monitor"
-}
+# ========================================
+# RECURSOS PRINCIPALES
+# (Variables ahora definidas en variables.tf)
+# (Outputs ahora definidos en outputs.tf)
+# ========================================
 
 # ========================================
 # ECR REPOSITORIES
 # ========================================
 
-# Repositorio ECR para el servicio de monitoreo
-resource "aws_ecr_repository" "monitoring_service" {
-  name                 = var.monitoring_service_name
-  image_tag_mutability = "MUTABLE"
+# Repositorios ECR para servicios containerizados (gestionados con for_each)
+resource "aws_ecr_repository" "services" {
+  for_each = var.ecr_repositories
+  
+  name                 = each.key
+  image_tag_mutability = var.ecr_image_tag_mutability
 
   image_scanning_configuration {
-    scan_on_push = true
+    scan_on_push = each.value.scan_on_push
   }
 
   encryption_configuration {
     encryption_type = "AES256"
   }
 
-  tags = {
-    Name        = "${var.app_name}-monitoring"
-    Service     = "monitoring"
-    Environment = var.environment
-  }
+  tags = merge(
+    local.monitoring_tags,
+    {
+      Name        = "${var.app_name}-${each.key}"
+      Repository  = each.key
+      Description = each.value.description
+    }
+  )
 }
 
-# Política de lifecycle para ECR
-resource "aws_ecr_lifecycle_policy" "monitoring_service" {
-  repository = aws_ecr_repository.monitoring_service.name
+# Políticas de lifecycle para ECR (gestionadas con for_each)
+resource "aws_ecr_lifecycle_policy" "services" {
+  for_each = aws_ecr_repository.services
+  
+  repository = each.value.name
 
   policy = jsonencode({
     rules = [
       {
         rulePriority = 1
-        description  = "Mantener últimas 10 imágenes tagged"
+        description  = "Mantener últimas ${var.ecr_repositories[each.key].lifecycle_keep_count} imágenes tagged"
         selection = {
           tagStatus     = "tagged"
           tagPrefixList = ["v"]
           countType     = "imageCountMoreThan"
-          countNumber   = 10
+          countNumber   = var.ecr_repositories[each.key].lifecycle_keep_count
         }
         action = {
           type = "expire"
@@ -124,40 +165,45 @@ resource "aws_ecr_lifecycle_policy" "monitoring_service" {
 # CLOUDWATCH LOGS
 # ========================================
 
-# Log group para ECS (servicio de monitoreo)
-resource "aws_cloudwatch_log_group" "ecs_monitoring" {
-  name              = "/ecs/${var.monitoring_service_name}"
-  retention_in_days = 30
-
-  tags = {
-    Name        = "${var.app_name}-ecs-logs"
-    Service     = "monitoring"
-    Environment = var.environment
+# Configuración centralizada de log groups
+locals {
+  log_groups = {
+    ecs = {
+      name              = "/ecs/${var.monitoring_service_name}"
+      retention_in_days = var.log_retention_days.ecs
+      service_tags      = local.monitoring_tags
+      description       = "ECS monitoring service logs"
+    }
+    lambda = {
+      name              = "/aws/lambda/${var.app_name}"
+      retention_in_days = var.log_retention_days.lambda
+      service_tags      = local.backend_tags
+      description       = "Lambda functions (serverless backend)"
+    }
+    codebuild = {
+      name              = "/aws/codebuild/${var.app_name}"
+      retention_in_days = var.log_retention_days.codebuild
+      service_tags      = local.cicd_tags
+      description       = "CodeBuild pipeline logs"
+    }
   }
 }
 
-# Log group para Lambda functions (serverless backend)
-resource "aws_cloudwatch_log_group" "lambda_logs" {
-  name              = "/aws/lambda/${var.app_name}"
-  retention_in_days = 14
+# Log groups creados dinámicamente con for_each
+resource "aws_cloudwatch_log_group" "main" {
+  for_each = local.log_groups
+  
+  name              = each.value.name
+  retention_in_days = each.value.retention_in_days
 
-  tags = {
-    Name        = "${var.app_name}-lambda-logs"
-    Service     = "backend"
-    Environment = var.environment
-  }
-}
-
-# Log group para CodeBuild
-resource "aws_cloudwatch_log_group" "codebuild_logs" {
-  name              = "/aws/codebuild/${var.app_name}"
-  retention_in_days = 7
-
-  tags = {
-    Name        = "${var.app_name}-codebuild-logs"
-    Service     = "ci-cd"
-    Environment = var.environment
-  }
+  tags = merge(
+    each.value.service_tags,
+    {
+      Name        = "${var.app_name}-${each.key}-logs"
+      LogType     = each.key
+      Description = each.value.description
+    }
+  )
 }
 
 # ========================================
@@ -173,7 +219,7 @@ resource "aws_ecs_cluster" "monitoring_cluster" {
       logging = "OVERRIDE"
 
       log_configuration {
-        cloud_watch_log_group_name = aws_cloudwatch_log_group.ecs_monitoring.name
+        cloud_watch_log_group_name = aws_cloudwatch_log_group.main["ecs"].name
       }
     }
   }
@@ -183,11 +229,12 @@ resource "aws_ecs_cluster" "monitoring_cluster" {
     value = "enabled"
   }
 
-  tags = {
-    Name        = "${var.app_name}-ecs-cluster"
-    Service     = "monitoring"
-    Environment = var.environment
-  }
+  tags = merge(
+    local.monitoring_tags,
+    {
+      Name = "${var.app_name}-cluster"
+    }
+  )
 }
 
 # ========================================
@@ -210,9 +257,16 @@ resource "aws_iam_role" "codebuild_role" {
       }
     ]
   })
+
+  tags = merge(
+    local.cicd_tags,
+    {
+      Name = "${var.app_name}-codebuild-role"
+    }
+  )
 }
 
-# Política IAM para CodeBuild
+# Política IAM para CodeBuild (restringida con menor privilegio)
 resource "aws_iam_role_policy" "codebuild_policy" {
   name = "${var.app_name}-codebuild-policy"
   role = aws_iam_role.codebuild_role.id
@@ -220,26 +274,56 @@ resource "aws_iam_role_policy" "codebuild_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      # CloudWatch Logs - Limitado a logs de CodeBuild
       {
+        Sid    = "CloudWatchLogsAccess"
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.app_name}",
+          "arn:aws:logs:${var.aws_region}:*:log-group:/aws/codebuild/${var.app_name}:*"
+        ]
+      },
+      # ECR Repository Access - Limitado a repositorios del proyecto
+      {
+        Sid    = "ECRRepositoryAccess"
+        Effect = "Allow"
+        Action = [
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
-          "ecr:GetAuthorizationToken",
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
-          "ecr:PutImage",
-          "ecr:CreateRepository",
-          "ecr:DescribeRepositories",
-          "ssm:GetParameter",
-          "ssm:GetParameters"
+          "ecr:PutImage"
         ]
+        Resource = [
+          for repo in aws_ecr_repository.services : repo.arn
+        ]
+      },
+      # ECR GetAuthorizationToken requiere Resource = "*"
+      {
+        Sid      = "ECRAuthorizationToken"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
         Resource = "*"
+      },
+      # SSM Parameter Store - Limitado al namespace de la app
+      {
+        Sid    = "SSMParameterAccess"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:*:parameter/sistema-gestion/${var.environment}/*"
+        ]
       }
     ]
   })
@@ -270,15 +354,16 @@ resource "aws_codebuild_project" "main" {
 
   logs_config {
     cloudwatch_logs {
-      group_name = aws_cloudwatch_log_group.codebuild_logs.name
+      group_name = aws_cloudwatch_log_group.main["codebuild"].name
     }
   }
 
-  tags = {
-    Name        = "${var.app_name}-codebuild"
-    Service     = "ci-cd"
-    Environment = var.environment
-  }
+  tags = merge(
+    local.cicd_tags,
+    {
+      Name = "${var.app_name}-codebuild"
+    }
+  )
 }
 
 # ========================================
@@ -288,11 +373,12 @@ resource "aws_codebuild_project" "main" {
 resource "aws_s3_bucket" "artifacts" {
   bucket = "${var.app_name}-artifacts-${random_string.bucket_suffix.result}"
 
-  tags = {
-    Name        = "${var.app_name}-artifacts"
-    Service     = "ci-cd"
-    Environment = var.environment
-  }
+  tags = merge(
+    local.cicd_tags,
+    {
+      Name = "${var.app_name}-artifacts"
+    }
+  )
 }
 
 resource "aws_s3_bucket_versioning" "artifacts" {
@@ -319,34 +405,6 @@ resource "random_string" "bucket_suffix" {
 }
 
 # ========================================
-# OUTPUTS
+# OUTPUTS MOVIDOS A outputs.tf
 # ========================================
-
-output "ecr_repository_url" {
-  description = "URL del repositorio ECR para el servicio de monitoreo"
-  value       = aws_ecr_repository.monitoring_service.repository_url
-}
-
-output "ecs_cluster_name" {
-  description = "Nombre del cluster ECS"
-  value       = aws_ecs_cluster.monitoring_cluster.name
-}
-
-output "codebuild_project_name" {
-  description = "Nombre del proyecto CodeBuild"
-  value       = aws_codebuild_project.main.name
-}
-
-output "artifacts_bucket_name" {
-  description = "Nombre del bucket S3 para artifacts"
-  value       = aws_s3_bucket.artifacts.id
-}
-
-output "log_groups" {
-  description = "Grupos de logs de CloudWatch creados"
-  value = {
-    ecs       = aws_cloudwatch_log_group.ecs_monitoring.name
-    lambda    = aws_cloudwatch_log_group.lambda_logs.name
-    codebuild = aws_cloudwatch_log_group.codebuild_logs.name
-  }
-}
+# Ver archivo outputs.tf para todos los outputs del módulo
