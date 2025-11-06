@@ -3,7 +3,7 @@ import httpProxyPkg from 'http-proxy';
 const { createProxyServer } = httpProxyPkg;
 
 // Export a programmatic proxy creator for tests or advanced usage.
-export function createChaosProxy({ target, port = 9000, latency = 0, errorRate = 0, errorStatus = 500 }) {
+export function createChaosProxy({ target, port = 9000, latency = 500, errorRate = 0, errorStatus = 500 }) {
   const proxy = createProxyServer();
 
   function wait(ms) {

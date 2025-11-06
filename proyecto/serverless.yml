@@ -114,6 +114,8 @@ provider:
       Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
     WEBSOCKET_ENDPOINT:
       Fn::Sub: "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${self:provider.stage}"
+    # SSM parameter name for chaos configuration (used by chaos middleware)
+    CHAOS_SSM_PARAM: "/proyecto-grupo-7/${self:provider.stage}/chaos"
     MAIN_QUEUE_URL:
       Ref: MainQueue
     SNS_TOPIC_ARN:

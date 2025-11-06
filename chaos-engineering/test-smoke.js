@@ -1,5 +1,4 @@
 import http from 'http';
-// Node 22+ provides a global `fetch` implementation, so no import is required.
 import createChaosProxy from './proxy.js';
 
 // Small smoke test:
