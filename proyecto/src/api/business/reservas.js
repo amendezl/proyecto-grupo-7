@@ -3,6 +3,7 @@ const { withPermissions, extractQueryParams, extractPathParams, parseBody } = re
 const { PERMISSIONS } = require('../../core/auth/permissions');
 const { success, badRequest, notFound, created, conflict } = require('../../shared/utils/responses');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
+const { getIdempotencyManager } = require('../../shared/utils/idempotencyManager');
 const { logger } = require('../../infrastructure/monitoring/logger');
 const { validateForDynamoDB, validateBusinessRules } = require('../../core/validation/validator');
 
@@ -53,150 +54,171 @@ const getReserva = withPermissions(async (event) => {
 }, [PERMISSIONS.RESERVAS_READ]);
 
 const createReserva = withPermissions(async (event) => {
-    const reservaData = parseBody(event);
-    const user = event.user;
+    const idempotencyManager = getIdempotencyManager();
     
-    const { espacio_id, fecha_inicio, fecha_fin, proposito, notas, prioridad } = reservaData;
-    
-    if (!espacio_id || !fecha_inicio || !fecha_fin || !proposito) {
-        return badRequest('Espacio, fechas de inicio y fin, y propósito son requeridos');
-    }
-    
-    const esCritica = prioridad === 'urgente' || 
-                     proposito.toLowerCase().includes('urgente') ||
-                     proposito.toLowerCase().includes('crítico') ||
-                     prioridad === 'alta';
-    
-    try {
-        const nuevaReserva = await (esCritica ? 
-            resilienceManager.executeCritical : 
-            resilienceManager.executeDatabase
-        )(
-            async () => {
-                const inicio = new Date(fecha_inicio);
-                const fin = new Date(fecha_fin);
-                const ahora = new Date();
-                
-                if (inicio >= fin) {
-                    throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
-                }
-                
-                if (inicio < ahora) {
-                    throw new Error('No se pueden crear reservas en el pasado');
-                }
-                
-                const espacio = await db.getEspacioById(espacio_id);
-                if (!espacio) {
-                    throw new Error('El espacio especificado no existe');
-                }
-                
-                if (espacio.estado !== 'disponible') {
-                    throw new Error('El espacio no está disponible para reservas');
-                }
+    // Ejecutar con idempotencia automática
+    return await idempotencyManager.executeIdempotent(
+        event,
+        async () => {
+            const reservaData = parseBody(event);
+            const user = event.user;
+            
+            const { espacio_id, fecha_inicio, fecha_fin, proposito, notas, prioridad } = reservaData;
+            
+            if (!espacio_id || !fecha_inicio || !fecha_fin || !proposito) {
+                return badRequest('Espacio, fechas de inicio y fin, y propósito son requeridos');
+            }
+            
+            const esCritica = prioridad === 'urgente' || 
+                             proposito.toLowerCase().includes('urgente') ||
+                             proposito.toLowerCase().includes('crítico') ||
+                             prioridad === 'alta';
+            
+            try {
+                const nuevaReserva = await (esCritica ? 
+                    resilienceManager.executeCritical : 
+                    resilienceManager.executeDatabase
+                )(
+                    async () => {
+                        const inicio = new Date(fecha_inicio);
+                        const fin = new Date(fecha_fin);
+                        const ahora = new Date();
+                        
+                        if (inicio >= fin) {
+                            throw new Error('La fecha de fin debe ser posterior a la fecha de inicio');
+                        }
+                        
+                        if (inicio < ahora) {
+                            throw new Error('No se pueden crear reservas en el pasado');
+                        }
+                        
+                        const espacio = await db.getEspacioById(espacio_id);
+                        if (!espacio) {
+                            throw new Error('El espacio especificado no existe');
+                        }
+                        
+                        if (espacio.estado !== 'disponible') {
+                            throw new Error('El espacio no está disponible para reservas');
+                        }
+                        
+                        if (esCritica) {
+                            const reservasActivas = await db.getReservas({ 
+                                espacio_id, 
+                                estado: 'confirmada' 
+                            });
+                            
+                            const hayConflictoCritico = reservasActivas.some(reserva => {
+                                const reservaInicio = new Date(reserva.fecha_inicio);
+                                const reservaFin = new Date(reserva.fecha_fin);
+                                return (inicio < reservaFin && fin > reservaInicio);
+                            });
+                            
+                            if (hayConflictoCritico) {
+                                throw new Error('CRITICAL_CONFLICT: Espacio ocupado en horario crítico');
+                            }
+                        } else {
+                            const reservasExistentes = await db.getReservas({ espacio_id });
+                            const hayConflicto = reservasExistentes.some(reserva => {
+                                if (reserva.estado === 'cancelada') return false;
+                                
+                                const reservaInicio = new Date(reserva.fecha_inicio);
+                                const reservaFin = new Date(reserva.fecha_fin);
+                                
+                                return (inicio < reservaFin && fin > reservaInicio);
+                            });
+                            
+                            if (hayConflicto) {
+                                throw new Error('El espacio ya está reservado en ese horario');
+                            }
+                        }
+                        
+                        const usuario_id = user.rol === 'usuario' ? user.id : (reservaData.usuario_id || user.id);
+                        
+                        const reservaToCreate = {
+                            espacio_id,
+                            usuario_id,
+                            fecha_inicio,
+                            fecha_fin,
+                            proposito,
+                            notas,
+                            prioridad: esCritica ? 'emergencia' : (prioridad || 'normal'),
+                            estado: esCritica ? 'confirmada' : 'pendiente',
+                        };
+                        
+                        const validatedReserva = validateForDynamoDB('reserva', reservaToCreate);
+                        
+                        return await db.createReserva(validatedReserva);
+                    },
+                    {
+                        operation: 'createReserva',
+                        priority: esCritica ? 'critical' : 'standard',
+                        espacioId: espacio_id,
+                        userId: user.id,
+                        esCritica,
+                        priorityData: esCritica ? {
+                            espacio_id,
+                            usuario_id: user.id,
+                            proposito,
+                            timestamp: new Date().toISOString()
+                        } : null
+                    }
+                );
                 
                 if (esCritica) {
-                    const reservasActivas = await db.getReservas({ 
-                        espacio_id, 
-                        estado: 'confirmada' 
+                    logger.info('Critical reservation created with idempotency', {
+                        reservaId: nuevaReserva.id,
+                        espacioId: espacio_id,
+                        userId: user.id
                     });
-                    
-                    const hayConflictoCritico = reservasActivas.some(reserva => {
-                        const reservaInicio = new Date(reserva.fecha_inicio);
-                        const reservaFin = new Date(reserva.fecha_fin);
-                        return (inicio < reservaFin && fin > reservaInicio);
-                    });
-                    
-                    if (hayConflictoCritico) {
-                        throw new Error('CRITICAL_CONFLICT: Espacio ocupado en horario crítico');
-                    }
-                } else {
-                    const reservasExistentes = await db.getReservas({ espacio_id });
-                    const hayConflicto = reservasExistentes.some(reserva => {
-                        if (reserva.estado === 'cancelada') return false;
-                        
-                        const reservaInicio = new Date(reserva.fecha_inicio);
-                        const reservaFin = new Date(reserva.fecha_fin);
-                        
-                        return (inicio < reservaFin && fin > reservaInicio);
-                    });
-                    
-                    if (hayConflicto) {
-                        throw new Error('El espacio ya está reservado en ese horario');
-                    }
                 }
                 
-                const usuario_id = user.rol === 'usuario' ? user.id : (reservaData.usuario_id || user.id);
+                return created(nuevaReserva);
                 
-                const reservaToCreate = {
-                    espacio_id,
-                    usuario_id,
-                    fecha_inicio,
-                    fecha_fin,
-                    proposito,
-                    notas,
-                    prioridad: esCritica ? 'emergencia' : (prioridad || 'normal'),
-                    estado: esCritica ? 'confirmada' : 'pendiente',
-                };
+            } catch (error) {
+                logger.error('Error creating reservation', { 
+                    errorMessage: error.message, 
+                    errorType: error.constructor.name,
+                    userId: user.id,
+                    espacioId: espacio_id
+                });
                 
-                const validatedReserva = validateForDynamoDB('reserva', reservaToCreate);
+                if (error.name === 'CircuitOpenError') {
+                    return {
+                        statusCode: 503,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ok: false,
+                            error: 'Sistema de reservas temporalmente sobrecargado',
+                            fallback: esCritica ? 'Contacte recepción para reserva de emergencia' : null,
+                            retryAfter: 30
+                        })
+                    };
+                }
+        
+                if (error.name === 'RetryExhaustedError') {
+                    return {
+                        statusCode: 503,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            ok: false,
+                            error: 'Sistema de reservas no responde',
+                            fallback: esCritica ? 'PROTOCOLO DE EMERGENCIA ACTIVADO - Contacte supervisión' : null
+                        })
+                    };
+                }
                 
-                return await db.createReserva(validatedReserva);
-            },
-            {
-                operation: 'createReserva',
-                priority: esCritica ? 'critical' : 'standard',
-                espacioId: espacio_id,
-                userId: user.id,
-                esCritica,
-                priorityData: esCritica ? {
-                    espacio_id,
-                    usuario_id: user.id,
-                    proposito,
-                    timestamp: new Date().toISOString()
-                } : null
+                if (error.message.includes('CRITICAL_CONFLICT')) {
+                    return conflict('Espacio ocupado - En emergencias contacte supervisión para liberación');
+                }
+                
+                return badRequest(error.message);
             }
-        );
-        
-        if (esCritica) {
-            console.log(`[CRITICAL_RESERVATION] Reserva de emergencia creada: ${nuevaReserva.id} para espacio ${espacio_id}`);
+        },
+        {
+            operation: 'createReserva',
+            ttlSeconds: 86400  // 24 horas de TTL para idempotencia
         }
-        
-        return created(nuevaReserva);
-        
-    } catch (error) {
-        logger.error('[CREATE_RESERVA] Error:', { errorMessage: error.message, errorType: error.constructor.name });
-        
-        if (error.name === 'CircuitOpenError') {
-            return {
-                statusCode: 503,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ok: false,
-                    error: 'Sistema de reservas temporalmente sobrecargado',
-                    fallback: esCritica ? 'Contacte recepción para reserva de emergencia' : null,
-                    retryAfter: 30
-                })
-            };
-        }
-        
-        if (error.name === 'RetryExhaustedError') {
-            return {
-                statusCode: 503,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ok: false,
-                    error: 'Sistema de reservas no responde',
-                    fallback: esCritica ? 'PROTOCOLO DE EMERGENCIA ACTIVADO - Contacte supervisión' : null
-                })
-            };
-        }
-        
-        if (error.message.includes('CRITICAL_CONFLICT')) {
-            return conflict('Espacio ocupado - En emergencias contacte supervisión para liberación');
-        }
-        
-        return badRequest(error.message);
-    }
+    );
 }, [PERMISSIONS.RESERVAS_CREATE]);
 
 const updateReserva = withPermissions(async (event) => {

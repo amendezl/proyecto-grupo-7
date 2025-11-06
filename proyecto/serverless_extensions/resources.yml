@@ -254,6 +254,27 @@ Resources:
         - AttributeName: serviceName
           KeyType: HASH
 
+  # Idempotency Table for tracking completed operations
+  IdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${self:provider.stage}-idempotency
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: idempotencyKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: idempotencyKey
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Purpose
+          Value: Idempotency tracking for critical operations
+        - Key: TTL
+          Value: 24 hours default
+
   # === MESSAGING INFRASTRUCTURE ===
   # Main Processing Queue
   MainQueue:
@@ -326,8 +347,8 @@ Resources:
       ExplicitAuthFlows:
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
-      AccessTokenValidity: 60
-      IdTokenValidity: 60
+      AccessTokenValidity: 4
+      IdTokenValidity: 4
       RefreshTokenValidity: 30
       TokenValidityUnits:
         AccessToken: minutes
