@@ -1,194 +1,518 @@
 Resources:
-  # S3 Bucket Policy for public read access (disabled due to IAM restrictions in voclabs)
-  # FrontendBucketPolicy:
-  #   Type: AWS::S3::BucketPolicy
-  #   Properties:
-  #     Bucket: !Ref FrontendBucket
-  #     PolicyDocument:
-  #       Statement:
-  #         - Sid: PublicReadGetObject
-  #           Effect: Allow
-  #           Principal: "*"
-  #           Action: s3:GetObject
-  #           Resource: !Sub "${FrontendBucket}/*"
+  # CloudFront Origin Access Identity (OAI) - Permite solo a CloudFront acceder a S3
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub "OAI for ${self:service}-${self:provider.stage} frontend bucket"
 
-  # CloudFront Distribution (disabled due to IAM restrictions in voclabs)
-  # CloudFrontDistribution:
-  #   Type: AWS::CloudFront::Distribution
-  #   Properties:
-  #     DistributionConfig:
-  #       Origins:
-  #         - DomainName: !GetAtt FrontendBucket.RegionalDomainName
-  #           Id: S3Origin
-  #           S3OriginConfig:
-  #             OriginAccessIdentity: ""
-  #       Enabled: true
-  #       DefaultRootObject: index.html
-  #       DefaultCacheBehavior:
-  #         TargetOriginId: S3Origin
-  #         ViewerProtocolPolicy: redirect-to-https
-  #         CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
-  #       PriceClass: PriceClass_100
-  #       CustomErrorResponses:
-  #         - ErrorCode: 404
-  #           ResponseCode: 200
-  #           ResponsePagePath: /index.html
-  #         - ErrorCode: 403
-  #           ResponseCode: 200
-  #           ResponsePagePath: /index.html
+  # S3 Bucket Policy - SOLO permite acceso desde CloudFront (NO público)
+  # Incluye controles de seguridad para producción
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Statement:
+          # Permite solo a CloudFront leer objetos
+          - Sid: CloudFrontReadForGetBucketObjects
+            Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+          
+          # Deniega explícitamente tráfico HTTP no seguro
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub "${FrontendBucket.Arn}/*"
+              - !GetAtt FrontendBucket.Arn
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+          
+          # Deniega acceso público directo (backup de seguridad)
+          - Sid: DenyPublicAccess
+            Effect: Deny
+            Principal: "*"
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Condition:
+              StringNotEquals:
+                "aws:userid": !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
 
-  # === VPC INFRASTRUCTURE (DISABLED FOR VOCLABS) ===
-  # Using default VPC instead of custom VPC to avoid network conflicts in AWS Academy
-  # ProjectVPC:
-  #   Type: AWS::EC2::VPC
-  #   Properties:
-  #     CidrBlock: 10.0.0.0/16
-  #     EnableDnsHostnames: true
-  #     EnableDnsSupport: true
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-vpc
+  # Web Application Firewall (WAF) para CloudFront - CRÍTICO para producción
+  WAFWebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: ${self:service}-${self:provider.stage}-waf
+      Scope: CLOUDFRONT  # WAF para CloudFront debe estar en CLOUDFRONT scope
+      Description: WAF rules to protect frontend application
+      DefaultAction:
+        Allow: {}
+      Rules:
+        # Protección contra SQL Injection
+        - Name: AWSManagedRulesSQLiRuleSet
+          Priority: 0
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesSQLiRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: SQLiRuleSetMetric
+        
+        # Protección contra XSS
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: KnownBadInputsMetric
+        
+        # Protección contra ataques comunes (OWASP Top 10)
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules: []
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: CommonRuleSetMetric
+        
+        # Rate limiting - Protección contra DDoS L7 y scraping
+        - Name: RateLimitRule
+          Priority: 3
+          Action:
+            Block:
+              CustomResponse:
+                ResponseCode: 429
+          Statement:
+            RateBasedStatement:
+              Limit: 2000  # 2000 requests por 5 minutos por IP
+              AggregateKeyType: IP
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitMetric
+        
+        # Geo-blocking (opcional - descomentar si solo opera en regiones específicas)
+        # - Name: GeoBlockingRule
+        #   Priority: 4
+        #   Action:
+        #     Block: {}
+        #   Statement:
+        #     NotStatement:
+        #       Statement:
+        #         GeoMatchStatement:
+        #           CountryCodes:
+        #             - US  # United States
+        #             - CA  # Canada
+        #             - MX  # Mexico
+        #             - CR  # Costa Rica
+        #             # Agregar países permitidos según mercado objetivo
+        #   VisibilityConfig:
+        #     SampledRequestsEnabled: true
+        #     CloudWatchMetricsEnabled: true
+        #     MetricName: GeoBlockingMetric
+      
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: ${self:service}-${self:provider.stage}-waf-metric
+
+  # CloudFront Distribution - Configuración production-ready con seguridad avanzada
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: WAFWebACL
+    Properties:
+      DistributionConfig:
+        # Configuración del origen S3 con OAI
+        Origins:
+          - DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            Id: S3Origin
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
+            ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            OriginShield:
+              Enabled: true
+              OriginShieldRegion: !Ref AWS::Region
+        
+        Enabled: true
+        Comment: !Sub "${self:service}-${self:provider.stage} Frontend Distribution"
+        DefaultRootObject: index.html
+        HttpVersion: http2and3  # HTTP/2 y HTTP/3 para mejor performance
+        IPV6Enabled: true
+        
+        # Configuración de caché por defecto
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https  # Forzar HTTPS
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true  # Compresión automática
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # Managed-CachingOptimized
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # Managed-CORS-S3Origin
+          ResponseHeadersPolicyId: !Ref CloudFrontResponseHeadersPolicy
+        
+        # Price class optimizado para costos vs performance
+        PriceClass: PriceClass_100  # Usar PriceClass_All para producción global
+        
+        # Manejo de errores SPA
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 300
+        
+        # Logging para auditoría y compliance
+        Logging:
+          Bucket: !GetAtt CloudFrontLogBucket.DomainName
+          IncludeCookies: false
+          Prefix: cloudfront-logs/
+        
+        # Asociar WAF WebACL
+        WebACLId: !GetAtt WAFWebACL.Arn
+        
+        # Restricciones de visualización (opcional para contenido premium)
+        # ViewerCertificate:
+        #   CloudFrontDefaultCertificate: true
+        #   # Para dominio personalizado con SSL:
+        #   # AcmCertificateArn: !Ref SSLCertificate
+        #   # SslSupportMethod: sni-only
+        #   # MinimumProtocolVersion: TLSv1.2_2021
+        
+        # Tags para gestión y billing
+        Tags:
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: Project
+            Value: ${self:service}
+          - Key: ManagedBy
+            Value: Serverless
+
+  # Response Headers Policy - Headers de seguridad HTTP
+  CloudFrontResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: ${self:service}-${self:provider.stage}-security-headers
+        Comment: Security headers for production application
+        
+        SecurityHeadersConfig:
+          # Strict-Transport-Security (HSTS)
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 63072000  # 2 años
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+          
+          # X-Content-Type-Options
+          ContentTypeOptions:
+            Override: true
+          
+          # X-Frame-Options (protección contra clickjacking)
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          
+          # X-XSS-Protection
+          XSSProtection:
+            ModeBlock: true
+            Protection: true
+            Override: true
+          
+          # Referrer-Policy
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          
+          # Content-Security-Policy (CSP) - Crítico para prevenir XSS
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.execute-api.${AWS::Region}.amazonaws.com wss://*.execute-api.${AWS::Region}.amazonaws.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            Override: true
+        
+        # CORS configuration
+        CorsConfig:
+          AccessControlAllowOrigins:
+            Items:
+              - !Sub "https://${CloudFrontDistribution.DomainName}"
+          AccessControlAllowHeaders:
+            Items:
+              - "*"
+          AccessControlAllowMethods:
+            Items:
+              - GET
+              - HEAD
+              - OPTIONS
+          AccessControlAllowCredentials: false
+          OriginOverride: true
+        
+        # Custom headers adicionales
+        CustomHeadersConfig:
+          Items:
+            - Header: X-Application-Version
+              Value: ${self:provider.stage}
+              Override: true
+            - Header: Permissions-Policy
+              Value: "geolocation=(), microphone=(), camera=()"
+              Override: true
+
+  # S3 Bucket para logs de CloudFront - Compliance y auditoría
+  CloudFrontLogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${self:service}-${self:provider.stage}-cloudfront-logs"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldLogs
+            Status: Enabled
+            ExpirationInDays: 90  # Retener logs por 90 días
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: STANDARD_IA
+              - TransitionInDays: 60
+                StorageClass: GLACIER
+      Tags:
+        - Key: Purpose
+          Value: CloudFront Access Logs
+        - Key: Compliance
+          Value: Required
+
+  # CloudWatch Alarm para WAF - Monitoreo de ataques
+  WAFBlockedRequestsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ${self:service}-${self:provider.stage}-waf-blocked-requests
+      AlarmDescription: Alert when WAF blocks high volume of requests
+      MetricName: BlockedRequests
+      Namespace: AWS/WAFV2
+      Statistic: Sum
+      Period: 300  # 5 minutos
+      EvaluationPeriods: 2
+      Threshold: 100  # Más de 100 requests bloqueadas en 10 minutos
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Rule
+          Value: ALL
+        - Name: WebACL
+          Value: !GetAtt WAFWebACL.Name
+      AlarmActions:
+        - !Ref SystemAlertsTopic
+      TreatMissingData: notBreaching
+
+  # CloudWatch Alarm para CloudFront - Monitoreo de errores
+  CloudFrontErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ${self:service}-${self:provider.stage}-cloudfront-error-rate
+      AlarmDescription: Alert when CloudFront error rate is high
+      MetricName: 5xxErrorRate
+      Namespace: AWS/CloudFront
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5  # Más de 5% de errores 5xx
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: DistributionId
+          Value: !Ref CloudFrontDistribution
+      AlarmActions:
+        - !Ref SystemAlertsTopic
+      TreatMissingData: notBreaching
+
+  # === VPC INFRASTRUCTURE ===
+  ProjectVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-vpc
 
   # Internet Gateway
-  # ProjectIGW:
-  #   Type: AWS::EC2::InternetGateway
-  #   Properties:
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-igw
+  ProjectIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-igw
 
-  # AttachIGW:
-  #   Type: AWS::EC2::VPCGatewayAttachment
-  #   Properties:
-  #     InternetGatewayId: { Ref: ProjectIGW }
-  #     VpcId: { Ref: ProjectVPC }
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: { Ref: ProjectIGW }
+      VpcId: { Ref: ProjectVPC }
 
   # Public Subnets
-  # PublicSubnetA:
-  #   Type: AWS::EC2::Subnet
-  #   Properties:
-  #     VpcId: { Ref: ProjectVPC }
-  #     CidrBlock: 10.0.0.0/24
-  #     AvailabilityZone: !Select [0, !GetAZs ""]
-  #     MapPublicIpOnLaunch: true
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-public-a
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-public-a
 
-  # PublicSubnetB:
-  #   Type: AWS::EC2::Subnet
-  #   Properties:
-  #     VpcId: { Ref: ProjectVPC }
-  #     CidrBlock: 10.0.1.0/24
-  #     AvailabilityZone: !Select [1, !GetAZs ""]
-  #     MapPublicIpOnLaunch: true
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-public-b
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-public-b
 
   # Private Subnets for Lambda
-  # PrivateSubnetA:
-  #   Type: AWS::EC2::Subnet
-  #   Properties:
-  #     VpcId: { Ref: ProjectVPC }
-  #     CidrBlock: 10.0.10.0/24
-  #     AvailabilityZone: !Select [0, !GetAZs ""]
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-private-a
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      CidrBlock: 10.0.10.0/24
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-private-a
 
-  # PrivateSubnetB:
-  #   Type: AWS::EC2::Subnet
-  #   Properties:
-  #     VpcId: { Ref: ProjectVPC }
-  #     CidrBlock: 10.0.11.0/24
-  #     AvailabilityZone: !Select [1, !GetAZs ""]
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-private-b
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-private-b
 
   # NAT Gateway (optional, for Lambda in VPC)
-  # NatEip:
-  #   Type: AWS::EC2::EIP
-  #   Properties:
-  #     Domain: vpc
+  NatEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
 
-  # NatGateway:
-  #   Type: AWS::EC2::NatGateway
-  #   Properties:
-  #     AllocationId: { Fn::GetAtt: [NatEip, AllocationId] }
-  #     SubnetId: { Ref: PublicSubnetA }
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-nat
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: { Fn::GetAtt: [NatEip, AllocationId] }
+      SubnetId: { Ref: PublicSubnetA }
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-nat
 
   # Route Tables
-  # PublicRouteTable:
-  #   Type: AWS::EC2::RouteTable
-  #   Properties:
-  #     VpcId: { Ref: ProjectVPC }
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-public-rt
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-public-rt
 
-  # PublicRoute:
-  #   Type: AWS::EC2::Route
-  #   Properties:
-  #     RouteTableId: { Ref: PublicRouteTable }
-  #     DestinationCidrBlock: 0.0.0.0/0
-  #     GatewayId: { Ref: ProjectIGW }
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: { Ref: PublicRouteTable }
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: { Ref: ProjectIGW }
 
-  # PublicSubnetAAssociation:
-  #   Type: AWS::EC2::SubnetRouteTableAssociation
-  #   Properties:
-  #     SubnetId: { Ref: PublicSubnetA }
-  #     RouteTableId: { Ref: PublicRouteTable }
+  PublicSubnetAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: { Ref: PublicSubnetA }
+      RouteTableId: { Ref: PublicRouteTable }
 
-  # PublicSubnetBAssociation:
-  #   Type: AWS::EC2::SubnetRouteTableAssociation
-  #   Properties:
-  #     SubnetId: { Ref: PublicSubnetB }
-  #     RouteTableId: { Ref: PublicRouteTable }
+  PublicSubnetBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: { Ref: PublicSubnetB }
+      RouteTableId: { Ref: PublicRouteTable }
 
-  # PrivateRouteTable:
-  #   Type: AWS::EC2::RouteTable
-  #   Properties:
-  #     VpcId: { Ref: ProjectVPC }
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-private-rt
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: { Ref: ProjectVPC }
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-private-rt
 
-  # PrivateRoute:
-  #   Type: AWS::EC2::Route
-  #   Properties:
-  #     RouteTableId: { Ref: PrivateRouteTable }
-  #     DestinationCidrBlock: 0.0.0.0/0
-  #     NatGatewayId: { Ref: NatGateway }
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: { Ref: PrivateRouteTable }
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: { Ref: NatGateway }
 
-  # PrivateSubnetAAssociation:
-  #   Type: AWS::EC2::SubnetRouteTableAssociation
-  #   Properties:
-  #     SubnetId: { Ref: PrivateSubnetA }
-  #     RouteTableId: { Ref: PrivateRouteTable }
+  PrivateSubnetAAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: { Ref: PrivateSubnetA }
+      RouteTableId: { Ref: PrivateRouteTable }
 
-  # PrivateSubnetBAssociation:
-  #   Type: AWS::EC2::SubnetRouteTableAssociation
-  #   Properties:
-  #     SubnetId: { Ref: PrivateSubnetB }
-  #     RouteTableId: { Ref: PrivateRouteTable }
+  PrivateSubnetBAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: { Ref: PrivateSubnetB }
+      RouteTableId: { Ref: PrivateRouteTable }
 
   # Security Groups
-  # LambdaSecurityGroup:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     GroupDescription: Security group for Lambda functions
-  #     VpcId: { Ref: ProjectVPC }
-  #     SecurityGroupEgress:
-  #       - IpProtocol: -1
-  #         CidrIp: 0.0.0.0/0
-  #     Tags:
-  #       - Key: Name
-  #         Value: ${self:service}-${self:provider.stage}-lambda-sg
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Lambda functions
+      VpcId: { Ref: ProjectVPC }
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ${self:service}-${self:provider.stage}-lambda-sg
+
+  # === BACKEND INFRASTRUCTURE ===
 
   # === BACKEND INFRASTRUCTURE ===
   # Main DynamoDB Table
@@ -469,11 +793,11 @@ Resources:
         }
 
 Outputs:
-  # CloudFrontDistributionId (disabled - no CloudFront in voclabs)
-  # CloudFrontDistributionId:
-  #   Value: { Ref: CloudFrontDistribution }
-  #   Export:
-  #     Name: ${self:service}-${self:provider.stage}-cloudfront-id
+  # CloudFront Distribution
+  CloudFrontDistributionId:
+    Value: { Ref: CloudFrontDistribution }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-cloudfront-id
 
   # Backend API
   FrontendApiUrl:
