@@ -1,5 +1,5 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, DeleteCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { logger } = require('../../infrastructure/monitoring/logger');
 
@@ -21,30 +21,19 @@ module.exports.disconnect = async (event) => {
   let errors = [];
   
   try {
-    const q = new QueryCommand({
-      TableName: process.env.CONNECTIONS_TABLE,
-      IndexName: 'ConnectionIdIndex',
-      KeyConditionExpression: 'connectionId = :cid',
-      ExpressionAttributeValues: { ':cid': connectionId }
-    });
-    const res = await docClient.send(q);
-    const items = res.Items || [];
-    
-    for (const it of items) {
-      try {
-        await resilienceManager.executeDatabase(
-          () => docClient.send(new DeleteCommand({ TableName: process.env.CONNECTIONS_TABLE, Key: { clientId: it.clientId, connectionId: it.connectionId } })),
-          { operation: 'websocket.disconnect.deleteConnection', priority: 'auth' }
-        );
-        deletedConnections++;
-      } catch (e) {
-        logger.warn('Failed to delete ws connection', e && e.message);
-        errors.push({ connectionId: it.connectionId, error: e.message });
-      }
-    }
+    // Use DeleteCommand directly since connectionId is the primary key (HASH)
+    // No need for Query or GSI - this is the optimal DynamoDB operation
+    await resilienceManager.executeDatabase(
+      () => docClient.send(new DeleteCommand({ 
+        TableName: process.env.CONNECTIONS_TABLE, 
+        Key: { connectionId } 
+      })),
+      { operation: 'websocket.disconnect.deleteConnection', priority: 'auth' }
+    );
+    deletedConnections++;
   } catch (err) {
-    logger.warn('Failed to query connections for disconnect', err);
-    errors.push({ operation: 'query', error: err.message });
+    logger.warn('Failed to delete connection', err);
+    errors.push({ operation: 'delete', error: err.message });
   }
 
   const status = errors.length === 0 ? 'SUCCESS' : (deletedConnections > 0 ? 'PARTIAL_SUCCESS' : 'FAILED');

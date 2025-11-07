@@ -14,7 +14,10 @@ const TOPICS = {
 
 const sendSpaceNotification = async (event) => {
   try {
-    console.log('Event:', JSON.stringify(event, null, 2));
+    logger.info('Space notification request received', {
+      httpMethod: event?.requestContext?.http?.method,
+      path: event?.requestContext?.http?.path
+    });
     
     const user = await authUtils.authenticateUser(event);
     if (!user || !user.userId) {
@@ -99,7 +102,10 @@ const sendSpaceNotification = async (event) => {
 
 const sendSystemAlert = async (event) => {
   try {
-    console.log('Event:', JSON.stringify(event, null, 2));
+    logger.info('System alert request received', {
+      httpMethod: event?.requestContext?.http?.method,
+      path: event?.requestContext?.http?.path
+    });
     
     const user = await authUtils.authenticateUser(event);
     if (!user || !['admin', 'responsable'].includes(user.role)) {
@@ -184,7 +190,10 @@ const sendSystemAlert = async (event) => {
 
 const sendAdminNotification = async (event) => {
   try {
-    console.log('Event:', JSON.stringify(event, null, 2));
+    logger.info('Admin notification request received', {
+      httpMethod: event?.requestContext?.http?.method,
+      path: event?.requestContext?.http?.path
+    });
     
     const user = await authUtils.authenticateUser(event);
     if (!user || user.role !== 'admin') {
@@ -265,13 +274,16 @@ const sendAdminNotification = async (event) => {
 
 const processSpaceNotification = async (event) => {
   try {
-    console.log('Processing space notification:', JSON.stringify(event, null, 2));
+    logger.info('Processing space notification', {
+      recordCount: event.Records?.length || 0,
+      eventSource: event.Records?.[0]?.EventSource
+    });
     
     for (const record of event.Records) {
       const snsMessage = record.Sns;
       const message = JSON.parse(snsMessage.Message);
       
-      console.log('Processing space notification:', {
+      logger.info('Processing space notification', {
         messageId: snsMessage.MessageId,
         subject: snsMessage.Subject,
         spaceId: message.spaceId,
@@ -295,13 +307,16 @@ const processSpaceNotification = async (event) => {
 
 const processSystemAlert = async (event) => {
   try {
-    console.log('Processing system alert:', JSON.stringify(event, null, 2));
+    logger.info('Processing system alert', {
+      recordCount: event.Records?.length || 0,
+      eventSource: event.Records?.[0]?.EventSource
+    });
     
     for (const record of event.Records) {
       const snsMessage = record.Sns;
       const alert = JSON.parse(snsMessage.Message);
       
-      console.log('Processing system alert:', {
+      logger.info('Processing system alert', {
         messageId: snsMessage.MessageId,
         subject: snsMessage.Subject,
         alertLevel: alert.alertLevel,
@@ -310,7 +325,10 @@ const processSystemAlert = async (event) => {
       });
 
       if (alert.alertLevel === 'critical') {
-        console.log('🚨 CRITICAL ALERT - Triggering emergency procedures');
+        logger.warn('CRITICAL ALERT - Triggering emergency procedures', {
+          alertLevel: alert.alertLevel,
+          component: alert.component
+        });
       }
       
       logger.info(' System alert processed: ${alert.alertLevel} for ${alert.component}');
@@ -329,13 +347,16 @@ const processSystemAlert = async (event) => {
 
 const processAdminNotification = async (event) => {
   try {
-    console.log('Processing admin notification:', JSON.stringify(event, null, 2));
+    logger.info('Processing admin notification', {
+      recordCount: event.Records?.length || 0,
+      eventSource: event.Records?.[0]?.EventSource
+    });
     
     for (const record of event.Records) {
       const snsMessage = record.Sns;
       const notification = JSON.parse(snsMessage.Message);
       
-      console.log('Processing admin notification:', {
+      logger.info('Processing admin notification', {
         messageId: snsMessage.MessageId,
         subject: snsMessage.Subject,
         notificationType: notification.notificationType,
@@ -345,19 +366,21 @@ const processAdminNotification = async (event) => {
 
       switch (notification.notificationType) {
         case 'backup':
-          console.log('Processing backup notification');
+          logger.debug('Processing backup notification', { type: 'backup' });
           break;
         case 'security':
-          console.log('Processing security notification');
+          logger.debug('Processing security notification', { type: 'security' });
           break;
         case 'report':
-          console.log('Processing report notification');
+          logger.debug('Processing report notification', { type: 'report' });
           break;
         default:
-          console.log('Processing general admin notification');
+          logger.debug('Processing general admin notification', { type: notification.notificationType });
       }
       
-      console.log(`Admin notification processed: ${notification.notificationType}`);
+      logger.info(`Admin notification processed: ${notification.notificationType}`, {
+        notificationType: notification.notificationType
+      });
     }
 
     return {
@@ -373,7 +396,10 @@ const processAdminNotification = async (event) => {
 
 const subscribeToNotifications = async (event) => {
   try {
-    console.log('Event:', JSON.stringify(event, null, 2));
+    logger.info('Subscribe to notifications request', {
+      httpMethod: event?.requestContext?.http?.method,
+      path: event?.requestContext?.http?.path
+    });
     
     const user = await authUtils.authenticateUser(event);
     if (!user || !user.userId) {
@@ -472,7 +498,10 @@ const subscribeToNotifications = async (event) => {
 
 const listSubscriptions = async (event) => {
   try {
-    console.log('Event:', JSON.stringify(event, null, 2));
+    logger.info('List subscriptions request', {
+      httpMethod: event?.requestContext?.http?.method,
+      path: event?.requestContext?.http?.path
+    });
     
     const user = await authUtils.authenticateUser(event);
     if (!user || !['admin', 'responsable'].includes(user.role)) {

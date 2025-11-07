@@ -12,13 +12,18 @@ const dynamodb = new DynamoDBClient({ region: process.env.REGION });
 const cloudwatch = new CloudWatchClient({ region: process.env.REGION });
 const sns = new SNSClient({ region: process.env.REGION });
 const sqs = new SQSClient({ region: process.env.REGION });
+const logger = require('../infrastructure/monitoring/logger');
 
 /**
  * DevOps Automation Function
  * Ejecuta tareas automatizadas de DevOps como monitoreo, alertas, y mantenimiento
  */
 async function automation(event, context) {
-  console.log('DevOps Automation triggered:', JSON.stringify(event, null, 2));
+  logger.info('DevOps Automation triggered', {
+    requestId: context?.requestId,
+    httpMethod: event?.requestContext?.http?.method,
+    path: event?.requestContext?.http?.path
+  });
   
   try {
     const tasks = [
@@ -56,7 +61,12 @@ async function automation(event, context) {
     
     return {
       statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({
+        status: 'SUCCESS',
         message: 'DevOps automation completed',
         report
       })
@@ -70,7 +80,12 @@ async function automation(event, context) {
     
     return {
       statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({
+        status: 'FAILED',
         message: 'DevOps automation failed',
         error: error.message
       })
@@ -172,13 +187,18 @@ async function checkPendingAlerts() {
 }
 
 async function status() {
-  console.log('DevOps status endpoint invoked');
+  logger.info('DevOps status endpoint invoked');
   try {
     const healthReport = await performHealthChecks();
 
     return {
       statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({
+        status: 'SUCCESS',
         message: 'DevOps status available',
         environment: process.env.NODE_ENV,
         timestamp: new Date().toISOString(),
@@ -187,10 +207,19 @@ async function status() {
       })
     };
   } catch (error) {
-    console.error('DevOps status check failed:', error);
+    logger.error('DevOps automation failed', { 
+      errorMessage: error.message,
+      errorType: error.constructor.name,
+      errorStack: error.stack
+    });
     return {
       statusCode: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
       body: JSON.stringify({
+        status: 'FAILED',
         message: 'DevOps status check failed',
         error: error.message
       })
@@ -371,7 +400,7 @@ async function sendCriticalAlert(error) {
  * Utiliza ReportBatchItemFailures para reintentar solo mensajes fallidos
  */
 async function automationWorker(event, context) {
-  console.log('DevOps worker processing batch', {
+  logger.info('DevOps worker processing batch', {
     messageCount: event.Records?.length || 0,
     requestId: context.requestId
   });
@@ -388,7 +417,7 @@ async function automationWorker(event, context) {
     
     try {
       const message = JSON.parse(record.body);
-      console.log('Processing DevOps message', { 
+      logger.info('Processing DevOps message', { 
         messageId, 
         task: message.task,
         timestamp: message.timestamp 
@@ -404,16 +433,16 @@ async function automationWorker(event, context) {
         processedAt: new Date().toISOString()
       });
 
-      console.log('Message processed successfully', { 
+      logger.info('Message processed successfully', { 
         messageId,
         task: message.task 
       });
 
     } catch (error) {
-      console.error('Message processing failed', {
+      logger.error('Message processing failed', {
         messageId,
-        error: error.message,
-        stack: error.stack
+        errorMessage: error.message,
+        errorType: error.constructor.name
       });
 
       // Agregar a lista de fallos para que SQS lo reintente
@@ -439,7 +468,10 @@ async function automationWorker(event, context) {
           }]
         }));
       } catch (metricError) {
-        console.error('Failed to publish failure metric', metricError);
+        logger.error('Failed to publish failure metric', { 
+          errorMessage: metricError.message,
+          errorType: metricError.constructor.name
+        });
       }
     }
   }
@@ -464,10 +496,13 @@ async function automationWorker(event, context) {
       ]
     }));
   } catch (metricError) {
-    console.error('Failed to publish metrics', metricError);
+    logger.error('Failed to publish metrics', { 
+      errorMessage: metricError.message,
+      errorType: metricError.constructor.name
+    });
   }
 
-  console.log('Batch processing completed', {
+  logger.info('Batch processing completed', {
     summary: {
       total: event.Records?.length || 0,
       successful: results.successful.length,

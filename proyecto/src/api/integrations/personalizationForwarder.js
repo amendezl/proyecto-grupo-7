@@ -44,8 +44,10 @@ module.exports.handler = async (event) => {
       if (clientId) {
         let ExclusiveStartKey = undefined;
         do {
+          // Query using GSI on clientId to find all connections for this client
           const q = new QueryCommand({
             TableName: process.env.CONNECTIONS_TABLE,
+            IndexName: 'ClientIdIndex',
             KeyConditionExpression: 'clientId = :cid',
             ExpressionAttributeValues: { ':cid': clientId },
             ExclusiveStartKey,

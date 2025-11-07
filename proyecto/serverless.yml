@@ -8,42 +8,42 @@ custom:
   # === FRONTEND DEPLOYMENT CONFIGURATION ===
   client:
     bucketName: ${self:service}-frontend-${self:provider.stage}
-    distributionFolder: ../frontend/out
-    indexDocument: index.html
-    errorDocument: 404.html
+    distributionFolder: ${env:FRONTEND_DIST_FOLDER, '../frontend/out'}
+    indexDocument: ${env:INDEX_DOCUMENT, 'index.html'}
+    errorDocument: ${env:ERROR_DOCUMENT, '404.html'}
     region: ${self:provider.region}
-    acl: public-read
-    createDistribution: false # CAMBIAR A "true" SI TIENE PERMISO PARA CREAR CLOUDFRONT
-    manageResources: true
-    uploadConcurrency: 5
+    acl: ${env:S3_ACL, 'public-read'}
+    createDistribution: ${env:CREATE_CLOUDFRONT_DISTRIBUTION, 'true'} # CAMBIAR A "false" SI NO TIENE PERMISO PARA CREAR CLOUDFRONT
+    manageResources: ${env:MANAGE_S3_RESOURCES, 'true'}
+    uploadConcurrency: ${env:UPLOAD_CONCURRENCY, '5'}
   
   # === SPLIT STACKS FOR LARGE DEPLOYMENTS ===
   splitStacks:
-    nested: true
-    perFunction: false
-    perType: true
+    nested: ${env:SPLIT_STACKS_NESTED, 'true'}
+    perFunction: ${env:SPLIT_STACKS_PER_FUNCTION, 'false'}
+    perType: ${env:SPLIT_STACKS_PER_TYPE, 'true'}
     stackType:
-      AWS::ApiGatewayV2::Api: false
-      AWS::ApiGatewayV2::Stage: false
-      AWS::CloudFormation::Stack: false
+      AWS::ApiGatewayV2::Api: ${env:SPLIT_STACKS_API_GATEWAY, 'false'}
+      AWS::ApiGatewayV2::Stage: ${env:SPLIT_STACKS_API_STAGE, 'false'}
+      AWS::CloudFormation::Stack: ${env:SPLIT_STACKS_CLOUDFORMATION, 'false'}
   
   # === ENVIRONMENT-SPECIFIC SETTINGS ===
   stages:
     dev:
-      logLevel: INFO
-      tracing: false
-      memorySize: 256
-      nodeEnv: development
+      logLevel: ${env:LOG_LEVEL_DEV, 'INFO'}
+      tracing: ${env:TRACING_DEV, 'false'}
+      memorySize: ${env:MEMORY_SIZE_DEV, '256'}
+      nodeEnv: ${env:NODE_ENV_DEV, 'development'}
     staging:
-      logLevel: WARN
-      tracing: true
-      memorySize: 512
-      nodeEnv: staging
+      logLevel: ${env:LOG_LEVEL_STAGING, 'WARN'}
+      tracing: ${env:TRACING_STAGING, 'true'}
+      memorySize: ${env:MEMORY_SIZE_STAGING, '512'}
+      nodeEnv: ${env:NODE_ENV_STAGING, 'staging'}
     prod:
-      logLevel: ERROR
-      tracing: true
-      memorySize: 1024
-      nodeEnv: production
+      logLevel: ${env:LOG_LEVEL_PROD, 'ERROR'}
+      tracing: ${env:TRACING_PROD, 'true'}
+      memorySize: ${env:MEMORY_SIZE_PROD, '1024'}
+      nodeEnv: ${env:NODE_ENV_PROD, 'production'}
   
   # === AUTOMATION HOOKS ===
   scriptable:
@@ -79,15 +79,15 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs22.x
-  region: ${opt:region, 'us-east-1'}
-  stage: ${opt:stage, 'dev'}
+  runtime: ${env:NODE_RUNTIME, 'nodejs22.x'}
+  region: ${opt:region, env:AWS_REGION, 'us-east-1'}
+  stage: ${opt:stage, env:STAGE, 'dev'}
   # Use existing IAM role to avoid permission issues in voclabs
   iam:
-    role: arn:aws:iam::975050051149:role/LabRole
+    role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/${env:IAM_ROLE_NAME, 'LabRole'}
   deploymentBucket:
     name: ${self:service}-${self:provider.stage}-deployment
-    serverSideEncryption: AES256
+    serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
   # X-Ray tracing configuration (enabled for staging and prod)
   tracing:
     lambda: ${self:custom.stages.${self:provider.stage}.tracing}
@@ -101,7 +101,8 @@ provider:
         audience:
           - { Ref: CognitoUserPoolClient }
   environment:
-    AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: ${env:AWS_NODEJS_CONNECTION_REUSE_ENABLED, '1'}
+    AWS_REGION: ${self:provider.region}
     REGION: ${self:provider.region}
     STAGE: ${self:provider.stage}
     NODE_ENV: ${self:custom.stages.${self:provider.stage}.nodeEnv}
@@ -132,10 +133,14 @@ provider:
     USER_POOL_CLIENT_ID:
       Ref: CognitoUserPoolClient
     RESILIENCE_METRICS_NAMESPACE: ${self:service}/${self:provider.stage}
-  # Secretos administrados vía AWS Systems Manager Parameter Store
-  SENTRY_DSN: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-dsn~true}
-  SENTRY_TRACES_SAMPLE_RATE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-traces-sample-rate, '0'}
-  SENTRY_RELEASE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-release, ''}
+    # AWS AppConfig (optional - for advanced personalization features)
+    APP_CONFIG_APPLICATION_ID: ${env:APP_CONFIG_APPLICATION_ID, ''}
+    APP_CONFIG_ENVIRONMENT_ID: ${env:APP_CONFIG_ENVIRONMENT_ID, ''}
+    APP_CONFIG_PROFILE_ID: ${env:APP_CONFIG_PROFILE_ID, ''}
+    # Secretos administrados vía AWS Systems Manager Parameter Store
+    SENTRY_DSN: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-dsn~true, ''}
+    SENTRY_TRACES_SAMPLE_RATE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-traces-sample-rate, env:SENTRY_TRACES_SAMPLE_RATE, '0'}
+    SENTRY_RELEASE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-release, env:SENTRY_RELEASE, ''}
 
 # === PACKAGE CONFIGURATION ===
 package:

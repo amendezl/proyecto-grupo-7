@@ -2,6 +2,7 @@ const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { logger } = require('../../infrastructure/monitoring/logger');
+const { validateForDynamoDB } = require('../../core/validation/validator');
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 const docClient = DynamoDBDocumentClient.from(client);
@@ -57,8 +58,11 @@ module.exports.connect = async (event) => {
   };
 
   try {
+    // Validate connection data with AJV before writing to DynamoDB
+    const validatedItem = validateForDynamoDB('connection', item);
+    
     await resilienceManager.executeDatabase(
-      () => docClient.send(new PutCommand({ TableName: process.env.CONNECTIONS_TABLE, Item: item })),
+      () => docClient.send(new PutCommand({ TableName: process.env.CONNECTIONS_TABLE, Item: validatedItem })),
       { operation: 'websocket.connect.putConnection', priority: 'auth' }
     );
 

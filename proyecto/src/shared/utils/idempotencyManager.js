@@ -2,6 +2,7 @@ const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 const { logger } = require('../../infrastructure/monitoring/logger');
+const { validateForDynamoDB } = require('../../core/validation/validator');
 const crypto = require('crypto');
 
 /**
@@ -155,9 +156,12 @@ class IdempotencyManager {
         ttl: ttl  // DynamoDB TTL attribute
       };
 
+      // Validate idempotency record with AJV before writing to DynamoDB
+      const validatedItem = validateForDynamoDB('idempotency', item);
+
       const command = new PutCommand({
         TableName: this.tableName,
-        Item: item,
+        Item: validatedItem,
         // Evitar sobrescribir si ya existe (por race conditions)
         ConditionExpression: 'attribute_not_exists(idempotencyKey)'
       });

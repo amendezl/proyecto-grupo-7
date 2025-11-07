@@ -6,6 +6,7 @@
 
 const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch');
 const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+const logger = require('../infrastructure/monitoring/logger');
 
 const cloudwatch = new CloudWatchClient({ region: process.env.REGION });
 const sns = new SNSClient({ region: process.env.REGION });
@@ -15,7 +16,10 @@ const sns = new SNSClient({ region: process.env.REGION });
  * Ejecuta pruebas de resiliencia del sistema
  */
 exports.resilience = async (event, context) => {
-  console.log('Chaos Engineering test triggered:', JSON.stringify(event, null, 2));
+  logger.info('Chaos Engineering test triggered', {
+    requestId: context?.requestId,
+    testType: event?.queryStringParameters?.testType || 'all'
+  });
   
   try {
     const testConfig = extractTestConfig(event);
@@ -78,7 +82,11 @@ exports.resilience = async (event, context) => {
     };
     
   } catch (error) {
-    console.error('Chaos engineering test failed:', error);
+    logger.error('Chaos engineering test failed', { 
+      errorMessage: error.message,
+      errorType: error.constructor.name,
+      errorStack: error.stack
+    });
     
     await sendCriticalChaosAlert(error);
     
@@ -136,7 +144,10 @@ function extractTestConfig(event) {
  * Test de inyección de latencia
  */
 async function runLatencyTest(config) {
-  console.log('Running latency test:', config);
+  logger.info('Running latency test', { 
+    target: config.target,
+    latency: config.latency
+  });
   
   try {
     const results = [];

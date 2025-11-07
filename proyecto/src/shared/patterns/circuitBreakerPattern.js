@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { validateForDynamoDB } = require('../../core/validation/validator');
 
 const region = process.env.AWS_REGION || 'us-east-1';
 const circuitStateTable = process.env.CIRCUIT_STATE_TABLE || null;
@@ -284,14 +285,79 @@ class CircuitBreaker {
         console.warn(`[CIRCUIT_BREAKER] 🔴 ${this.serviceName}: Circuito ABIERTO - próximo intento en ${this.config.recoveryTimeout}ms`);
       }
 
+      if (this.config.notifyOnOpen !== false) {
+        this._sendCircuitOpenNotification();
+      }
+
       if (ddbDocClient) {
         try {
-          ddbDocClient.send(new PutCommand({ TableName: circuitStateTable, Item: { serviceName: this.serviceName, state: this.state, lastUpdated: Date.now() } }));
+          const stateItem = { serviceName: this.serviceName, state: this.state, lastUpdated: Date.now() };
+          const validatedState = validateForDynamoDB('circuitState', stateItem);
+          ddbDocClient.send(new PutCommand({ TableName: circuitStateTable, Item: validatedState }));
         } catch (e) {
           console.warn('Failed to persist circuit state', e && e.message);
         }
       }
       try { putMetric('CircuitOpened', 1, 'Count', [{ Name: 'Service', Value: this.serviceName }]); } catch (e) {}
+    }
+  }
+
+  async _sendCircuitOpenNotification() {
+    try {
+      const snsArn = process.env.SNS_ALERTS_TOPIC_ARN;
+      if (!snsArn) {
+        return; // SNS topic not configured
+      }
+
+      const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+      const snsClient = new SNSClient({ region: process.env.AWS_REGION || 'us-east-1' });
+      
+      const message = {
+        alert: 'CIRCUIT_BREAKER_OPEN',
+        severity: 'HIGH',
+        service: this.serviceName,
+        state: 'OPEN',
+        failureCount: this.failureCount,
+        totalFailures: this.stats.totalFailures,
+        successRate: this.stats.totalRequests > 0 
+          ? ((this.stats.totalSuccesses / this.stats.totalRequests) * 100).toFixed(2) + '%'
+          : 'N/A',
+        recoveryTime: new Date(this.nextAttemptTime).toISOString(),
+        nextAttemptIn: `${this.config.recoveryTimeout}ms`,
+        timestamp: new Date().toISOString(),
+        stats: {
+          totalRequests: this.stats.totalRequests,
+          totalFailures: this.stats.totalFailures,
+          totalSuccesses: this.stats.totalSuccesses,
+          circuitOpened: this.stats.circuitOpened,
+          healthScore: this.calculateHealthScore()
+        }
+      };
+      
+      await snsClient.send(new PublishCommand({
+        TopicArn: snsArn,
+        Subject: `🔴 Circuit Breaker OPEN: ${this.serviceName}`,
+        Message: JSON.stringify(message, null, 2),
+        MessageAttributes: {
+          alertType: {
+            DataType: 'String',
+            StringValue: 'CIRCUIT_BREAKER_OPEN'
+          },
+          severity: {
+            DataType: 'String',
+            StringValue: 'HIGH'
+          },
+          serviceName: {
+            DataType: 'String',
+            StringValue: this.serviceName
+          }
+        }
+      }));
+      
+      console.log(`[CIRCUIT_BREAKER] 📨 SNS alert sent for ${this.serviceName}`);
+      
+    } catch (error) {
+      console.error(`[CIRCUIT_BREAKER] Failed to send SNS notification: ${error.message}`);
     }
   }
 
@@ -307,7 +373,9 @@ class CircuitBreaker {
       }
       if (ddbDocClient) {
         try {
-          ddbDocClient.send(new PutCommand({ TableName: circuitStateTable, Item: { serviceName: this.serviceName, state: this.state, lastUpdated: Date.now() } }));
+          const stateItem = { serviceName: this.serviceName, state: this.state, lastUpdated: Date.now() };
+          const validatedState = validateForDynamoDB('circuitState', stateItem);
+          ddbDocClient.send(new PutCommand({ TableName: circuitStateTable, Item: validatedState }));
         } catch (e) {
           console.warn('Failed to persist circuit state', e && e.message);
         }

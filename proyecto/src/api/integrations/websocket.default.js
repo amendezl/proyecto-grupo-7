@@ -1,5 +1,5 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { logger } = require('../../infrastructure/monitoring/logger');
 
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
@@ -12,8 +12,8 @@ async function getUserFromEvent(event) {
     return {
       id: claims.sub,
       email: claims.email,
-      rol: claims['custom:role'] || (Array.isArray(claims['cognito:groups']) ? claims['cognito:groups'][0] : claims['cognito:groups']) || 'usuario',
-      claims
+      rol: claims['custom:role'] || (Array.isArray(claims['cognito:groups']) ? claims['cognito:groups'][0] : claims['cognito:groups']) || 'usuario'
+      // Note: claims object excluded to avoid logging sensitive JWT data
     };
   }
 
@@ -21,14 +21,13 @@ async function getUserFromEvent(event) {
   if (!connectionId) return null;
 
   try {
-    const q = new QueryCommand({
+    // Use GetCommand since connectionId is the primary key (HASH)
+    // This is the most efficient DynamoDB operation - no index needed
+    const res = await docClient.send(new GetCommand({
       TableName: process.env.CONNECTIONS_TABLE,
-      IndexName: 'ConnectionIdIndex',
-      KeyConditionExpression: 'connectionId = :cid',
-      ExpressionAttributeValues: { ':cid': connectionId }
-    });
-    const res = await docClient.send(q);
-    const it = res.Items && res.Items[0];
+      Key: { connectionId }
+    }));
+    const it = res.Item;
     if (it) return { id: it.userId, clientId: it.clientId };
   } catch (e) {
     logger.warn('Failed to resolve user from connectionId', {

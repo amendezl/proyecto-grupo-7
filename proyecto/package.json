@@ -57,8 +57,6 @@
     "ajv-formats": "^3.0.1",
     "bcryptjs": "^2.4.3",
     "joi": "^17.11.0",
-    "jose": "^4.14.4",
-    "jsonwebtoken": "^9.0.2",
     "minimist": "^1.2.8",
     "uuid": "^9.0.1",
     "@sentry/serverless": "^7.120.0"

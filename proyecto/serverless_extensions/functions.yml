@@ -129,6 +129,19 @@ chaosEngineering:
     CHAOS_TARGET_URL:
       Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
 
+# === SYSTEM MONITORING & RESILIENCE ===
+# FASE 1 - MEJORA 3: Dashboard de Circuit Breakers
+circuitStatus:
+  handler: src/api/system/circuitStatus.handler
+  timeout: 10
+  memorySize: 256
+  events:
+    - httpApi:
+        path: /system/circuit-status
+        method: get
+        authorizer:
+          name: cognitoJwt
+
 # === CORE BUSINESS DOMAINS ===
 # Usuarios
 usuariosListar:

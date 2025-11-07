@@ -234,9 +234,26 @@ Resources:
       AttributeDefinitions:
         - AttributeName: connectionId
           AttributeType: S
+        - AttributeName: clientId
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
       KeySchema:
         - AttributeName: connectionId
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ClientIdIndex
+          KeySchema:
+            - AttributeName: clientId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: StatusIndex
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
@@ -480,3 +497,52 @@ Outputs:
     Export:
       Name: ${self:service}-${self:provider.stage}-client-id
 
+  # Messaging Resources
+  MainQueueUrl:
+    Description: Main SQS Queue URL
+    Value: { Ref: MainQueue }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-main-queue-url
+
+  SpaceNotificationsTopicArn:
+    Description: Space Notifications SNS Topic ARN
+    Value: { Ref: SpaceNotificationsTopic }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-space-notifications-arn
+
+  SystemAlertsTopicArn:
+    Description: System Alerts SNS Topic ARN
+    Value: { Ref: SystemAlertsTopic }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-system-alerts-arn
+
+  AdminNotificationsTopicArn:
+    Description: Admin Notifications SNS Topic ARN
+    Value: { Ref: AdminNotificationsTopic }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-admin-notifications-arn
+
+  # Database Resources
+  MainTableName:
+    Description: Main DynamoDB Table Name
+    Value: { Ref: MainDynamoDBTable }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-main-table-name
+
+  ConnectionsTableName:
+    Description: WebSocket Connections DynamoDB Table Name
+    Value: { Ref: WebSocketConnectionsTable }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-connections-table-name
+
+  CircuitStateTableName:
+    Description: Circuit Breaker State DynamoDB Table Name
+    Value: { Ref: CircuitStateTable }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-circuit-state-table-name
+
+  IdempotencyTableName:
+    Description: Idempotency DynamoDB Table Name
+    Value: { Ref: IdempotencyTable }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-idempotency-table-name

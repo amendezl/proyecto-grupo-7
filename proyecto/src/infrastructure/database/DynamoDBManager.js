@@ -2,6 +2,8 @@ const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, DeleteCommand, ScanCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
+const { validateForDynamoDB } = require('../../core/validation/validator');
+const { logger } = require('../monitoring/logger');
 
 class DynamoDBManager {
     constructor() {
@@ -24,24 +26,29 @@ class DynamoDBManager {
     }
 
     async createEspacio(espacioData) {
+        // Validate data with AJV before writing to DynamoDB
+        const validatedData = validateForDynamoDB('espacio', espacioData);
+        
         const item = {
             PK: `ESPACIO#${uuidv4()}`,
             SK: 'METADATA',
             GSI1PK: 'ESPACIO',
-            GSI1SK: espacioData.nombre,
+            GSI1SK: validatedData.nombre,
             entityType: 'espacio',
-            id: espacioData.id || uuidv4(),
-            nombre: espacioData.nombre,
-            tipo: espacioData.tipo,
-            capacidad: espacioData.capacidad,
-            ubicacion: espacioData.ubicacion,
-            descripcion: espacioData.descripcion,
-            estado: espacioData.estado || 'disponible',
-            zona_id: espacioData.zona_id,
-            responsable_id: espacioData.responsable_id,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            id: validatedData.id || uuidv4(),
+            nombre: validatedData.nombre,
+            tipo: validatedData.tipo,
+            capacidad: validatedData.capacidad,
+            ubicacion: validatedData.ubicacion,
+            descripcion: validatedData.descripcion,
+            estado: validatedData.estado || 'disponible',
+            zona_id: validatedData.zona_id,
+            responsable_id: validatedData.responsable_id,
+            createdAt: validatedData.fecha_creacion || new Date().toISOString(),
+            updatedAt: validatedData.fecha_actualizacion
         };
+
+        logger.info('Creating espacio with validated data', { espacioId: item.id });
 
         const command = new PutCommand({
             TableName: this.tableName,
@@ -107,20 +114,25 @@ class DynamoDBManager {
             throw new Error('Espacio no encontrado');
         }
 
+        // Validate partial update data with AJV
+        const validatedData = validateForDynamoDB('espacio', updateData, { allowPartial: true });
+        
+        logger.info('Updating espacio with validated data', { espacioId: id });
+
         const updateExpression = [];
         const expressionAttributeValues = {};
         const expressionAttributeNames = {};
 
-        Object.keys(updateData).forEach(key => {
-            if (key !== 'id' && key !== 'PK' && key !== 'SK') {
+        Object.keys(validatedData).forEach(key => {
+            if (key !== 'id' && key !== 'PK' && key !== 'SK' && key !== 'fecha_creacion') {
                 updateExpression.push(`#${key} = :${key}`);
-                expressionAttributeValues[`:${key}`] = updateData[key];
+                expressionAttributeValues[`:${key}`] = validatedData[key];
                 expressionAttributeNames[`#${key}`] = key;
             }
         });
 
         updateExpression.push('#updatedAt = :updatedAt');
-        expressionAttributeValues[':updatedAt'] = new Date().toISOString();
+        expressionAttributeValues[':updatedAt'] = validatedData.fecha_actualizacion;
         expressionAttributeNames['#updatedAt'] = 'updatedAt';
 
         const command = new UpdateCommand({
@@ -158,23 +170,28 @@ class DynamoDBManager {
     }
 
     async createReserva(reservaData) {
+        // Validate data with AJV before writing to DynamoDB
+        const validatedData = validateForDynamoDB('reserva', reservaData);
+        
         const item = {
             PK: `RESERVA#${uuidv4()}`,
             SK: 'METADATA',
             GSI1PK: 'RESERVA',
-            GSI1SK: `${reservaData.fecha_inicio}#${reservaData.espacio_id}`,
+            GSI1SK: `${validatedData.fecha_inicio}#${validatedData.espacio_id}`,
             entityType: 'reserva',
-            id: reservaData.id || uuidv4(),
-            espacio_id: reservaData.espacio_id,
-            usuario_id: reservaData.usuario_id,
-            fecha_inicio: reservaData.fecha_inicio,
-            fecha_fin: reservaData.fecha_fin,
-            proposito: reservaData.proposito,
-            estado: reservaData.estado || 'pendiente',
-            notas: reservaData.notas,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            id: validatedData.id || uuidv4(),
+            espacio_id: validatedData.espacio_id,
+            usuario_id: validatedData.usuario_id,
+            fecha_inicio: validatedData.fecha_inicio,
+            fecha_fin: validatedData.fecha_fin,
+            proposito: validatedData.proposito,
+            estado: validatedData.estado || 'pendiente',
+            notas: validatedData.notas,
+            createdAt: validatedData.fecha_creacion || new Date().toISOString(),
+            updatedAt: validatedData.fecha_actualizacion
         };
+
+        logger.info('Creating reserva with validated data', { reservaId: item.id });
 
         const command = new PutCommand({
             TableName: this.tableName,
@@ -228,25 +245,30 @@ class DynamoDBManager {
     }
 
     async createUsuario(usuarioData) {
+        // Validate data with AJV before writing to DynamoDB
+        const validatedData = validateForDynamoDB('user', usuarioData);
+        
         const item = {
             PK: `USUARIO#${uuidv4()}`,
             SK: 'METADATA',
             GSI1PK: 'USUARIO',
-            GSI1SK: usuarioData.email,
+            GSI1SK: validatedData.email,
             entityType: 'usuario',
-            id: usuarioData.id || uuidv4(),
-            nombre: usuarioData.nombre,
-            apellido: usuarioData.apellido,
-            email: usuarioData.email,
-            password: usuarioData.password,
-            rol: usuarioData.rol || 'usuario',
+            id: validatedData.id || uuidv4(),
+            nombre: validatedData.nombre,
+            apellido: validatedData.apellido,
+            email: validatedData.email,
+            password: usuarioData.password, // Password no se valida con schema
+            rol: validatedData.rol || 'usuario',
             activo: usuarioData.activo !== false,
-            telefono: usuarioData.telefono,
+            telefono: validatedData.telefono,
             cargo: usuarioData.cargo,
             departamento: usuarioData.departamento,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            createdAt: validatedData.fecha_creacion || new Date().toISOString(),
+            updatedAt: validatedData.fecha_actualizacion
         };
+
+        logger.info('Creating usuario with validated data', { usuarioId: item.id });
 
         const command = new PutCommand({
             TableName: this.tableName,
@@ -312,16 +334,43 @@ class DynamoDBManager {
     }
 
     async createEntity(entityType, data) {
+        // Map entity types to validation schemas
+        const schemaMap = {
+            'zona': 'zona',
+            'responsable': 'responsable',
+            'espacio': 'espacio',
+            'reserva': 'reserva',
+            'usuario': 'user',
+            'user': 'user'
+        };
+        
+        const schemaName = schemaMap[entityType.toLowerCase()];
+        
+        let validatedData;
+        if (schemaName) {
+            // Validate data with AJV before writing to DynamoDB
+            validatedData = validateForDynamoDB(schemaName, data);
+            logger.info('Creating entity with validated data', { entityType, entityId: validatedData.id || 'new' });
+        } else {
+            // For entity types without specific schema, pass through with timestamps
+            validatedData = {
+                ...data,
+                fecha_creacion: new Date().toISOString(),
+                fecha_actualizacion: new Date().toISOString()
+            };
+            logger.warn('Creating entity without validation schema', { entityType });
+        }
+        
         const item = {
             PK: `${entityType.toUpperCase()}#${uuidv4()}`,
             SK: 'METADATA',
             GSI1PK: entityType.toUpperCase(),
-            GSI1SK: data.nombre || data.titulo || uuidv4(),
+            GSI1SK: validatedData.nombre || validatedData.titulo || uuidv4(),
             entityType: entityType.toLowerCase(),
-            id: data.id || uuidv4(),
-            ...data,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            id: validatedData.id || uuidv4(),
+            ...validatedData,
+            createdAt: validatedData.fecha_creacion || new Date().toISOString(),
+            updatedAt: validatedData.fecha_actualizacion
         };
 
         const command = new PutCommand({
@@ -369,20 +418,46 @@ class DynamoDBManager {
             throw new Error(`${entityType} no encontrado`);
         }
 
+        // Map entity types to validation schemas
+        const schemaMap = {
+            'zona': 'zona',
+            'responsable': 'responsable',
+            'espacio': 'espacio',
+            'reserva': 'reserva',
+            'usuario': 'user',
+            'user': 'user'
+        };
+        
+        const schemaName = schemaMap[entityType.toLowerCase()];
+        
+        let validatedData;
+        if (schemaName) {
+            // Validate partial update data with AJV
+            validatedData = validateForDynamoDB(schemaName, updateData, { allowPartial: true });
+            logger.info('Updating entity with validated data', { entityType, entityId: id });
+        } else {
+            // For entity types without specific schema, add timestamp
+            validatedData = {
+                ...updateData,
+                fecha_actualizacion: new Date().toISOString()
+            };
+            logger.warn('Updating entity without validation schema', { entityType });
+        }
+
         const updateExpression = [];
         const expressionAttributeValues = {};
         const expressionAttributeNames = {};
 
-        Object.keys(updateData).forEach(key => {
-            if (key !== 'id' && key !== 'PK' && key !== 'SK') {
+        Object.keys(validatedData).forEach(key => {
+            if (key !== 'id' && key !== 'PK' && key !== 'SK' && key !== 'fecha_creacion') {
                 updateExpression.push(`#${key} = :${key}`);
-                expressionAttributeValues[`:${key}`] = updateData[key];
+                expressionAttributeValues[`:${key}`] = validatedData[key];
                 expressionAttributeNames[`#${key}`] = key;
             }
         });
 
         updateExpression.push('#updatedAt = :updatedAt');
-        expressionAttributeValues[':updatedAt'] = new Date().toISOString();
+        expressionAttributeValues[':updatedAt'] = validatedData.fecha_actualizacion;
         expressionAttributeNames['#updatedAt'] = 'updatedAt';
 
         const command = new UpdateCommand({

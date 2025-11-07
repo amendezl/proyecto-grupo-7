@@ -329,12 +329,151 @@ const zonaSchema = {
   additionalProperties: false
 };
 
+// WebSocket Connection
+const connectionSchema = {
+  type: 'object',
+  properties: {
+    clientId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 255
+    },
+    connectionId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 128
+    },
+    userId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 128
+    },
+    userEmail: {
+      type: 'string',
+      format: 'email',
+      maxLength: 255
+    },
+    userRole: {
+      type: 'string',
+      enum: ['admin', 'usuario', 'responsable', 'super_admin']
+    },
+    domain: {
+      type: 'string',
+      maxLength: 255
+    },
+    stage: {
+      type: 'string',
+      maxLength: 50
+    },
+    status: {
+      type: 'string',
+      enum: ['active', 'inactive', 'disconnected'],
+      default: 'active'
+    },
+    createdAt: {
+      type: 'string',
+      format: 'date-time'
+    },
+    tokenIssuer: {
+      type: 'string',
+      maxLength: 255
+    },
+    tokenAudience: {
+      oneOf: [
+        { type: 'string', maxLength: 255 },
+        { type: 'array', items: { type: 'string', maxLength: 255 } }
+      ]
+    }
+  },
+  required: ['clientId', 'connectionId', 'userId', 'userRole', 'status'],
+  additionalProperties: false
+};
+
+// Idempotency Record
+const idempotencySchema = {
+  type: 'object',
+  properties: {
+    idempotencyKey: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 512
+    },
+    operationId: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 128
+    },
+    status: {
+      type: 'string',
+      enum: ['processing', 'success', 'error', 'SUCCESS', 'FAILED']
+    },
+    statusCode: {
+      type: 'number',
+      minimum: 100,
+      maximum: 599
+    },
+    response: {
+      type: 'object'
+    },
+    result: {
+      type: 'object'
+    },
+    metadata: {
+      type: 'object',
+      properties: {
+        userId: { type: 'string' },
+        operation: { type: 'string' },
+        clientInfo: { type: 'object' }
+      }
+    },
+    createdAt: {
+      type: 'string',
+      format: 'date-time'
+    },
+    expiresAt: {
+      type: 'string',
+      format: 'date-time'
+    },
+    ttl: {
+      type: 'number',
+      minimum: 0
+    }
+  },
+  required: ['idempotencyKey', 'operationId', 'status', 'createdAt', 'ttl'],
+  additionalProperties: true
+};
+
+// Circuit Breaker State
+const circuitStateSchema = {
+  type: 'object',
+  properties: {
+    serviceName: {
+      type: 'string',
+      minLength: 1,
+      maxLength: 200
+    },
+    state: {
+      type: 'string',
+      enum: ['CLOSED', 'OPEN', 'HALF_OPEN']
+    },
+    lastUpdated: {
+      type: 'number',
+      minimum: 0
+    }
+  },
+  required: ['serviceName', 'state', 'lastUpdated'],
+  additionalProperties: true
+};
+
 const validators = {
   user: ajv.compile(userSchema),
   espacio: ajv.compile(espacioSchema),
   reserva: ajv.compile(reservaSchema),
   responsable: ajv.compile(responsableSchema),
-  zona: ajv.compile(zonaSchema)
+  zona: ajv.compile(zonaSchema),
+  connection: ajv.compile(connectionSchema),
+  idempotency: ajv.compile(idempotencySchema),
+  circuitState: ajv.compile(circuitStateSchema)
 };
 
 /**
@@ -453,7 +592,10 @@ function getSchema(entityType) {
     espacio: espacioSchema,
     reserva: reservaSchema,
     responsable: responsableSchema,
-    zona: zonaSchema
+    zona: zonaSchema,
+    connection: connectionSchema,
+    idempotency: idempotencySchema,
+    circuitState: circuitStateSchema
   };
   
   return schemas[entityType];

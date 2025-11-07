@@ -2,6 +2,7 @@ const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, DeleteCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 const { logger } = require('../../infrastructure/monitoring/logger');
+const { validateForDynamoDB } = require('../../core/validation/validator');
 
 const apigateway = new ApiGatewayManagementApiClient({
   endpoint: process.env.WEBSOCKET_ENDPOINT
@@ -17,13 +18,21 @@ exports.connect = async (event) => {
   const timestamp = new Date().toISOString();
   
   try {
+    // Validate connection data with AJV before writing to DynamoDB
+    const connectionData = {
+      clientId: connectionId, // Using connectionId as clientId for minimal schema
+      connectionId,
+      userId: connectionId, // Fallback - ideally should come from JWT
+      userRole: 'usuario', // Default role
+      status: 'connected',
+      createdAt: timestamp
+    };
+    
+    const validatedData = validateForDynamoDB('connection', connectionData);
+    
     await dynamodb.send(new PutCommand({
       TableName: CONNECTIONS_TABLE,
-      Item: {
-        connectionId,
-        timestamp,
-        status: 'connected'
-      }
+      Item: validatedData
     }));
     
     logger.websocket('connect', connectionId, {
@@ -39,7 +48,7 @@ exports.connect = async (event) => {
       })
     };
   } catch (error) {
-    logger.error('❌ Error conectando WebSocket:', { errorMessage: error.message, errorType: error.constructor.name });
+    logger.error('Error conectando WebSocket', { errorMessage: error.message, errorType: error.constructor.name });
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Error de conexión' })
@@ -95,7 +104,10 @@ exports.message = async (event) => {
 };
 
 exports.notifyReserva = async (event) => {
-  console.log('🔄 DynamoDB Stream - Reservas:', JSON.stringify(event, null, 2));
+  logger.info('DynamoDB Stream - Reservas', {
+    recordCount: event.Records?.length || 0,
+    eventSource: event.Records?.[0]?.eventSource
+  });
   
   for (const record of event.Records) {
     if (record.eventName === 'INSERT' && record.dynamodb.NewImage.tipo?.S === 'reserva') {
@@ -126,7 +138,10 @@ exports.notifyReserva = async (event) => {
 };
 
 exports.notifyEspacioEstado = async (event) => {
-  console.log('🔄 DynamoDB Stream - Espacios:', JSON.stringify(event, null, 2));
+  logger.info('DynamoDB Stream - Espacios', {
+    recordCount: event.Records?.length || 0,
+    eventSource: event.Records?.[0]?.eventSource
+  });
   
   for (const record of event.Records) {
     if (record.eventName === 'MODIFY' && record.dynamodb.NewImage.tipo?.S === 'espacio') {

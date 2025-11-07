@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { logger } = require('../../infrastructure/monitoring/logger');
+const { putMetric } = require('../../infrastructure/monitoring/metrics');
 
 const RETRYABLE_ERRORS = {
   // DynamoDB
@@ -95,6 +96,18 @@ class RetryManager {
         if (this.config.enableLogging && attempt > 1) {
           const duration = Date.now() - startTime;
           console.log(`[RETRY] ✅ Éxito en intento ${attempt} después de ${duration}ms`);
+          
+          try {
+            putMetric('RetrySuccess', 1, 'Count', [
+              { Name: 'Attempt', Value: attempt.toString() },
+              { Name: 'Operation', Value: context.operation || 'unknown' }
+            ]);
+            putMetric('RetryDuration', duration, 'Milliseconds', [
+              { Name: 'Operation', Value: context.operation || 'unknown' }
+            ]);
+          } catch (e) {
+            // Ignore metrics errors
+          }
         }
         
         return result;
