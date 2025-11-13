@@ -6,7 +6,7 @@ This guide explains how each asset inside the `devops/` directory supports the u
 
 - `app/` – Express-based monitoring service that performs health checks over the Serverless backend, WebSocket API, DynamoDB tables, SQS queues, and the Next.js frontend.
 - `automation/` – Node.js orchestrators for deployment (`deployment/full-stack-deploy.js`) and automated QA (`testing/comprehensive-test-suite.js`).
-- `ci-cd/` – GitHub Actions workflows for continuous integration and on-demand production deployment.
+- `ci-cd/` – Plantillas de GitHub Actions y definiciones de pipeline reutilizables.
 - `infra/` – Terraform configuration provisioning the supporting DevOps infrastructure: ECR repository, ECS cluster, CodeBuild project, CloudWatch log groups, and supporting IAM roles/policies.
 - `monitoring/` – CloudWatch dashboard definition plus scripts to configure alarms over the deployed stack.
 - `pipeline/` – AWS CodeBuild/CodeDeploy definitions used by the unified pipeline triggered from Serverless or CodePipeline.
@@ -55,8 +55,10 @@ This runs monitor linting/tests and the smoke, health, and integration shell scr
 
 ## Continuous Integration
 
-- `.github/workflows/full-stack-pipeline.yml` installs dependencies, lints the frontend and DevOps monitor, builds the frontend, and packages the Serverless backend on every push/PR targeting `main`.
-- `.github/workflows/production-deploy.yml` can be triggered manually, provisioning AWS credentials from GitHub Secrets and executing the full-stack deployment script.
+- `.github/workflows/cloud-deployment.yml` ejecuta linting del frontend y despliegue unificado de Serverless cuando se actualizan las ramas `main` o `production`, o bajo demanda vía `workflow_dispatch`.
+- `.github/workflows/deploy-frontend.yml` construye y publica el frontend en Vercel cada vez que hay cambios en `frontend/**` (o manualmente).
+- `.github/workflows/chaos-deploy.yml` crea y publica la imagen del módulo de chaos engineering en ECR y ejecuta el contenedor en instancias EC2 vía SSM.
+- Las plantillas históricas se mantienen en `devops/ci-cd/github-actions/` como referencia (no se ejecutan automáticamente).
 
 ## Monitoring & Alerting
 

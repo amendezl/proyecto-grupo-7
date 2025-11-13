@@ -138,6 +138,13 @@ devops/
 - 🔐 **Security**: Non-root user, capabilities dropped
 - 🌍 **Environment**: Variables y secrets de AWS Parameter Store
 
+#### GitHub Actions Actuales (`.github/workflows/`)
+
+- `cloud-deployment.yml`: lint del frontend y despliegue unificado con Serverless para las ramas `main` y `production`, o bajo demanda.
+- `deploy-frontend.yml`: build y publicación del frontend en Vercel cuando hay cambios en `frontend/**`.
+- `chaos-deploy.yml`: build de la imagen del módulo de chaos engineering, push a ECR y ejecución del contenedor via SSM en instancias etiquetadas.
+- Plantillas adicionales siguen en `devops/ci-cd/github-actions/` para escenarios de CodeBuild/CodeDeploy administrados manualmente.
+
 ### 4. 🛠️ Scripts de Automatización (`scripts/`)
 
 #### `smoke.sh` - Tests Básicos
