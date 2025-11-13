@@ -1,10 +1,9 @@
 Resources:
-
   # === FRONTEND S3 BUCKET ===
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: ${self:service}-frontend-${self:provider.stage}-v2
+      BucketName: ${self:service}-frontend-${self:provider.stage}-v3
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -22,7 +21,6 @@ Resources:
           Value: ${self:provider.stage}
         - Key: Project
           Value: ${self:service}
-
 
   # CloudFront Origin Access Identity (OAI) - Permite solo a CloudFront acceder a S3
   CloudFrontOriginAccessIdentity:
@@ -237,14 +235,7 @@ Resources:
         #   # SslSupportMethod: sni-only
         #   # MinimumProtocolVersion: TLSv1.2_2021
         
-        # Tags para gestión y billing
-        Tags:
-          - Key: Environment
-            Value: ${self:provider.stage}
-          - Key: Project
-            Value: ${self:service}
-          - Key: ManagedBy
-            Value: Serverless
+
 
   # Response Headers Policy - Headers de seguridad HTTP
   CloudFrontResponseHeadersPolicy:
@@ -291,7 +282,7 @@ Resources:
         CorsConfig:
           AccessControlAllowOrigins:
             Items:
-              - !Sub "https://${CloudFrontDistribution.DomainName}"
+              - "*"  # Will be configured after deployment to avoid circular dependency
           AccessControlAllowHeaders:
             Items:
               - "*"
@@ -740,8 +731,6 @@ Resources:
       AlarmActions:
         - Ref: SystemAlertsTopic
       TreatMissingData: notBreaching
-      TopicName: ${self:service}-${self:provider.stage}-admin-notifications
-      DisplayName: Admin Notifications
 
   # === COGNITO AUTHENTICATION ===
   CognitoUserPool:
@@ -769,8 +758,8 @@ Resources:
       ExplicitAuthFlows:
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
-      AccessTokenValidity: 4
-      IdTokenValidity: 4
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
       RefreshTokenValidity: 30
       TokenValidityUnits:
         AccessToken: minutes
