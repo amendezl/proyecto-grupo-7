@@ -83,8 +83,8 @@ provider:
   region: ${opt:region, env:AWS_REGION, 'us-east-1'}
   stage: ${opt:stage, env:STAGE, 'dev'}
   # Use existing IAM role to avoid permission issues in voclabs
-  iam:
-    role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/${env:IAM_ROLE_NAME, 'LabRole'}
+  #iam:
+  #  role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/${env:IAM_ROLE_NAME, 'LabRole'}
   deploymentBucket:
     name: ${self:service}-${self:provider.stage}-deployment-v2
     serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
