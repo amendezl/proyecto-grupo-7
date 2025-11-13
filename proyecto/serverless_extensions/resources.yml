@@ -313,11 +313,15 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      # CloudFront logging requires ACL access - different from main bucket
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
+        BlockPublicAcls: false
         BlockPublicPolicy: true
-        IgnorePublicAcls: true
+        IgnorePublicAcls: false
         RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
       LifecycleConfiguration:
         Rules:
           - Id: DeleteOldLogs
@@ -351,7 +355,7 @@ Resources:
         - Name: Rule
           Value: ALL
         - Name: WebACL
-          Value: !GetAtt WAFWebACL.Name
+          Value: ${self:service}-${self:provider.stage}-waf
       AlarmActions:
         - !Ref SystemAlertsTopic
       TreatMissingData: notBreaching

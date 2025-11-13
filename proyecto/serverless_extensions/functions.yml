@@ -744,30 +744,30 @@ dashboardStats:
         authorizer:
           name: cognitoJwt
 
-# Real-time WebSocket endpoints
-websocketConnect:
-  handler: src/handlers/websocket.connect.connect
-  timeout: 10
-  memorySize: 256
-  events:
-    - websocket:
-        route: $connect
+# Real-time WebSocket endpoints (temporarily disabled to resolve dependency issues)
+# websocketConnect:
+#   handler: src/handlers/websocket.connect.connect
+#   timeout: 10
+#   memorySize: 256
+#   events:
+#     - websocket:
+#         route: $connect
 
-websocketDisconnect:
-  handler: src/handlers/websocket.disconnect.disconnect
-  timeout: 10
-  memorySize: 256
-  events:
-    - websocket:
-        route: $disconnect
+# websocketDisconnect:
+#   handler: src/handlers/websocket.disconnect.disconnect
+#   timeout: 10
+#   memorySize: 256
+#   events:
+#     - websocket:
+#         route: $disconnect
 
-websocketDefault:
-  handler: src/handlers/websocket.default.default
-  timeout: 10
-  memorySize: 256
-  events:
-    - websocket:
-        route: $default
+# websocketDefault:
+#   handler: src/handlers/websocket.default.default
+#   timeout: 10
+#   memorySize: 256
+#   events:
+#     - websocket:
+#         route: $default
 
 # Queue Workers & Streams
 queueWorker:
