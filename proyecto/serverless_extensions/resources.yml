@@ -1,4 +1,29 @@
 Resources:
+
+  # === FRONTEND S3 BUCKET ===
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:service}-frontend-${self:provider.stage}-v2
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Environment
+          Value: ${self:provider.stage}
+        - Key: Project
+          Value: ${self:service}
+
+
   # CloudFront Origin Access Identity (OAI) - Permite solo a CloudFront acceder a S3
   CloudFrontOriginAccessIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity

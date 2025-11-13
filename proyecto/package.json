@@ -10,14 +10,17 @@
     
     "build:frontend": "cd ../frontend && npm ci && npm run build",
     "deploy:backend": "serverless deploy --stage $STAGE --region $REGION",
+    
     "deploy:backend:win": "serverless deploy --stage %STAGE% --region %REGION%",
     "deploy:backend:ps": "powershell -Command \"$env:STAGE='dev'; $env:REGION='us-east-1'; serverless deploy --stage $env:STAGE --region $env:REGION\"",
     "deploy:backend:ps:prod": "powershell -Command \"$env:STAGE='prod'; $env:REGION='us-east-1'; serverless deploy --stage $env:STAGE --region $env:REGION\"",
 
     "deploy": "cross-env STAGE=dev REGION=us-east-1 npm run deploy:backend",
     "deploy:prod": "cross-env STAGE=prod REGION=us-east-1 npm run deploy:backend",
+
     "deploy:win": "set STAGE=dev && set REGION=us-east-1 && npm run deploy:backend:win",
     "deploy:prod:win": "set STAGE=prod && set REGION=us-east-1 && npm run deploy:backend:win",
+
     "deploy:ps": "npm run deploy:backend:ps",
     "deploy:ps:prod": "npm run deploy:backend:ps:prod",
 

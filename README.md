@@ -129,7 +129,7 @@ cd ..
 
 ```bash
 # Crear bucket para el despliegue de Serverless Framework
-aws s3 mb s3://sistema-gestion-espacios-dev-deployment --region us-east-1
+aws s3 mb s3://sistema-gestion-espacios-dev-deployment-v2 --region us-east-1
 ```
 
 ### 2. Desplegar el stack completo
