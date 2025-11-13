@@ -86,7 +86,7 @@ provider:
   iam:
     role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/${env:IAM_ROLE_NAME, 'LabRole'}
   deploymentBucket:
-    name: ${self:service}-${self:provider.stage}-deployment
+    name: ${self:service}-${self:provider.stage}-deployment-v2
     serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
   # X-Ray tracing configuration (enabled for staging and prod)
   tracing:
@@ -138,7 +138,7 @@ provider:
     APP_CONFIG_ENVIRONMENT_ID: ${env:APP_CONFIG_ENVIRONMENT_ID, ''}
     APP_CONFIG_PROFILE_ID: ${env:APP_CONFIG_PROFILE_ID, ''}
     # Secretos administrados vía AWS Systems Manager Parameter Store
-    SENTRY_DSN: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-dsn~true, ''}
+    SENTRY_DSN: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-dsn, ''}
     SENTRY_TRACES_SAMPLE_RATE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-traces-sample-rate, env:SENTRY_TRACES_SAMPLE_RATE, '0'}
     SENTRY_RELEASE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-release, env:SENTRY_RELEASE, ''}
 

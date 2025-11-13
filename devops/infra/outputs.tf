@@ -6,12 +6,12 @@ output "ecr_repositories" {
   description = "Map de repositorios ECR creados con URLs y ARNs"
   value = {
     for key, repo in aws_ecr_repository.services : key => {
-      url = repo.repository_url
-      arn = repo.arn
+      url  = repo.repository_url
+      arn  = repo.arn
       name = repo.name
     }
   }
-  
+
   # Ejemplo de uso:
   # terraform output -json ecr_repositories | jq -r '.["espacios-monitor"].url'
   # docker tag mi-imagen:latest $(terraform output -json ecr_repositories | jq -r '.["espacios-monitor"].url'):v1.0.0
@@ -21,7 +21,7 @@ output "ecr_repositories" {
 output "ecr_repository_url" {
   description = "URL del primer repositorio ECR (deprecated: usar ecr_repositories)"
   value       = values(aws_ecr_repository.services)[0].repository_url
-  
+
   # Ejemplo de uso:
   # docker tag mi-imagen:latest $(terraform output -raw ecr_repository_url):v1.0.0
   # docker push $(terraform output -raw ecr_repository_url):v1.0.0
@@ -35,7 +35,7 @@ output "ecr_repository_arn" {
 output "ecs_cluster_name" {
   description = "Nombre del cluster ECS"
   value       = aws_ecs_cluster.monitoring_cluster.name
-  
+
   # Ejemplo de uso:
   # aws ecs list-services --cluster $(terraform output -raw ecs_cluster_name)
 }
@@ -48,7 +48,7 @@ output "ecs_cluster_arn" {
 output "codebuild_project_name" {
   description = "Nombre del proyecto CodeBuild"
   value       = aws_codebuild_project.main.name
-  
+
   # Ejemplo de uso:
   # aws codebuild start-build --project-name $(terraform output -raw codebuild_project_name)
 }
@@ -66,7 +66,7 @@ output "codebuild_role_arn" {
 output "artifacts_bucket_name" {
   description = "Nombre del bucket S3 para artifacts"
   value       = aws_s3_bucket.artifacts.id
-  
+
   # Ejemplo de uso:
   # aws s3 ls s3://$(terraform output -raw artifacts_bucket_name)
 }
@@ -85,7 +85,7 @@ output "log_groups" {
       retention_in_days = lg.retention_in_days
     }
   }
-  
+
   # Ejemplo de uso:
   # terraform output -json log_groups | jq -r '.ecs.name'
   # aws logs tail $(terraform output -json log_groups | jq -r '.ecs.name') --follow
@@ -101,7 +101,7 @@ output "log_group_arns" {
 output "ssm_document_name" {
   description = "Nombre del documento SSM para ejecutar el contenedor de chaos"
   value       = aws_ssm_document.run_chaos_container.name
-  
+
   # Ejemplo de uso:
   # aws ssm send-command \
   #   --document-name $(terraform output -raw ssm_document_name) \
@@ -126,14 +126,14 @@ output "environment_info" {
 output "deployment_summary" {
   description = "Resumen completo del deployment para referencia rápida"
   value = {
-    ecr_repositories      = { for k, v in aws_ecr_repository.services : k => v.repository_url }
-    ecs_cluster           = aws_ecs_cluster.monitoring_cluster.name
-    codebuild_project     = aws_codebuild_project.main.name
-    artifacts_bucket      = aws_s3_bucket.artifacts.id
-    log_group_ecs         = aws_cloudwatch_log_group.main["ecs"].name
-    log_group_lambda      = aws_cloudwatch_log_group.main["lambda"].name
-    log_group_codebuild   = aws_cloudwatch_log_group.main["codebuild"].name
-    ssm_document          = aws_ssm_document.run_chaos_container.name
+    ecr_repositories    = { for k, v in aws_ecr_repository.services : k => v.repository_url }
+    ecs_cluster         = aws_ecs_cluster.monitoring_cluster.name
+    codebuild_project   = aws_codebuild_project.main.name
+    artifacts_bucket    = aws_s3_bucket.artifacts.id
+    log_group_ecs       = aws_cloudwatch_log_group.main["ecs"].name
+    log_group_lambda    = aws_cloudwatch_log_group.main["lambda"].name
+    log_group_codebuild = aws_cloudwatch_log_group.main["codebuild"].name
+    ssm_document        = aws_ssm_document.run_chaos_container.name
   }
 }
 

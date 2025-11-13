@@ -14,7 +14,7 @@ terraform {
       version = "~> 3.0"
     }
   }
-  
+
   # Configurar S3 backend para state remoto (opcional)
   # backend "s3" {
   #   bucket = "sistema-espacios-terraform-state"
@@ -25,7 +25,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  
+
   default_tags {
     tags = {
       Project     = "sistema-gestion-espacios"
@@ -44,15 +44,14 @@ locals {
   # Tags comunes para todos los recursos
   common_tags = merge(
     {
-      Project     = "sistema-gestion-espacios"
+      Project     = "sistema-espacios"
       Environment = var.environment
       ManagedBy   = "terraform"
       Team        = "devops"
-      Timestamp   = timestamp()
     },
     var.tags
   )
-  
+
   # Tags específicos por servicio
   monitoring_tags = merge(
     local.common_tags,
@@ -60,29 +59,29 @@ locals {
       Service = "monitoring"
     }
   )
-  
+
   cicd_tags = merge(
     local.common_tags,
     {
       Service = "ci-cd"
     }
   )
-  
+
   backend_tags = merge(
     local.common_tags,
     {
       Service = "backend"
     }
   )
-  
+
   # Nombres de recursos calculados
   codebuild_project_name = "${var.app_name}-${var.environment}"
   ecs_cluster_name       = "${var.app_name}-cluster"
-  
+
   # ARNs base para políticas IAM
   cloudwatch_log_arn_prefix = "arn:aws:logs:${var.aws_region}:*:log-group"
   ssm_parameter_arn_prefix  = "arn:aws:ssm:${var.aws_region}:*:parameter/sistema-gestion/${var.environment}"
-  
+
   # Configuración por entorno
   is_production = var.environment == "prod"
   enable_backup = local.is_production
@@ -101,7 +100,7 @@ locals {
 # Repositorios ECR para servicios containerizados (gestionados con for_each)
 resource "aws_ecr_repository" "services" {
   for_each = var.ecr_repositories
-  
+
   name                 = each.key
   image_tag_mutability = var.ecr_image_tag_mutability
 
@@ -126,7 +125,7 @@ resource "aws_ecr_repository" "services" {
 # Políticas de lifecycle para ECR (gestionadas con for_each)
 resource "aws_ecr_lifecycle_policy" "services" {
   for_each = aws_ecr_repository.services
-  
+
   repository = each.value.name
 
   policy = jsonencode({
@@ -192,18 +191,17 @@ locals {
 # Log groups creados dinámicamente con for_each
 resource "aws_cloudwatch_log_group" "main" {
   for_each = local.log_groups
-  
+
   name              = each.value.name
   retention_in_days = each.value.retention_in_days
 
-  tags = merge(
-    each.value.service_tags,
-    {
-      Name        = "${var.app_name}-${each.key}-logs"
-      LogType     = each.key
-      Description = each.value.description
-    }
-  )
+  tags = {
+    Name        = "${each.key}-logs"
+    LogType     = each.key
+    Project     = "espacios"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
 }
 
 # ========================================
@@ -331,9 +329,9 @@ resource "aws_iam_role_policy" "codebuild_policy" {
 
 # Proyecto CodeBuild
 resource "aws_codebuild_project" "main" {
-  name          = var.app_name
-  description   = "Pipeline CI/CD para Sistema de Gestión de Espacios"
-  service_role  = aws_iam_role.codebuild_role.arn
+  name         = var.app_name
+  description  = "Pipeline CI/CD para Sistema de Gestión de Espacios"
+  service_role = aws_iam_role.codebuild_role.arn
 
   artifacts {
     type = "CODEPIPELINE"
@@ -341,14 +339,14 @@ resource "aws_codebuild_project" "main" {
 
   environment {
     compute_type                = "BUILD_GENERAL1_MEDIUM"
-    image                      = "aws/codebuild/amazonlinux2-x86_64-standard:5.0"
-    type                       = "LINUX_CONTAINER"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:5.0"
+    type                        = "LINUX_CONTAINER"
     image_pull_credentials_type = "CODEBUILD"
-    privileged_mode            = true
+    privileged_mode             = true
   }
 
   source {
-    type = "CODEPIPELINE"
+    type      = "CODEPIPELINE"
     buildspec = "devops/pipeline/buildspec.yml"
   }
 
