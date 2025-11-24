@@ -3,7 +3,28 @@
     "serverless-plugin-split-stacks": "^1.14.0"
   },
   "scripts": {
-    "deploy:all": "cd proyecto && serverless deploy"
+
+    "setup:serv": "cd proyecto && chmod +x setup.sh && ./setup/setup.sh",
+    "setup:serv:win": "cd proyecto && powershell -ExecutionPolicy Bypass -File ./setup/setup.ps1",
+    "setup": "cd proyecto && npm ci && cd .. && cd frontend && npm ci && npm run setup:serv",
+    "setup:win": "cd proyecto && npm ci && cd .. && cd frontend && npm ci && npm run setup:serv:win",
+
+
+    "deploy": "cd proyecto && npm run deploy",
+    "deploy:win": "cd proyecto && npm run deploy:win",
+
+
+    "deploy:terraform": "cd devops/infra && terraform apply -auto-approve",
+    "deploy:frontend": "cd frontend && npm ci && npm run build && npm run export",
+    "deploy:full": "npm run deploy:terraform && npm run deploy:frontend && npm run deploy",
+
+    "remove": "cd proyecto && serverless remove",
+    "remove:terraform": "cd devops/infra && terraform destroy -auto-approve",
+    "remove:full": "npm run remove && npm run remove:terraform",
+
+    "info": "cd proyecto && serverless info --verbose",
+    "logs:worker": "cd proyecto && serverless logs -f queueWorker -t"
+
   },
   "engines": {
     "node": ">=22.0.0"
