@@ -4,18 +4,20 @@ frameworkVersion: '4'
 
 custom:
   configValidationMode: warn
+  randAlphaNum: ${ssm:/terraform/random_string/result,  "123456abcde"}
   
   # === FRONTEND DEPLOYMENT CONFIGURATION ===
   client:
-    bucketName: ${self:service}-frontend-${self:provider.stage}
+    bucketName: ${ssm:/s3/frontend/name, ''}
     distributionFolder: ${env:FRONTEND_DIST_FOLDER, '../frontend/out'}
     indexDocument: ${env:INDEX_DOCUMENT, 'index.html'}
     errorDocument: ${env:ERROR_DOCUMENT, '404.html'}
     region: ${self:provider.region}
     acl: ${env:S3_ACL, 'public-read'}
     createDistribution: ${env:CREATE_CLOUDFRONT_DISTRIBUTION, 'true'} # CAMBIAR A "false" SI NO TIENE PERMISO PARA CREAR CLOUDFRONT
-    manageResources: ${env:MANAGE_S3_RESOURCES, 'true'}
+    manageResources: ${env:MANAGE_S3_RESOURCES, 'false'} # Bucket managed by Terraform, threfore resources managed by it (DELETION)
     uploadConcurrency: ${env:UPLOAD_CONCURRENCY, '5'}
+    deleteRemoved: true # Remove files from S3 that are no longer in distribution folder
   
   # === SPLIT STACKS FOR LARGE DEPLOYMENTS ===
   splitStacks:
@@ -58,18 +60,21 @@ custom:
         # - chmod +x scripts/pre-deploy.sh && scripts/pre-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
       
       # POST-DEPLOYMENT: Cross-platform script execution
-      # Use PowerShell script on Windows, Bash script on Linux/macOS
       after:deploy:deploy:
         - echo "==> Running post-deployment script..."
-        # Windows PowerShell
-        - powershell -ExecutionPolicy Bypass -File scripts/post-deploy.ps1 -Stage ${self:provider.stage} -Region ${self:provider.region} || echo "PowerShell script failed or not available"
-        # Linux/macOS Bash (fallback)
-        - chmod +x scripts/post-deploy.sh && scripts/post-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
+        - node scripts/run-post-deploy.js ${self:provider.stage} ${self:provider.region}
       
       # CLEANUP
       before:remove:remove:
-        - echo "==> Removing frontend assets..."
+        - echo "==> Removing all frontend assets from S3 bucket..."
         - npx serverless client remove
+        - echo "==> Emptying S3 bucket to allow Terraform deletion..."
+        - node scripts/empty-s3-bucket.js ${ssm:/s3/frontend/name, ''} ${self:provider.region}
+        - echo "==> Cleaning up and deleting any stray logs..."
+        - node scripts/cleanup-logs.js  ${self:provider.region}
+
+      after:remove:remove:
+        - echo "==> Cleanup completed. S3 bucket will be deleted by Terraform."
 
 plugins:
   - serverless-finch
@@ -84,9 +89,10 @@ provider:
   # Use existing IAM role to avoid permission issues in voclabs
   #iam:
   #  role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/${env:IAM_ROLE_NAME, 'LabRole'}
-  deploymentBucket:
-    name: ${self:service}-${self:provider.stage}-deployment-v2
-    serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
+  #deploymentBucket:
+  #  name: ${self:service}-${self:provider.stage}-deployment-${self:custom.randAlphaNum} #CAMBIAR A CREARSE EN TERRAFORM
+  #  serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
+
   # X-Ray tracing configuration (enabled for staging and prod)
   tracing:
     lambda: ${self:custom.stages.${self:provider.stage}.tracing}

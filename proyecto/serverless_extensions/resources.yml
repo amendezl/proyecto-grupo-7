@@ -1,26 +1,4 @@
 Resources:
-  # === FRONTEND S3 BUCKET ===
-  FrontendBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: ${self:service}-frontend-${self:provider.stage}-v3
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      WebsiteConfiguration:
-        IndexDocument: index.html
-        ErrorDocument: index.html
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      Tags:
-        - Key: Environment
-          Value: ${self:provider.stage}
-        - Key: Project
-          Value: ${self:service}
 
   # CloudFront Origin Access Identity (OAI) - Permite solo a CloudFront acceder a S3
   CloudFrontOriginAccessIdentity:
@@ -28,46 +6,6 @@ Resources:
     Properties:
       CloudFrontOriginAccessIdentityConfig:
         Comment: !Sub "OAI for ${self:service}-${self:provider.stage} frontend bucket"
-
-  # S3 Bucket Policy - SOLO permite acceso desde CloudFront (NO público)
-  # Incluye controles de seguridad para producción
-  FrontendBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref FrontendBucket
-      PolicyDocument:
-        Statement:
-          # Permite solo a CloudFront leer objetos
-          - Sid: CloudFrontReadForGetBucketObjects
-            Effect: Allow
-            Principal:
-              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
-            Action: s3:GetObject
-            Resource: !Sub "${FrontendBucket.Arn}/*"
-          
-          # Deniega explícitamente tráfico HTTP no seguro
-          - Sid: DenyInsecureTransport
-            Effect: Deny
-            Principal: "*"
-            Action: "s3:*"
-            Resource:
-              - !Sub "${FrontendBucket.Arn}/*"
-              - !GetAtt FrontendBucket.Arn
-            Condition:
-              Bool:
-                "aws:SecureTransport": "false"
-          
-          # Deniega acceso público directo (backup de seguridad)
-          - Sid: DenyPublicAccess
-            Effect: Deny
-            Principal: "*"
-            Action:
-              - "s3:GetObject"
-              - "s3:PutObject"
-            Resource: !Sub "${FrontendBucket.Arn}/*"
-            Condition:
-              StringNotEquals:
-                "aws:userid": !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
 
   # Web Application Firewall (WAF) para CloudFront - CRÍTICO para producción
   WAFWebACL:
@@ -171,7 +109,7 @@ Resources:
       DistributionConfig:
         # Configuración del origen S3 con OAI
         Origins:
-          - DomainName: !GetAtt FrontendBucket.RegionalDomainName
+          - DomainName: ${ssm:/s3/frontend/regional_domain_name, ''}
             Id: S3Origin
             S3OriginConfig:
               OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOriginAccessIdentity}"
@@ -235,8 +173,6 @@ Resources:
         #   # SslSupportMethod: sni-only
         #   # MinimumProtocolVersion: TLSv1.2_2021
         
-
-
   # Response Headers Policy - Headers de seguridad HTTP
   CloudFrontResponseHeadersPolicy:
     Type: AWS::CloudFront::ResponseHeadersPolicy
@@ -308,7 +244,7 @@ Resources:
   CloudFrontLogBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${self:service}-${self:provider.stage}-cloudfront-logs"
+      BucketName: "${self:service}-${self:provider.stage}-cloudfront-logs-${self:custom.randAlphaNum}"
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -635,6 +571,22 @@ Resources:
           Value: Idempotency tracking for critical operations
         - Key: TTL
           Value: 24 hours default
+
+  # Themes Table for personalization features
+  ThemesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${self:provider.stage}-themes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: themeId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: themeId
+          KeyType: HASH
+      Tags:
+        - Key: Purpose
+          Value: Themes storage for personalization features
 
   # === MESSAGING INFRASTRUCTURE ===
   # Main Processing Queue

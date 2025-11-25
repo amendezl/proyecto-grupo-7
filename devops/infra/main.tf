@@ -364,45 +364,4 @@ resource "aws_codebuild_project" "main" {
   )
 }
 
-# ========================================
-# S3 BUCKET PARA ARTIFACTS
-# ========================================
 
-resource "aws_s3_bucket" "artifacts" {
-  bucket = "${var.app_name}-artifacts-${random_string.bucket_suffix.result}"
-
-  tags = merge(
-    local.cicd_tags,
-    {
-      Name = "${var.app_name}-artifacts"
-    }
-  )
-}
-
-resource "aws_s3_bucket_versioning" "artifacts" {
-  bucket = aws_s3_bucket.artifacts.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
-  bucket = aws_s3_bucket.artifacts.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "random_string" "bucket_suffix" {
-  length  = 8
-  special = false
-  upper   = false
-}
-
-# ========================================
-# OUTPUTS MOVIDOS A outputs.tf
-# ========================================
-# Ver archivo outputs.tf para todos los outputs del módulo

@@ -7,7 +7,7 @@
 
 # Configuración AWS
 aws_region  = "us-east-1"
-environment = "prod"
+environment = "dev"
 
 # Configuración de la aplicación
 app_name                = "sistema-gestion-espacios"

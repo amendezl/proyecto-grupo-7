@@ -16,7 +16,7 @@ variable "aws_region" {
 variable "environment" {
   description = "Entorno de deployment (dev, staging, prod)"
   type        = string
-  default     = "prod"
+  default     = "dev"
 
   validation {
     condition     = contains(["dev", "staging", "prod"], var.environment)
@@ -166,7 +166,7 @@ variable "ecr_repositories" {
 }
 
 variable "labrole" {
-  description = "Role used inside AWS enviroment"
+  description = "Role used inside AWS environment"
   type = string
   default = ""
   #default = "LabRole"
