@@ -66,13 +66,21 @@ if (-not (Test-Path "../frontend")) {
         
         # Create environment file
         Write-Host "==> Creating environment configuration..." -ForegroundColor Yellow
+        # Allow overriding the API base URL used by the frontend via FRONTEND_API_URL env var.
+        $frontendApiUrl = $env:FRONTEND_API_URL
+        if ([string]::IsNullOrWhiteSpace($frontendApiUrl)) { $frontendApiUrl = 'https://d3tse7z0pwpydh.cloudfront.net' }
+
         $envContent = @"
-NEXT_PUBLIC_API_URL=${ApiUrl}
-NEXT_PUBLIC_WS_URL=${WsUrl}
-NEXT_PUBLIC_STAGE=${Stage}
-NEXT_PUBLIC_AWS_REGION=${Region}
+    NEXT_PUBLIC_API_URL=${frontendApiUrl}
+    NEXT_PUBLIC_WS_URL=${WsUrl}
+    NEXT_PUBLIC_STAGE=${Stage}
+    NEXT_PUBLIC_AWS_REGION=${Region}
 "@
         $envContent | Out-File -FilePath ".env.production.local" -Encoding UTF8
+        # Optionally set frontend URL (CloudFront); allow override via FRONTEND_URL env var
+        $frontendUrl = $env:FRONTEND_URL
+        if ([string]::IsNullOrWhiteSpace($frontendUrl)) { $frontendUrl = 'https://d3tse7z0pwpydh.cloudfront.net' }
+        "NEXT_PUBLIC_FRONTEND_URL=$frontendUrl" | Out-File -FilePath ".env.production.local" -Encoding UTF8 -Append
         
         # Build and export frontend
         Write-Host "==> Building frontend..." -ForegroundColor Yellow

@@ -172,3 +172,9 @@ variable "labrole" {
   #default = "LabRole"
 
 }
+
+variable "frontend_bucket_name" {
+  description = "S3 bucket name that hosts the static frontend (existing)"
+  type        = string
+  default     = "sistema-gestion-espacios-frontend-dev"
+}

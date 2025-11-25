@@ -85,7 +85,7 @@ provider:
   #iam:
   #  role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/${env:IAM_ROLE_NAME, 'LabRole'}
   deploymentBucket:
-    name: ${self:service}-${self:provider.stage}-deployment-v2
+    name: sistema-gestion-espacios-artifacts-u56pnn4x
     serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
   # X-Ray tracing configuration (enabled for staging and prod)
   tracing:
@@ -99,6 +99,31 @@ provider:
           Fn::Sub: https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}
         audience:
           - { Ref: CognitoUserPoolClient }
+    cors:
+      allowedOrigins:
+        - '*'
+      allowedMethods:
+        - OPTIONS
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+      allowedHeaders:
+        - Content-Type
+        - X-Amz-Date
+        - Authorization
+        - X-Api-Key
+        - X-Amz-Security-Token
+      allowCredentials: false
+      # exposeHeaders removed (not supported by this Serverless version)
+      maxAge: 3600
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminConfirmSignUp
+      Resource:
+        - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: ${env:AWS_NODEJS_CONNECTION_REUSE_ENABLED, '1'}
     REGION: ${self:provider.region}
@@ -130,6 +155,7 @@ provider:
       Ref: CognitoUserPool
     USER_POOL_CLIENT_ID:
       Ref: CognitoUserPoolClient
+    AUTO_CONFIRM_REGISTRATION: 'true'
     RESILIENCE_METRICS_NAMESPACE: ${self:service}/${self:provider.stage}
     # AWS AppConfig (optional - for advanced personalization features)
     APP_CONFIG_APPLICATION_ID: ${env:APP_CONFIG_APPLICATION_ID, ''}

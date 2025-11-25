@@ -15,6 +15,8 @@ export const ENDPOINTS = {
     LOGIN: '/api/auth/login',
     REFRESH: '/api/auth/refresh', 
     LOGOUT: '/api/auth/logout',
+    // NOTE: register endpoint uses the /api prefix so CloudFront doesn't
+    // route frontend pages under /auth/* to the API origin.
     REGISTER: '/api/auth/register',
     ME: '/api/me',
   },

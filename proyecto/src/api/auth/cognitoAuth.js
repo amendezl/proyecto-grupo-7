@@ -3,6 +3,7 @@ const {
   InitiateAuthCommand,
   GetUserCommand,
   GlobalSignOutCommand
+  , SignUpCommand, AdminConfirmSignUpCommand
 } = require("@aws-sdk/client-cognito-identity-provider");
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { logger } = require('../../infrastructure/monitoring/logger');
@@ -187,8 +188,8 @@ function response(statusCode, body) {
     headers: {
       "content-type": "application/json",
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
+      "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Api-Version",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS,PATCH"
     },
     body: JSON.stringify(body)
   };
@@ -200,3 +201,56 @@ module.exports = {
   me,
   logout
 };
+
+// Register new user (exposed as POST /auth/register)
+const register = async (event) => {
+  try {
+    const { email, password, nombre, apellido } = JSON.parse(event.body || '{}');
+
+    if (!email || !password) {
+      return response(400, { ok: false, error: 'email y password son obligatorios' });
+    }
+
+    const cmd = new SignUpCommand({
+      ClientId: process.env.USER_POOL_CLIENT_ID,
+      Username: email,
+      Password: password,
+      UserAttributes: [
+        { Name: 'email', Value: email },
+        { Name: 'name', Value: nombre || '' },
+        { Name: 'family_name', Value: apellido || '' }
+      ]
+    });
+
+    const result = await client.send(cmd);
+
+    // Optionally auto-confirm the user so they can login immediately
+    let autoConfirmed = false;
+    let adminConfirmError = null;
+    if (process.env.AUTO_CONFIRM_REGISTRATION === 'true') {
+      try {
+        await client.send(new AdminConfirmSignUpCommand({
+          UserPoolId: process.env.USER_POOL_ID,
+          Username: email
+        }));
+        autoConfirmed = true;
+      } catch (err) {
+        // non-fatal: log and continue
+        adminConfirmError = err.message;
+        logger.warn('[COGNITO_REGISTER] Auto-confirm failed', { errorMessage: err.message, errorType: err.constructor?.name });
+      }
+    }
+
+    const respBody = { ok: true, message: 'Usuario creado', userConfirmed: (autoConfirmed || !!result.UserConfirmed), autoConfirmEnv: process.env.AUTO_CONFIRM_REGISTRATION };
+    if (adminConfirmError) respBody.adminConfirmError = adminConfirmError;
+    return response(200, respBody);
+  } catch (err) {
+    logger.error('[COGNITO_REGISTER] Error:', { errorMessage: err.message, errorType: err.constructor?.name });
+    // Map common Cognito errors to friendly messages
+    const errMsg = err && err.message ? err.message : 'Registro falló';
+    return response(400, { ok: false, error: errMsg });
+  }
+};
+
+// Export register alongside existing handlers
+module.exports.register = register;

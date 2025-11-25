@@ -957,7 +957,8 @@ class ApiClient {
 
   // Métodos de autenticación
   async login(email: string, password: string): Promise<ApiResponse<{ accessToken: string; refreshToken?: string; idToken?: string; expiresIn?: number }>> {
-    const response = await this.post<{ accessToken: string; refreshToken?: string; idToken?: string; expiresIn?: number }>('/auth/login', { username: email, password });
+    // Use /api prefix so CloudFront routes API calls to the API origin (avoid /auth/* conflict with frontend pages)
+    const response = await this.post<{ accessToken: string; refreshToken?: string; idToken?: string; expiresIn?: number }>('/api/auth/login', { username: email, password });
 
     if (response.ok && response.data?.accessToken) {
       const expiresInSeconds = response.data.expiresIn ?? 3600;
@@ -979,11 +980,11 @@ class ApiClient {
     departamento?: string;
     telefono?: string;
   }): Promise<ApiResponse<{ message: string }>> {
-    return this.post('/auth/register', userData);
+    return this.post('/api/auth/register', userData);
   }
 
   async getCurrentUser(): Promise<ApiResponse<any>> {
-    return this.get('/auth/me');
+    return this.get('/api/auth/me');
   }
 
   async getCurrentUserProfile(): Promise<ApiResponse<Usuario>> {

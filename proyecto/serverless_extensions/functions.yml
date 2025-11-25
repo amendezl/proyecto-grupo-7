@@ -61,6 +61,35 @@ authRolesCatalog:
         authorizer:
           name: cognitoJwt
 
+# Register (new)
+authRegister:
+  handler: src/handlers/cognitoAuth.register
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /auth/register
+        method: post
+
+# Global OPTIONS handler to ensure CORS preflight responses include headers
+optionsHandlerRoot:
+  handler: src/handlers/options.handler
+  timeout: 5
+  memorySize: 128
+  events:
+    - httpApi:
+        path: /
+        method: options
+
+optionsHandlerProxy:
+  handler: src/handlers/options.handler
+  timeout: 5
+  memorySize: 128
+  events:
+    - httpApi:
+        path: /{proxy+}
+        method: options
+
 # === HEALTH & MONITORING ===
 healthCheck:
   handler: src/handlers/healthCheck.handler
