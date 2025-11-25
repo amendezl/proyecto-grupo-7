@@ -66,7 +66,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   # removed to avoid conflicts with static pages.
 
   ordered_cache_behavior {
-    path_pattern     = "/api/*"
+    path_pattern     = "api/*"
     target_origin_id = "api-gateway-origin"
 
     allowed_methods  = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
