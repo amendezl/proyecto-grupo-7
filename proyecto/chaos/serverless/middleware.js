@@ -1,11 +1,11 @@
-const { getChaosConfig } = require('./ssm-config.js');
+import { getChaosConfig } from './ssm-config.js';
 
 // Wrap a Lambda handler to inject latency and errors based on config.
 // Usage:
 //   const wrapped = withChaos(originalHandler);
 //   exports.handler = wrapped;
 
-function withChaos(handler, opts = {}) {
+export function withChaos(handler, opts = {}) {
   // opts: { ssmParamName?: string, envPrefix?: string }
   const ssmParam = opts.ssmParamName || process.env.CHAOS_SSM_PARAM || null;
   const envPrefix = opts.envPrefix || 'CHAOS_';
@@ -70,5 +70,4 @@ function withChaos(handler, opts = {}) {
   };
 }
 
-module.exports = { withChaos };
-module.exports.default = withChaos;
+export default withChaos;

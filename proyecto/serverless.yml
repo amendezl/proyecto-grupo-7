@@ -66,10 +66,13 @@ custom:
       
       # CLEANUP
       before:remove:remove:
-        - echo "==> Removing all frontend assets from S3 bucket..."
-        - npx serverless client remove
+       
         - echo "==> Emptying S3 bucket to allow Terraform deletion..."
         - node scripts/empty-s3-bucket.js ${ssm:/s3/frontend/name, ''} ${self:provider.region}
+        - echo "==> Removing  S3 Frontend bucket..."
+        - npx serverless client remove
+        - echo "==> Emptying S3 bucket to allow Terraform deletion..."
+       
         - echo "==> Cleaning up and deleting any stray logs..."
         - node scripts/cleanup-logs.js  ${self:provider.region}
 

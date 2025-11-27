@@ -1,9 +1,9 @@
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
-const { withAuth, withErrorHandling } = require('../../core/auth/auth');
+const { withSecureAuth, withErrorHandling } = require('../../core/auth/auth');
 const { success } = require('../../shared/utils/responses');
 const getResilienceHealth = withErrorHandling(async (event) => {
     const metrics = resilienceManager.getSystemMetrics();
-    
+     
     return success({
         status: 'healthy',
         patterns: ['retry', 'circuit-breaker'],
@@ -21,7 +21,7 @@ const getCompleteResilienceHealth = withErrorHandling(async (event) => {
     });
 });
 
-const getBulkheadStatus = withAuth(async (event) => {
+const getBulkheadStatus = withSecureAuth(async (event) => {
     const bulkheadMetrics = resilienceManager.bulkheadManager.getAllMetrics();
     const bulkheadHealth = resilienceManager.bulkheadManager.getHealthStatus();
     
@@ -39,7 +39,7 @@ const getBulkheadStatus = withAuth(async (event) => {
     });
 }, ['admin', 'responsable']);
 
-const resetResilienceMetrics = withAuth(async (event) => {
+const resetResilienceMetrics = withSecureAuth(async (event) => {
     resilienceManager.resetMetrics();
     
     return success({
@@ -49,7 +49,7 @@ const resetResilienceMetrics = withAuth(async (event) => {
     });
 }, ['admin']);
 
-const getResilienceConfiguration = withAuth(async (event) => {
+const getResilienceConfiguration = withSecureAuth(async (event) => {
     const { RESILIENCE_CONFIGS } = require('../../shared/utils/resilienceManager');
     
     const bulkheadMetrics = resilienceManager.bulkheadManager.getAllMetrics();
