@@ -66,20 +66,48 @@ if (-not (Test-Path "../frontend")) {
         
         # Create environment file
         Write-Host "==> Creating environment configuration..." -ForegroundColor Yellow
+        
+        # Get CloudFront domain from Terraform outputs if available
+        $cloudFrontDomain = ""
+        try {
+            Push-Location "../../devops/infra"
+            $tfOutput = terraform output -json 2>$null | ConvertFrom-Json
+            if ($tfOutput.cloudfront_domain.value) {
+                $cloudFrontDomain = "https://$($tfOutput.cloudfront_domain.value)"
+                Write-Host "Found CloudFront domain from Terraform: $cloudFrontDomain" -ForegroundColor Cyan
+            }
+            Pop-Location
+        } catch {
+            Pop-Location
+            Write-Warning "Could not retrieve CloudFront domain from Terraform"
+        }
+        
         # Allow overriding the API base URL used by the frontend via FRONTEND_API_URL env var.
         $frontendApiUrl = $env:FRONTEND_API_URL
-        if ([string]::IsNullOrWhiteSpace($frontendApiUrl)) { $frontendApiUrl = 'https://d3tse7z0pwpydh.cloudfront.net' }
+        if ([string]::IsNullOrWhiteSpace($frontendApiUrl)) { 
+            if ($cloudFrontDomain) {
+                $frontendApiUrl = $cloudFrontDomain
+            } else {
+                $frontendApiUrl = 'https://drn0tzzqjbliz.cloudfront.net' 
+            }
+        }
 
         $envContent = @"
-    NEXT_PUBLIC_API_URL=${frontendApiUrl}
-    NEXT_PUBLIC_WS_URL=${WsUrl}
-    NEXT_PUBLIC_STAGE=${Stage}
-    NEXT_PUBLIC_AWS_REGION=${Region}
+NEXT_PUBLIC_API_URL=${frontendApiUrl}
+NEXT_PUBLIC_WS_URL=${WsUrl}
+NEXT_PUBLIC_STAGE=${Stage}
+NEXT_PUBLIC_AWS_REGION=${Region}
 "@
         $envContent | Out-File -FilePath ".env.production.local" -Encoding UTF8
         # Optionally set frontend URL (CloudFront); allow override via FRONTEND_URL env var
         $frontendUrl = $env:FRONTEND_URL
-        if ([string]::IsNullOrWhiteSpace($frontendUrl)) { $frontendUrl = 'https://d3tse7z0pwpydh.cloudfront.net' }
+        if ([string]::IsNullOrWhiteSpace($frontendUrl)) { 
+            if ($cloudFrontDomain) {
+                $frontendUrl = $cloudFrontDomain
+            } else {
+                $frontendUrl = 'https://drn0tzzqjbliz.cloudfront.net' 
+            }
+        }
         "NEXT_PUBLIC_FRONTEND_URL=$frontendUrl" | Out-File -FilePath ".env.production.local" -Encoding UTF8 -Append
         
         # Build and export frontend

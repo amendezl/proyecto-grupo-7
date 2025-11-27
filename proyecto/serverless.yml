@@ -46,30 +46,30 @@ custom:
       nodeEnv: ${env:NODE_ENV_PROD, 'production'}
   
   # === AUTOMATION HOOKS ===
-  scriptable:
-    hooks:
-      # PRE-DEPLOYMENT: Cross-platform infrastructure setup
-      before:aws:deploy:deploy:createStack:
-        - echo "==> Running pre-deployment script..."
-        # Cross-platform Node.js runner (recommended)
-        - node scripts/run-pre-deploy.js ${self:provider.stage} ${self:provider.region}
-        # Fallback: Platform-specific scripts
-        # - powershell -ExecutionPolicy Bypass -File scripts/pre-deploy.ps1 -Stage ${self:provider.stage} -Region ${self:provider.region} || echo "PowerShell script failed or not available"
-        # - chmod +x scripts/pre-deploy.sh && scripts/pre-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
-      
-      # POST-DEPLOYMENT: Cross-platform script execution
-      # Use PowerShell script on Windows, Bash script on Linux/macOS
-      after:deploy:deploy:
-        - echo "==> Running post-deployment script..."
-        # Windows PowerShell
-        - powershell -ExecutionPolicy Bypass -File scripts/post-deploy.ps1 -Stage ${self:provider.stage} -Region ${self:provider.region} || echo "PowerShell script failed or not available"
-        # Linux/macOS Bash (fallback)
-        - chmod +x scripts/post-deploy.sh && scripts/post-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
-      
-      # CLEANUP
-      before:remove:remove:
-        - echo "==> Removing frontend assets..."
-        - npx serverless client remove
+  # scriptable:
+  #   hooks:
+  #     # PRE-DEPLOYMENT: Cross-platform infrastructure setup
+  #     before:aws:deploy:deploy:createStack:
+  #       - echo "==> Running pre-deployment script..."
+  #       # Cross-platform Node.js runner (recommended)
+  #       - node scripts/run-pre-deploy.js ${self:provider.stage} ${self:provider.region}
+  #       # Fallback: Platform-specific scripts
+  #       # - powershell -ExecutionPolicy Bypass -File scripts/pre-deploy.ps1 -Stage ${self:provider.stage} -Region ${self:provider.region} || echo "PowerShell script failed or not available"
+  #       # - chmod +x scripts/pre-deploy.sh && scripts/pre-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
+  #     
+  #     # POST-DEPLOYMENT: Cross-platform script execution
+  #     # Use PowerShell script on Windows, Bash script on Linux/macOS
+  #     after:deploy:deploy:
+  #       - echo "==> Running post-deployment script..."
+  #       # Windows PowerShell
+  #       - powershell -ExecutionPolicy Bypass -File scripts/post-deploy.ps1 -Stage ${self:provider.stage} -Region ${self:provider.region} || echo "PowerShell script failed or not available"
+  #       # Linux/macOS Bash (fallback)
+  #       - chmod +x scripts/post-deploy.sh && scripts/post-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
+  #     
+  #     # CLEANUP
+  #     before:remove:remove:
+  #       - echo "==> Removing frontend assets..."
+  #       - npx serverless client remove
 
 plugins:
   - serverless-finch
@@ -85,7 +85,9 @@ provider:
   #iam:
   #  role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/${env:IAM_ROLE_NAME, 'LabRole'}
   deploymentBucket:
-    name: sistema-gestion-espacios-artifacts-u56pnn4x
+    # Use environment override when available; default to the artifacts bucket
+    # created by Terraform during the previous step so Serverless can find it.
+    name: ${env:DEPLOYMENT_BUCKET_NAME, 'sistema-gestion-espacios-artifacts-gztdd03r'}
     serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
   # X-Ray tracing configuration (enabled for staging and prod)
   tracing:
@@ -99,25 +101,6 @@ provider:
           Fn::Sub: https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}
         audience:
           - { Ref: CognitoUserPoolClient }
-    cors:
-      allowedOrigins:
-        - '*'
-      allowedMethods:
-        - OPTIONS
-        - GET
-        - POST
-        - PUT
-        - DELETE
-        - PATCH
-      allowedHeaders:
-        - Content-Type
-        - X-Amz-Date
-        - Authorization
-        - X-Api-Key
-        - X-Amz-Security-Token
-      allowCredentials: false
-      # exposeHeaders removed (not supported by this Serverless version)
-      maxAge: 3600
   iamRoleStatements:
     - Effect: Allow
       Action:

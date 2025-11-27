@@ -1,0 +1,12 @@
+{
+  "version": "2.0",
+  "routeKey": "OPTIONS /api/auth/register",
+  "rawPath": "/api/auth/register",
+  "requestContext": {
+    "http": {
+      "method": "OPTIONS",
+      "path": "/api/auth/register"
+    }
+  },
+  "headers": {}
+}
