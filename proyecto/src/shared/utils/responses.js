@@ -3,9 +3,11 @@ const createResponse = (statusCode, data, headers = {}) => {
         statusCode,
         headers: {
             'Content-Type': 'application/json',
+            // CORS headers MUST be included for API Gateway HTTP API with PayloadFormatVersion 2.0
             'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Allow-Methods': 'OPTIONS, GET, POST, PUT, DELETE, PATCH',
+            'Access-Control-Allow-Headers': 'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Api-Version',
+            'Access-Control-Max-Age': '3600',
             ...headers
         },
         body: JSON.stringify(data)

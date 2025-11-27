@@ -116,6 +116,17 @@ curl https://<api-id>.execute-api.us-east-1.amazonaws.com/health
 aws s3 ls s3://sistema-gestion-espacios-frontend-dev/
 ```
 
+Nota: Este proyecto ahora sirve el frontend a través de CloudFront con Origin Access Identity (OAI).
+El acceso público directo mediante la URL del S3 Website (por ejemplo `http://<bucket>.s3-website-us-east-1.amazonaws.com`) puede devolver `403 Forbidden`
+porque la política del bucket permite lectura sólo desde CloudFront. Usa el dominio de CloudFront (HTTPS) que se genera en la salida de Terraform/CloudFormation.
+
+Ejemplo (reemplaza por tu dominio):
+
+```bash
+# Comprueba el frontend servido por CloudFront (HTTPS)
+curl -I https://d3tse7z0pwpydh.cloudfront.net/
+```
+
 Revisa CloudWatch logs si alguna funcion reporta errores:
 
 ```bash

@@ -172,3 +172,15 @@ variable "labrole" {
   #default = "LabRole"
 
 }
+
+variable "frontend_bucket_name" {
+  description = "S3 bucket name that hosts the static frontend (existing)"
+  type        = string
+  default     = "sistema-gestion-espacios-frontend-dev"
+}
+
+variable "api_gateway_domain" {
+  description = "Domain name of the API Gateway to use as CloudFront origin (ex: abcd1234.execute-api.us-east-1.amazonaws.com)."
+  type        = string
+  default     = "mui3vsx73f.execute-api.us-east-1.amazonaws.com"
+}

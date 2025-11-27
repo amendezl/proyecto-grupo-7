@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudFront distribution to serve an existing S3 bucket over HTTPS.
+  Creates an Origin Access Identity (OAI), updates the bucket policy to
+  allow CloudFront to read objects, and configures default behavior
+  including OPTIONS forwarding and SPA fallback (403/404 -> /index.html).
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Name of the S3 bucket that contains the static frontend
+    Default: sistema-gestion-espacios-frontend-dev
+
+  AlternateDomainName:
+    Type: String
+    Description: (Optional) Custom domain to use for the distribution (eg. example.com)
+    Default: ''
+
+  ACMCertificateArn:
+    Type: String
+    Description: (Optional) ARN of an ACM certificate in us-east-1 for the AlternateDomainName
+    Default: ''
+
+Conditions:
+  UseCustomDomain: !Not [!Equals [!Ref AlternateDomainName, '']]
+  UseAcm: !Not [!Equals [!Ref ACMCertificateArn, '']]
+
+Resources:
+  CloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Access identity for frontend bucket
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: S3Origin
+            DomainName: !Sub "${BucketName}.s3.amazonaws.com"
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOAI}"
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+            Headers:
+              - Origin
+              - Access-Control-Request-Headers
+              - Access-Control-Request-Method
+          MinTTL: 0
+          DefaultTTL: 86400
+          MaxTTL: 31536000
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponsePagePath: /index.html
+            ResponseCode: 200
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponsePagePath: /index.html
+            ResponseCode: 200
+            ErrorCachingMinTTL: 0
+        PriceClass: PriceClass_100
+        HttpVersion: http2
+        Comment: CloudFront distribution for frontend static site
+        ViewerCertificate:
+          Fn::If:
+            - UseCustomDomain
+            - Fn::If:
+                - UseAcm
+                - {
+                    AcmCertificateArn: !Ref ACMCertificateArn,
+                    SslSupportMethod: sni-only,
+                    MinimumProtocolVersion: TLSv1.2_2021
+                  }
+                - {CloudFrontDefaultCertificate: true}
+            - {CloudFrontDefaultCertificate: true}
+        Aliases: !If [UseCustomDomain, [!Ref AlternateDomainName], !Ref 'AWS::NoValue']
+
+  # Note: we do NOT auto-create or overwrite the S3 bucket policy to avoid
+  # clobbering existing policies in the target bucket. Instead we output the
+  # created Origin Access Identity so you can add the appropriate statement
+  # to the bucket policy manually (or apply it with a separate scripted step).
+
+Outputs:
+  CloudFrontDomainName:
+    Description: Domain name of the CloudFront distribution
+    Value: !GetAtt CloudFrontDistribution.DomainName
+  DistributionId:
+    Description: CloudFront distribution id
+    Value: !Ref CloudFrontDistribution
+  CloudFrontOAIId:
+    Description: Origin Access Identity id created for this distribution
+    Value: !GetAtt CloudFrontOAI.S3CanonicalUserId

@@ -183,6 +183,30 @@ terraform output -json deployment_summary
 
 Ver **[outputs.tf](./outputs.tf)** para ejemplos de uso de cada output.
 
+## 🔗 Usar el dominio de CloudFront
+
+Esta infraestructura crea una distribución de CloudFront delante del bucket de frontend y la protege mediante Origin Access Identity (OAI). Esto significa que el acceso público directo mediante la URL del S3 Website puede devolver `403 Forbidden`.
+
+El dominio de CloudFront generado en esta ejecución es:
+
+```
+d3tse7z0pwpydh.cloudfront.net
+```
+
+Usa el dominio completo con `https://` para servir el frontend desde CloudFront, p.ej.:
+
+```bash
+curl -I https://d3tse7z0pwpydh.cloudfront.net/auth/register/
+```
+
+Si quieres reemplazar referencias antiguas al S3 Website en la documentación o scripts, ejecuta desde la raíz del repo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\replace-s3-with-cloudfront.ps1
+```
+
+El script hará backups automáticos en `scripts/replace-backups/`.
+
 ## 🏗️ Recursos Creados
 
 ### Contenedores y Registry

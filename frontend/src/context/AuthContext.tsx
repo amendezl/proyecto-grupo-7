@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { apiClient, Usuario } from '@/lib/api-client';
 import usePersonalizationSocket from '../hooks/usePersonalizationSocket';
+import { API_CONFIG } from '@/lib/config';
 
 // Interfaces de autenticación
 export interface User {
@@ -280,7 +281,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuthState(prev => ({ ...prev, isLoading: true }));
 
     try {
+      // Debug: log base URL used by the API client to reproduce "Network Error" in browser
+      // eslint-disable-next-line no-console
+      console.log('[AuthContext] register - API baseURL:', API_CONFIG?.baseURL);
+
       const response = await apiClient.register(userData);
+
+      // Debug: log the full response object to capture network/cors errors
+      // eslint-disable-next-line no-console
+      console.log('[AuthContext] register response:', response);
+
       setAuthState(prev => ({ ...prev, isLoading: false }));
 
       if (response.ok) {
@@ -289,7 +299,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       return { success: false, error: response.error || response.message || 'Error en el registro' };
     } catch (error) {
-      console.error('Error en registro:', error);
+      // eslint-disable-next-line no-console
+      console.error('[AuthContext] Error en registro (caught):', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
       return { success: false, error: 'Error de conexión' };
     }

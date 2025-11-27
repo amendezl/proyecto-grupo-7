@@ -108,6 +108,12 @@ provider:
           Fn::Sub: https://cognito-idp.${AWS::Region}.amazonaws.com/${CognitoUserPool}
         audience:
           - { Ref: CognitoUserPoolClient }
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminConfirmSignUp
+      Resource:
+        - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: ${env:AWS_NODEJS_CONNECTION_REUSE_ENABLED, '1'}
     REGION: ${self:provider.region}
@@ -139,6 +145,7 @@ provider:
       Ref: CognitoUserPool
     USER_POOL_CLIENT_ID:
       Ref: CognitoUserPoolClient
+    AUTO_CONFIRM_REGISTRATION: 'true'
     RESILIENCE_METRICS_NAMESPACE: ${self:service}/${self:provider.stage}
     # AWS AppConfig (optional - for advanced personalization features)
     APP_CONFIG_APPLICATION_ID: ${env:APP_CONFIG_APPLICATION_ID, ''}
