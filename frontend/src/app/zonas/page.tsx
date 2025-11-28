@@ -1,424 +1,308 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { useZonas, useEspacios } from '@/hooks/useApi';
-import ToggleEstadoButton from '@/components/ToggleEstadoButton';
-import { Button, Badge, Input, Alert } from '@/components/ui/components';
-import { apiClient } from '@/lib/api-client';
-import type { Zona } from '@/lib/api-client';
-import { Card, CardHeader, CardBody, CardFooter } from '@/components/ui/Card';
-import { 
-  Building2, 
-  Plus, 
-  Search, 
-  Filter, 
-  MapPin, 
-  Users, 
-  Layers,
-  CheckCircle,
-  AlertCircle,
-  XCircle,
-  Map
-} from 'lucide-react';
-// Note: using native <select> in this file because '@/components/ui/select' does not exist
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Building2, Plus } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { apiClient, Zona } from '@/lib/api-client';
 
 export default function ZonasPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filtroActivo, setFiltroActivo] = useState<string>('');
-  const [filtroEdificio, setFiltroEdificio] = useState<string>('');
-  const [showModalCrear, setShowModalCrear] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+  const [zonas, setZonas] = useState<Zona[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    descripcion: '',
+    piso: '',
+    edificio: '',
+    capacidadTotal: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [loadingZonas, setLoadingZonas] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const filters = useMemo(() => {
-    const f: any = {};
-    if (filtroActivo !== '') f.activo = filtroActivo === 'activo';
-    if (filtroEdificio) f.edificio = filtroEdificio;
-    return f;
-  }, [filtroActivo, filtroEdificio]);
+  // Verificar autenticación
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/auth/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
 
-  const { zonas, loading, error, total, refetch } = useZonas(filters);
-  const { espacios } = useEspacios();
+  // Cargar zonas existentes
+  useEffect(() => {
+    const fetchZonas = async () => {
+      if (!isAuthenticated) return;
+      
+      setLoadingZonas(true);
+      try {
+        const response = await apiClient.getZonas();
+        if (response.ok && response.data) {
+          setZonas(response.data.zonas || []);
+        }
+      } catch (err) {
+        console.error('Error cargando zonas:', err);
+      } finally {
+        setLoadingZonas(false);
+      }
+    };
 
-  const handleToggleZonaEstado = useCallback(
-    async (zonaId: string, nextEstadoActivo: boolean) => {
-      setActionError(null);
-      const response = await apiClient.toggleZonaEstado(zonaId, nextEstadoActivo);
+    fetchZonas();
+  }, [isAuthenticated]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const capacidadTotal = parseInt(formData.capacidadTotal, 10);
+      const zonaData = {
+        nombre: formData.nombre,
+        descripcion: formData.descripcion,
+        piso: parseInt(formData.piso, 10),
+        edificio: formData.edificio,
+        capacidadTotal: capacidadTotal,
+        espaciosDisponibles: capacidadTotal, // Inicialmente igual a capacidadTotal
+        activa: true,
+      };
+
+      const response = await apiClient.createZona(zonaData);
 
       if (!response.ok) {
-        const message = response.error || response.message || 'No se pudo actualizar el estado de la zona.';
-        setActionError(message);
-        throw new Error(message);
+        throw new Error(response.error || response.message || 'Error al crear zona');
       }
 
-      refetch();
-    },
-    [refetch]
-  );
+      setSuccess('¡Zona creada exitosamente!');
+      
+      // Agregar la nueva zona a la lista
+      if (response.data) {
+        setZonas(prev => [...prev, response.data!]);
+      }
 
-  const zonasFiltradas = useMemo(() => {
-    if (!searchTerm) return zonas;
-    
-    return zonas.filter(zona =>
-      zona.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      zona.descripcion?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [zonas, searchTerm]);
-
-  // Estadísticas calculadas
-  const estadisticas = useMemo(() => {
-    const activas = zonas.filter(z => z.activa !== false).length;
-    const inactivas = zonas.filter(z => z.activa === false).length;
-    const capacidadTotal = zonas.reduce((sum, z) => sum + z.capacidadTotal, 0);
-    const espaciosTotal = zonas.reduce((sum, z) => sum + z.espaciosDisponibles, 0);
-    
-    return { activas, inactivas, capacidadTotal, espaciosTotal };
-  }, [zonas]);
-
-  // Opciones de filtros
-  const edificios = useMemo(() => {
-    const edif = [...new Set(zonas.map(z => z.nombre.split(' - ')[0]))];
-    return edif.sort();
-  }, [zonas]);
-
-  // Obtener estadísticas de espacios por zona
-  const getZonaStats = (zonaId: string) => {
-    const espaciosZona = espacios.filter(espacio => 
-      espacio.zona?.toLowerCase().includes(zonaId.toLowerCase()) ||
-      espacio.zona === zonaId
-    );
-    
-    const disponibles = espaciosZona.filter(e => e.estado === 'disponible').length;
-    const ocupados = espaciosZona.filter(e => e.estado === 'ocupado').length;
-    const mantenimiento = espaciosZona.filter(e => e.estado === 'mantenimiento').length;
-    
-    return {
-      total: espaciosZona.length,
-      disponibles,
-      ocupados,
-      mantenimiento
-    };
+      setFormData({
+        nombre: '',
+        descripcion: '',
+        piso: '',
+        edificio: '',
+        capacidadTotal: '',
+      });
+      setShowForm(false);
+    } catch (err: any) {
+      setError(err.message || 'Error al crear zona');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) {
+  // Mostrar loading mientras verifica autenticación
+  if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-600 mb-4">{error}</p>
-        <Button onClick={refetch} variant="secondary">
-          Reintentar
-        </Button>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Zonas</h1>
-          <p className="text-gray-600 mt-1">
-            Administra las zonas y áreas del edificio
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Zonas</h1>
+          <p className="text-gray-600">Administra las zonas de tu organización</p>
         </div>
-        <Button 
-          onClick={() => setShowModalCrear(true)}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Crear Zona
-        </Button>
-      </div>
 
-      {actionError && (
-        <Alert
-          type="warning"
-          title="Acción no completada"
-          message={actionError}
-        />
-      )}
-
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="text-sm font-medium text-gray-600">Total Zonas</div>
-            <Map className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardBody>
-            <div className="text-2xl font-bold text-gray-900">{total}</div>
-            <p className="text-xs text-gray-500">
-              Distribución por edificio
-            </p>
-          </CardBody>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="text-sm font-medium text-gray-600">Zonas Activas</div>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardBody>
-            <div className="text-2xl font-bold text-gray-900">{estadisticas.activas}</div>
-            <p className="text-xs text-gray-500">
-              {((estadisticas.activas / total) * 100).toFixed(1)}% del total
-            </p>
-          </CardBody>
-        </Card>
-
-        <Card className="border-l-4 border-l-purple-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="text-sm font-medium text-gray-600">Capacidad Total</div>
-            <Users className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardBody>
-            <div className="text-2xl font-bold text-gray-900">{estadisticas.capacidadTotal}</div>
-            <p className="text-xs text-gray-500">
-              Personas máximo
-            </p>
-          </CardBody>
-        </Card>
-
-        <Card className="border-l-4 border-l-orange-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <div className="text-sm font-medium text-gray-600">Espacios Disponibles</div>
-            <Building2 className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardBody>
-            <div className="text-2xl font-bold text-gray-900">{estadisticas.espaciosTotal}</div>
-            <p className="text-xs text-gray-500">
-              En todas las zonas
-            </p>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Filtros y búsqueda */}
-        <Card>
-        <CardHeader>
-          <div className="text-lg flex items-center">
-            <Filter className="w-5 h-5 mr-2" />
-            Filtros y Búsqueda
+        {/* Success Message */}
+        {success && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <p className="text-green-800">{success}</p>
           </div>
-        </CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                label=""
-                placeholder="Buscar zonas..."
-                value={searchTerm}
-                onChange={(v) => setSearchTerm(v)}
-                className="pl-10"
-              />
-            </div>
+        )}
 
-            <div>
-              <label className="sr-only">Filtrar por estado</label>
-              <select
-                value={filtroActivo}
-                onChange={(e) => setFiltroActivo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Filtrar por estado"
-                title="Filtrar por estado"
-              >
-                <option value="">Todos los estados</option>
-                <option value="activo">Activas</option>
-                <option value="inactivo">Inactivas</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="sr-only">Filtrar por área</label>
-              <select
-                value={filtroEdificio}
-                onChange={(e) => setFiltroEdificio(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                aria-label="Filtrar por área"
-                title="Filtrar por área"
-              >
-                <option value="">Todas las áreas</option>
-                {edificios.map((edificio) => (
-                  <option key={edificio} value={edificio}>{edificio}</option>
-                ))}
-              </select>
-            </div>
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-800">{error}</p>
           </div>
+        )}
 
-              {(searchTerm || filtroActivo || filtroEdificio) && (
-      <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Mostrando {zonasFiltradas.length} de {total} zonas
-              </p>
-              <Button
-                    variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setSearchTerm('');
-                  setFiltroActivo('');
-                  setFiltroEdificio('');
-                }}
-              >
-                Limpiar filtros
-              </Button>
+        {/* Create Button or List */}
+        {zonas.length === 0 && !showForm ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div className="p-4 bg-purple-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+              <Building2 className="h-10 w-10 text-purple-600" />
             </div>
-          )}
-        </CardBody>
-      </Card>
-
-      {/* Lista de zonas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {zonasFiltradas.map((zona) => {
-          const stats = getZonaStats(zona.id);
-          const isActive = zona.activa ?? zona.capacidadTotal > 0;
-          
-          return (
-            <ZonaCard 
-              key={zona.id}
-              zona={zona}
-              stats={stats}
-              isActive={isActive}
-              onToggleEstado={handleToggleZonaEstado}
-            />
-          );
-        })}
-      </div>
-
-      {zonasFiltradas.length === 0 && (
-        <Card>
-          <CardBody className="text-center py-8">
-            <Map className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No se encontraron zonas
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              Crea tu primera zona
             </h3>
-            <p className="text-gray-600">
-              {searchTerm || filtroActivo || filtroEdificio
-                ? 'Intenta ajustar los filtros de búsqueda'
-                : 'Comienza creando tu primera zona'
-              }
+            <p className="text-gray-600 mb-8">
+              Las zonas agrupan espacios por ubicación física
             </p>
-          </CardBody>
-        </Card>
-      )}
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Crear Zona
+            </button>
+          </div>
+        ) : !showForm ? (
+          <>
+            <div className="mb-6 flex justify-end">
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Nueva Zona
+              </button>
+            </div>
+            
+            {loadingZonas ? (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Cargando zonas...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {zonas.map((zona) => (
+                  <div key={zona.id || zona.nombre} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="p-3 bg-purple-50 rounded-lg">
+                        <Building2 className="h-6 w-6 text-purple-600" />
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${zona.activa ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {zona.activa ? 'Activa' : 'Inactiva'}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">{zona.nombre}</h3>
+                    {zona.descripcion && (
+                      <p className="text-sm text-gray-600 mb-3">{zona.descripcion}</p>
+                    )}
+                    <div className="space-y-1 text-sm text-gray-500">
+                      <p>Piso: {zona.piso}{zona.edificio ? ` - Edificio ${zona.edificio}` : ''}</p>
+                      <p>Capacidad: {zona.capacidadTotal || 0} personas</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Nueva Zona</h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Nombre */}
+              <div>
+                <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre *
+                </label>
+                <input
+                  type="text"
+                  id="nombre"
+                  required
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                  placeholder="Ej: Edificio A - Piso 3"
+                />
+              </div>
+
+              {/* Descripción */}
+              <div>
+                <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-2">
+                  Descripción
+                </label>
+                <textarea
+                  id="descripcion"
+                  value={formData.descripcion}
+                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                  placeholder="Describe la ubicación y características de esta zona"
+                  rows={3}
+                />
+              </div>
+
+              {/* Piso y Edificio */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="piso" className="block text-sm font-medium text-gray-700 mb-2">
+                    Piso *
+                  </label>
+                  <input
+                    type="number"
+                    id="piso"
+                    required
+                    value={formData.piso}
+                    onChange={(e) => setFormData({ ...formData, piso: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                    placeholder="3"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="edificio" className="block text-sm font-medium text-gray-700 mb-2">
+                    Edificio
+                  </label>
+                  <input
+                    type="text"
+                    id="edificio"
+                    value={formData.edificio}
+                    onChange={(e) => setFormData({ ...formData, edificio: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                    placeholder="A"
+                  />
+                </div>
+              </div>
+
+              {/* Capacidad Total */}
+              <div>
+                <label htmlFor="capacidadTotal" className="block text-sm font-medium text-gray-700 mb-2">
+                  Capacidad Total *
+                </label>
+                <input
+                  type="number"
+                  id="capacidadTotal"
+                  required
+                  value={formData.capacidadTotal}
+                  onChange={(e) => setFormData({ ...formData, capacidadTotal: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
+                  placeholder="100"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Suma de las capacidades de todos los espacios en esta zona
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end space-x-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  disabled={loading}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Creando...' : 'Crear Zona'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
-  );
-}
-
-// Componente para cada tarjeta de zona
-function ZonaCard({ 
-  zona, 
-  stats,
-  isActive,
-  onToggleEstado
-}: { 
-  zona: Zona;
-  stats: any;
-  isActive: boolean;
-  onToggleEstado: (id: string, nextEstadoActivo: boolean) => Promise<void>;
-}) {
-  return (
-    <Card className={`transition-all duration-200 hover:shadow-lg ${
-      !isActive ? 'opacity-75 bg-gray-50' : ''
-    }`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className={`p-3 rounded-lg ${
-              isActive ? 'bg-blue-100' : 'bg-gray-100'
-            }`}>
-              <Map className={`w-6 h-6 ${
-                isActive ? 'text-blue-600' : 'text-gray-400'
-              }`} />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 text-lg">
-                {zona.nombre}
-              </h3>
-              <p className="text-sm text-gray-600">{zona.descripcion}</p>
-            </div>
-          </div>
-          
-          <ToggleEstadoButton
-            id={zona.id}
-            entityType="zona"
-            entityName={zona.nombre}
-            currentEstado={isActive ? 'disponible' : 'inactivo'}
-            onToggle={onToggleEstado}
-            size="sm"
-          />
-        </div>
-      </CardHeader>
-      
-      <CardBody className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="text-lg font-bold text-gray-900">{zona.capacidadTotal}</div>
-            <div className="text-xs text-gray-600">Capacidad</div>
-          </div>
-          <div className="text-center p-3 bg-gray-50 rounded-lg">
-            <div className="text-lg font-bold text-gray-900">{zona.espaciosDisponibles}</div>
-            <div className="text-xs text-gray-600">Espacios</div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Piso:</span>
-          <div className="flex items-center">
-            <Layers className="w-4 h-4 text-gray-400 mr-1" />
-            <span className="text-sm font-medium text-gray-900">
-              {zona.piso}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Estado:</span>
-          <Badge variant={isActive ? 'disponible' : 'ocupado'}>
-            {isActive ? 'Activa' : 'Inactiva'}
-          </Badge>
-        </div>
-
-        {/* Estadísticas de espacios */}
-        <div className="border-t border-gray-100 pt-3">
-          <div className="text-sm text-gray-600 mb-2">Espacios en la zona:</div>
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="text-center">
-              <div className="font-medium text-green-600">{stats.disponibles}</div>
-              <div className="text-gray-500">Disponibles</div>
-            </div>
-            <div className="text-center">
-              <div className="font-medium text-red-600">{stats.ocupados}</div>
-              <div className="text-gray-500">Ocupados</div>
-            </div>
-            <div className="text-center">
-              <div className="font-medium text-yellow-600">{stats.mantenimiento}</div>
-              <div className="text-gray-500">Mantenim.</div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="pt-2 border-t border-gray-100">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="w-full"
-            onClick={() => {
-              // TODO: Implementar modal de edición
-              console.log('Editar zona:', zona.id);
-            }}
-          >
-            Editar Zona
-          </Button>
-        </div>
-      </CardBody>
-    </Card>
   );
 }

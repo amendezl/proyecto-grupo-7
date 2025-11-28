@@ -1,16 +1,20 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Dashboard from '@/components/Dashboard';
 import { User, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, logout } = useAuth();
 
   const handleLogout = async () => {
-    await logout();
+    await logout(() => {
+      router.push('/auth/login');
+    });
   };
 
   return (

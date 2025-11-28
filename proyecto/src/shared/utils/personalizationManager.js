@@ -204,6 +204,34 @@ class PersonalizationManager {
                 }
             },
             
+            terminology: {
+                resource: {
+                    singular: 'espacio',
+                    plural: 'espacios',
+                    article: 'el'
+                },
+                reservation: {
+                    singular: 'reserva',
+                    plural: 'reservas',
+                    article: 'la'
+                },
+                zone: {
+                    singular: 'zona',
+                    plural: 'zonas',
+                    article: 'la'
+                },
+                user: {
+                    singular: 'usuario',
+                    plural: 'usuarios',
+                    article: 'el'
+                },
+                responsible: {
+                    singular: 'responsable',
+                    plural: 'responsables',
+                    article: 'el'
+                }
+            },
+            
             spaces: {
                 defaultCapacity: 10,
                 requireApproval: false,
@@ -246,34 +274,87 @@ class PersonalizationManager {
                     workingHours: { start: '06:00', end: '22:00', days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
                     reservationLimits: { maxDaysAdvance: 90, allowConcurrentReservations: true }
                 },
-                spaces: { requireApproval: true, allowOverbooking: false }
+                spaces: { requireApproval: true, allowOverbooking: false },
+                terminology: {
+                    resource: { singular: 'sala', plural: 'salas', article: 'la' },
+                    reservation: { singular: 'turno', plural: 'turnos', article: 'el' }
+                }
             },
             education: {
                 business: {
                     workingHours: { start: '07:00', end: '20:00', days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] },
                     reservationLimits: { maxDaysAdvance: 180 }
                 },
-                spaces: { defaultCapacity: 30, requireApproval: false }
+                spaces: { defaultCapacity: 30, requireApproval: false },
+                terminology: {
+                    resource: { singular: 'aula', plural: 'aulas', article: 'el' },
+                    reservation: { singular: 'reserva', plural: 'reservas', article: 'la' }
+                }
             },
             office: {
                 business: {
                     workingHours: { start: '08:00', end: '18:00', days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] },
                     reservationLimits: { maxDaysAdvance: 30 }
                 },
-                spaces: { requireApproval: false, allowOverbooking: true }
+                spaces: { requireApproval: false, allowOverbooking: true },
+                terminology: {
+                    resource: { singular: 'espacio', plural: 'espacios', article: 'el' },
+                    reservation: { singular: 'reserva', plural: 'reservas', article: 'la' }
+                }
             },
             parking: {
                 business: {
                     workingHours: { start: '00:00', end: '23:59', days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
                     reservationLimits: { maxDaysAdvance: 7, maxDurationHours: 24 }
                 },
-                spaces: { autoConfirm: true, allowOverbooking: false }
+                spaces: { autoConfirm: true, allowOverbooking: false },
+                terminology: {
+                    resource: { singular: 'estacionamiento', plural: 'estacionamientos', article: 'el' },
+                    reservation: { singular: 'reserva', plural: 'reservas', article: 'la' }
+                }
             },
             events: {
                 business: {
                     reservationLimits: { maxDaysAdvance: 365, maxDurationHours: 24 }
                 },
-                spaces: { requireApproval: true, defaultCapacity: 100 }
+                spaces: { requireApproval: true, defaultCapacity: 100 },
+                terminology: {
+                    resource: { singular: 'espacio', plural: 'espacios', article: 'el' },
+                    reservation: { singular: 'reserva', plural: 'reservas', article: 'la' }
+                }
+            },
+            coworking: {
+                business: {
+                    workingHours: { start: '00:00', end: '23:59', days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
+                    reservationLimits: { maxDaysAdvance: 14, maxDurationHours: 8 }
+                },
+                spaces: { requireApproval: false, allowOverbooking: false },
+                terminology: {
+                    resource: { singular: 'box', plural: 'boxes', article: 'el' },
+                    reservation: { singular: 'reserva', plural: 'reservas', article: 'la' }
+                }
+            },
+            sports: {
+                business: {
+                    workingHours: { start: '06:00', end: '23:00', days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] },
+                    reservationLimits: { maxDaysAdvance: 7, maxDurationHours: 2 }
+                },
+                spaces: { requireApproval: false, allowOverbooking: false },
+                terminology: {
+                    resource: { singular: 'cancha', plural: 'canchas', article: 'la' },
+                    reservation: { singular: 'turno', plural: 'turnos', article: 'el' }
+                }
+            },
+            equipment: {
+                business: {
+                    workingHours: { start: '08:00', end: '18:00', days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] },
+                    reservationLimits: { maxDaysAdvance: 30, maxDurationHours: 24 }
+                },
+                spaces: { requireApproval: true, allowOverbooking: false },
+                terminology: {
+                    resource: { singular: 'herramienta', plural: 'herramientas', article: 'la' },
+                    reservation: { singular: 'préstamo', plural: 'préstamos', article: 'el' }
+                }
             }
         };
         

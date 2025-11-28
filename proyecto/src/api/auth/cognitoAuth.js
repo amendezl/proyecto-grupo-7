@@ -205,7 +205,7 @@ module.exports = {
 // Register new user (exposed as POST /auth/register)
 const register = async (event) => {
   try {
-    const { email, password, nombre, apellido } = JSON.parse(event.body || '{}');
+    const { email, password, nombre, apellido, departamento, telefono, industry, organizationName, customTerminology } = JSON.parse(event.body || '{}');
 
     if (!email || !password) {
       return response(400, { ok: false, error: 'email y password son obligatorios' });
@@ -241,7 +241,51 @@ const register = async (event) => {
       }
     }
 
-    const respBody = { ok: true, message: 'Usuario creado', userConfirmed: (autoConfirmed || !!result.UserConfirmed), autoConfirmEnv: process.env.AUTO_CONFIRM_REGISTRATION };
+    // Crear organización para el nuevo usuario
+    let organizationId = null;
+    let organizationCreated = false;
+    try {
+      const OrganizationManager = require('../../shared/utils/organizationManager');
+      const organizationManager = new OrganizationManager();
+      
+      // Crear organización con el nombre de la empresa o email como fallback
+      const orgName = organizationName || `Organización de ${nombre || email}`;
+      const selectedIndustry = industry || 'generic';
+      
+      const organization = await organizationManager.createOrganization({
+        name: orgName,
+        industry: selectedIndustry,
+        adminUserId: result.UserSub,
+        customTerminology: customTerminology || {}
+      });
+      
+      organizationId = organization.id;
+      organizationCreated = true;
+      
+      // Vincular usuario a la organización
+      await organizationManager.linkUserToOrganization(result.UserSub, organizationId);
+      
+      logger.info('[COGNITO_REGISTER] Organization created and linked', {
+        userId: result.UserSub,
+        orgId: organizationId,
+        industry: selectedIndustry
+      });
+    } catch (orgError) {
+      logger.error('[COGNITO_REGISTER] Failed to create organization:', {
+        errorMessage: orgError.message,
+        errorType: orgError.constructor?.name
+      });
+      // No fallar el registro si falla la creación de organización
+    }
+
+    const respBody = { 
+      ok: true, 
+      message: 'Usuario creado', 
+      userConfirmed: (autoConfirmed || !!result.UserConfirmed), 
+      autoConfirmEnv: process.env.AUTO_CONFIRM_REGISTRATION,
+      organizationCreated,
+      organizationId
+    };
     if (adminConfirmError) respBody.adminConfirmError = adminConfirmError;
     return response(200, respBody);
   } catch (err) {
