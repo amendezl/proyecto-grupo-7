@@ -38,26 +38,27 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No hay token de autenticación');
-      }
+      // Cargar datos desde los diferentes endpoints
+      const [espaciosRes, zonasRes] = await Promise.all([
+        import('@/lib/api-client').then(m => m.apiClient.getEspacios()),
+        import('@/lib/api-client').then(m => m.apiClient.getZonas())
+      ]);
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://mui3vsx73f.execute-api.us-east-1.amazonaws.com';
-      
-      const response = await axios.get(`${apiUrl}/api/dashboard/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const espacios = espaciosRes.ok && espaciosRes.data ? espaciosRes.data.espacios || [] : [];
+      const zonas = zonasRes.ok && zonasRes.data ? zonasRes.data.zonas || [] : [];
+
+      setStats({
+        totalEspacios: espacios.length,
+        totalReservas: 0, // Por ahora
+        totalUsuarios: 0, // Por ahora
+        totalResponsables: 0, // Por ahora
+        totalZonas: zonas.length,
+        espaciosActivos: espacios.filter((e: any) => e.estado === 'disponible').length,
+        reservasActivas: 0 // Por ahora
       });
-
-      if (response.data.success) {
-        setStats(response.data.data);
-      }
     } catch (err: any) {
       console.error('Error loading dashboard stats:', err);
-      setError(err.response?.data?.message || 'Error al cargar estadísticas');
+      setError(err.message || 'Error al cargar estadísticas');
     } finally {
       setLoading(false);
     }

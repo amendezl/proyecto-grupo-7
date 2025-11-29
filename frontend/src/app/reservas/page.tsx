@@ -9,6 +9,7 @@ import {
   User, 
   MapPin,
   Filter,
+  ArrowLeft,
   Eye,
   Edit,
   X,
@@ -23,6 +24,8 @@ import {
 import { useReservas, useEspacios } from '@/hooks/useApi';
 import CancelReservaButton from '@/components/CancelReservaButton';
 import { apiClient } from '@/lib/api-client';
+import AppHeader from '@/components/AppHeader';
+import Link from 'next/link';
 
 export default function ReservasPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -111,20 +114,34 @@ export default function ReservasPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Reservas</h1>
-          <p className="text-gray-600 mt-1">
-            Administra y monitorea todas las reservas del sistema
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        title="Gestión de Reservas"
+        breadcrumbs={[
+          { label: 'Reservas', href: '/reservas' }
+        ]}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Page Description and Actions */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <p className="text-gray-600">
+              Administra y monitorea todas las reservas del sistema
+            </p>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Dashboard
+            </Link>
+          </div>
+          <Button variant="primary">
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Reserva
+          </Button>
         </div>
-        <Button variant="primary">
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Reserva
-        </Button>
-      </div>
 
       {/* Alertas */}
       {error && (
@@ -390,6 +407,7 @@ export default function ReservasPage() {
             </table>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

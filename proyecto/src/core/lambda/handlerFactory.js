@@ -26,22 +26,23 @@ function wrapHandler(handler, options = {}) {
 
     tracer.putAnnotation('Handler', handlerName);
     tracer.putAnnotation('Stage', stage);
-    metrics.setDimensions({
-      Service: SERVICE_NAME,
-      Environment: stage,
-      Handler: handlerName
-    });
+    // metrics.setDimensions is not available in this version
+    // metrics.setDimensions({
+    //   Service: SERVICE_NAME,
+    //   Environment: stage,
+    //   Handler: handlerName
+    // });
 
     if (validator) {
       const validationResponse = await validator(event, context);
       if (validationResponse) {
-        metrics.addMetric('ValidationError', MetricUnits.Count, 1);
+        // metrics.addMetric('ValidationError', MetricUnits.Count, 1);
         logger.warn('Payload validation failed', {
           handler: handlerName,
           requestId,
           statusCode: validationResponse.statusCode
         });
-        metrics.publishStoredMetrics();
+        // metrics.publishStoredMetrics();
         return validationResponse;
       }
     }
@@ -51,11 +52,11 @@ function wrapHandler(handler, options = {}) {
 
     try {
       response = await handler(event, context);
-      metrics.addMetric(metricName || `${handlerName}Success`, MetricUnits.Count, 1);
+      // metrics.addMetric(metricName || `${handlerName}Success`, MetricUnits.Count, 1);
       return response;
     } catch (error) {
       invocationError = error;
-      metrics.addMetric(`${handlerName}Failure`, MetricUnits.Count, 1);
+      // metrics.addMetric(`${handlerName}Failure`, MetricUnits.Count, 1);
       tracer.addErrorAsMetadata(error);
       logger.error('Handler execution failed', {
         handler: handlerName,
@@ -66,14 +67,14 @@ function wrapHandler(handler, options = {}) {
       throw error;
     } finally {
       const durationMs = Date.now() - startedAt;
-      metrics.addMetric(`${handlerName}Latency`, MetricUnits.Milliseconds, durationMs);
+      // metrics.addMetric(`${handlerName}Latency`, MetricUnits.Milliseconds, durationMs);
       logger.debug('Handler execution completed', {
         handler: handlerName,
         requestId,
         durationMs,
         status: invocationError ? 'FAILED' : 'SUCCESS'
       });
-      metrics.publishStoredMetrics();
+      // metrics.publishStoredMetrics();
     }
   };
 }

@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Plus, Package } from 'lucide-react';
+import { Users, Plus, Package, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import AppHeader from '@/components/AppHeader';
+import Link from 'next/link';
+import { apiClient } from '@/lib/api-client';
 
 export default function UsuariosPage() {
   const router = useRouter();
@@ -36,29 +39,23 @@ export default function UsuariosPage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No hay token de autenticación');
-      }
+      const usuarioData = {
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        email: formData.email,
+        password: formData.password,
+        departamento: formData.departamento,
+        telefono: formData.telefono,
+        rol: formData.rol as 'admin' | 'responsable' | 'usuario',
+        activo: true,
+      };
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://mui3vsx73f.execute-api.us-east-1.amazonaws.com';
-      
-      const response = await fetch(`${apiUrl}/api/usuarios`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          activo: true,
-        }),
-      });
-
-      const data = await response.json();
+      console.log('📤 Enviando datos de usuario:', usuarioData);
+      const response = await apiClient.createUsuario(usuarioData);
+      console.log('📥 Respuesta recibida:', response);
 
       if (!response.ok) {
-        throw new Error(data.message || 'Error al crear usuario');
+        throw new Error(response.error || response.message || 'Error al crear usuario');
       }
 
       setSuccess('¡Usuario creado exitosamente!');
@@ -73,7 +70,9 @@ export default function UsuariosPage() {
       });
       setShowForm(false);
     } catch (err: any) {
-      setError(err.message || 'Error al crear usuario');
+      console.error('❌ Error completo:', err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Error al crear usuario';
+      setError(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -92,12 +91,25 @@ export default function UsuariosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Usuarios</h1>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        title="Gestión de Usuarios"
+        breadcrumbs={[
+          { label: 'Usuarios', href: '/usuarios' }
+        ]}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Description */}
+        <div className="mb-6 flex items-center justify-between">
           <p className="text-gray-600">Administra los usuarios del sistema</p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver al Dashboard
+          </Link>
         </div>
 
         {/* Success Message */}
@@ -136,7 +148,21 @@ export default function UsuariosPage() {
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Nuevo Usuario</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Nuevo Usuario</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setError('');
+                  setSuccess('');
+                }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Cancelar
+              </button>
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Nombre y Apellido */}

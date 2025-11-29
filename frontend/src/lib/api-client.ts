@@ -104,6 +104,7 @@ export interface User {
 
 export interface AuthTokens {
   accessToken: string;
+  idToken: string;
   refreshToken: string;
   expiresAt: number;
 }
@@ -443,8 +444,9 @@ class ApiClient {
     // Interceptor para agregar tokens de autorización
     this.client.interceptors.request.use(
       (config) => {
-        if (this.tokens?.accessToken) {
-          config.headers.Authorization = `Bearer ${this.tokens.accessToken}`;
+        // Use idToken instead of accessToken - idToken contains user attributes and groups
+        if (this.tokens?.idToken) {
+          config.headers.Authorization = `Bearer ${this.tokens.idToken}`;
         }
         return config;
       },
@@ -508,6 +510,7 @@ class ApiClient {
       const expiresInSeconds = response.data.expiresIn ?? 3600;
       const newTokens = {
         accessToken: response.data.accessToken,
+        idToken: response.data.idToken ?? this.tokens.idToken,
         refreshToken: response.data.refreshToken ?? this.tokens.refreshToken,
         expiresAt: Date.now() + expiresInSeconds * 1000,
       };
@@ -663,9 +666,8 @@ class ApiClient {
     if (filters?.estado) params.append('estado', filters.estado);
     if (filters?.zona_id) params.append('zona_id', filters.zona_id);
     
-    const endpoint = this.getOptimizedEndpoint('/espacios');
     const queryString = params.toString();
-    const response = await this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    const response = await this.get(`/api/espacios${queryString ? `?${queryString}` : ''}`);
     return transformResponse(response, (payload: any) => {
       const items: any[] = Array.isArray(payload?.espacios) ? payload.espacios : [];
       return {
@@ -676,22 +678,19 @@ class ApiClient {
   }
 
   async createEspacio(data: Omit<Espacio, 'id' | 'ultimaActualizacion'>): Promise<ApiResponse<Espacio>> {
-    const endpoint = this.getOptimizedEndpoint('/espacios');
     const payload = serializeEspacioInput(data);
-    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    const response = await this.post('/api/espacios', Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapEspacioFromApi);
   }
 
   async updateEspacio(id: string, data: Partial<Espacio>): Promise<ApiResponse<Espacio>> {
-    const endpoint = this.getOptimizedEndpoint(`/espacios/${id}`);
     const payload = serializeEspacioInput(data);
-    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    const response = await this.put(`/api/espacios/${id}`, Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapEspacioFromApi);
   }
 
   async deleteEspacio(id: string): Promise<ApiResponse<{ message: string }>> {
-    const endpoint = this.getOptimizedEndpoint(`/espacios/${id}`);
-    return this.delete(endpoint);
+    return this.delete(`/api/espacios/${id}`);
   }
 
   async toggleEspacioEstado(
@@ -711,9 +710,8 @@ class ApiClient {
     if (filters?.espacio_id) params.append('espacio_id', filters.espacio_id);
     if (filters?.estado) params.append('estado', filters.estado);
     
-    const endpoint = this.getOptimizedEndpoint('/reservas');
     const queryString = params.toString();
-    const response = await this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    const response = await this.get(`/api/reservas${queryString ? `?${queryString}` : ''}`);
     return transformResponse(response, (payload: any) => {
       const items: any[] = Array.isArray(payload?.reservas) ? payload.reservas : [];
       return {
@@ -724,33 +722,28 @@ class ApiClient {
   }
 
   async createReserva(data: Omit<Reserva, 'id'>): Promise<ApiResponse<Reserva>> {
-    const endpoint = this.getOptimizedEndpoint('/reservas');
     const payload = serializeReservaInput(data);
-    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    const response = await this.post('/api/reservas', Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapReservaFromApi);
   }
 
   async updateReserva(id: string, data: Partial<Reserva>): Promise<ApiResponse<Reserva>> {
-    const endpoint = this.getOptimizedEndpoint(`/reservas/${id}`);
     const payload = serializeReservaInput(data);
-    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    const response = await this.put(`/api/reservas/${id}`, Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapReservaFromApi);
   }
 
   async cancelReserva(id: string): Promise<ApiResponse<Reserva>> {
-    const endpoint = this.getOptimizedEndpoint(`/reservas/${id}/cancel`);
-    const response = await this.patch(endpoint);
+    const response = await this.patch(`/api/reservas/${id}/cancel`);
     return transformResponse(response, mapReservaFromApi);
   }
 
   async deleteReserva(id: string): Promise<ApiResponse<{ message: string }>> {
-    const endpoint = this.getOptimizedEndpoint(`/reservas/${id}`);
-    return this.delete(endpoint);
+    return this.delete(`/api/reservas/${id}`);
   }
 
   async getZonas(): Promise<ApiResponse<{ zonas: Zona[]; total?: number }>> {
-    const endpoint = this.getOptimizedEndpoint('/zonas');
-    const response = await this.get(endpoint);
+    const response = await this.get('/api/zonas');
     return transformResponse(response, (payload: any) => {
       const items: any[] = Array.isArray(payload?.zonas) ? payload.zonas : [];
       const total = payload?.total !== undefined ? safeNumber(payload.total) : undefined;
@@ -762,33 +755,28 @@ class ApiClient {
   }
 
   async createZona(data: Omit<Zona, 'id'>): Promise<ApiResponse<Zona>> {
-    const endpoint = this.getOptimizedEndpoint('/zonas');
     const payload = serializeZonaInput(data);
-    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    const response = await this.post('/api/zonas', Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapZonaFromApi);
   }
 
   async updateZona(id: string, data: Partial<Zona>): Promise<ApiResponse<Zona>> {
-    const endpoint = this.getOptimizedEndpoint(`/zonas/${id}`);
     const payload = serializeZonaInput(data);
-    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    const response = await this.put(`/api/zonas/${id}`, Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapZonaFromApi);
   }
 
   async deleteZona(id: string): Promise<ApiResponse<{ message: string }>> {
-    const endpoint = this.getOptimizedEndpoint(`/zonas/${id}`);
-    return this.delete(endpoint);
+    return this.delete(`/api/zonas/${id}`);
   }
 
   async toggleZonaEstado(id: string, activa: boolean): Promise<ApiResponse<Zona>> {
-    const endpoint = this.getOptimizedEndpoint(`/zonas/${id}/toggle-estado`);
-    const response = await this.patch(endpoint, { activa });
+    const response = await this.patch(`/api/zonas/${id}/toggle-estado`, { activa });
     return transformResponse(response, mapZonaFromApi);
   }
 
   async getDashboardMetrics(): Promise<ApiResponse<DashboardMetrics>> {
-    const endpoint = this.getOptimizedEndpoint('/dashboard');
-    const response = await this.get(endpoint);
+    const response = await this.get('/api/dashboard');
     return transformResponse(response, mapDashboardMetricsFromApi);
   }
 
@@ -806,9 +794,8 @@ class ApiClient {
       }
     }
     
-    const endpoint = this.getOptimizedEndpoint('/responsables');
     const queryString = params.toString();
-    const response = await this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
+    const response = await this.get(`/api/responsables${queryString ? `?${queryString}` : ''}`);
     return transformResponse(response, (payload: any) => {
       const items: any[] = Array.isArray(payload?.responsables) ? payload.responsables : [];
       return {
@@ -819,33 +806,28 @@ class ApiClient {
   }
 
   async getResponsable(id: string): Promise<ApiResponse<Responsable>> {
-    const endpoint = this.getOptimizedEndpoint(`/responsables/${id}`);
-    const response = await this.get(endpoint);
+    const response = await this.get(`/api/responsables/${id}`);
     return transformResponse(response, mapResponsableFromApi);
   }
 
   async createResponsable(data: Omit<Responsable, 'id' | 'fechaCreacion' | 'estadisticas'>): Promise<ApiResponse<Responsable>> {
-    const endpoint = this.getOptimizedEndpoint('/responsables');
     const payload = serializeResponsableInput(data);
-    const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
+    const response = await this.post('/api/responsables', Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapResponsableFromApi);
   }
 
   async updateResponsable(id: string, data: Partial<Responsable>): Promise<ApiResponse<Responsable>> {
-    const endpoint = this.getOptimizedEndpoint(`/responsables/${id}`);
     const payload = serializeResponsableInput(data);
-    const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
+    const response = await this.put(`/api/responsables/${id}`, Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapResponsableFromApi);
   }
 
   async deleteResponsable(id: string): Promise<ApiResponse<{ message: string }>> {
-    const endpoint = this.getOptimizedEndpoint(`/responsables/${id}`);
-    return this.delete(endpoint);
+    return this.delete(`/api/responsables/${id}`);
   }
 
   async toggleResponsableEstado(id: string, activo: boolean): Promise<ApiResponse<Responsable>> {
-    const endpoint = this.getOptimizedEndpoint(`/responsables/${id}/toggle-estado`);
-    const response = await this.patch(endpoint, { activo });
+    const response = await this.patch(`/api/responsables/${id}/toggle-estado`, { activo });
     return transformResponse(response, mapResponsableFromApi);
   }
 
@@ -964,7 +946,8 @@ class ApiClient {
       const expiresInSeconds = response.data.expiresIn ?? 3600;
       this.setTokens({
         accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken ?? response.data.idToken ?? '',
+        idToken: response.data.idToken ?? response.data.accessToken,
+        refreshToken: response.data.refreshToken ?? '',
         expiresAt: Date.now() + expiresInSeconds * 1000,
       });
     }

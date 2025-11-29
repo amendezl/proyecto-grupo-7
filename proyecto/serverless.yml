@@ -93,6 +93,25 @@ provider:
   tracing:
     lambda: ${self:custom.stages.${self:provider.stage}.tracing}
   httpApi:
+    cors:
+      allowedOrigins:
+        - '*'
+      allowedHeaders:
+        - Content-Type
+        - X-Amz-Date
+        - Authorization
+        - X-Api-Key
+        - X-Amz-Security-Token
+        - X-Api-Version
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - OPTIONS
+      allowCredentials: false
+      maxAge: 3600
     authorizers:
       cognitoJwt:
         type: jwt
@@ -105,8 +124,21 @@ provider:
     - Effect: Allow
       Action:
         - cognito-idp:AdminConfirmSignUp
+        - cognito-idp:AdminAddUserToGroup
+        - cognito-idp:AdminListGroupsForUser
       Resource:
         - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:Query
+        - dynamodb:Scan
+      Resource:
+        - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-${self:provider.stage}-main
+        - Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${self:service}-${self:provider.stage}-main/index/*
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: ${env:AWS_NODEJS_CONNECTION_REUSE_ENABLED, '1'}
     REGION: ${self:provider.region}
@@ -144,10 +176,10 @@ provider:
     APP_CONFIG_APPLICATION_ID: ${env:APP_CONFIG_APPLICATION_ID, ''}
     APP_CONFIG_ENVIRONMENT_ID: ${env:APP_CONFIG_ENVIRONMENT_ID, ''}
     APP_CONFIG_PROFILE_ID: ${env:APP_CONFIG_PROFILE_ID, ''}
-    # Secretos administrados vía AWS Systems Manager Parameter Store
-    SENTRY_DSN: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-dsn, ''}
-    SENTRY_TRACES_SAMPLE_RATE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-traces-sample-rate, env:SENTRY_TRACES_SAMPLE_RATE, '0'}
-    SENTRY_RELEASE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-release, env:SENTRY_RELEASE, ''}
+    # Secretos administrados vía AWS Systems Manager Parameter Store (comentados para evitar errores de SSM)
+    SENTRY_DSN: ${env:SENTRY_DSN, ''}
+    SENTRY_TRACES_SAMPLE_RATE: ${env:SENTRY_TRACES_SAMPLE_RATE, '0'}
+    SENTRY_RELEASE: ${env:SENTRY_RELEASE, ''}
 
 # === PACKAGE CONFIGURATION ===
 package:

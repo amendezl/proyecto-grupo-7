@@ -2,15 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Plus, Package } from 'lucide-react';
+import { MapPin, Plus, Package, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-
-interface Zona {
-  zonaId: string;
-  nombre: string;
-  piso: number;
-  edificio?: string;
-}
+import AppHeader from '@/components/AppHeader';
+import Link from 'next/link';
+import { apiClient, Zona } from '@/lib/api-client';
 
 export default function EspaciosPage() {
   const router = useRouter();
@@ -23,7 +19,9 @@ export default function EspaciosPage() {
     zona: '',
     estado: 'disponible',
   });
+  const [espacios, setEspacios] = useState<any[]>([]);
   const [zonas, setZonas] = useState<Zona[]>([]);
+  const [loadingEspacios, setLoadingEspacios] = useState(false);
   const [loadingZonas, setLoadingZonas] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,24 +34,47 @@ export default function EspaciosPage() {
     }
   }, [isAuthenticated, isLoading, router]);
 
+  // Cargar espacios existentes
+  useEffect(() => {
+    const loadEspacios = async () => {
+      if (!isAuthenticated) return;
+      
+      try {
+        setLoadingEspacios(true);
+        const response = await apiClient.getEspacios();
+        
+        if (response.ok && response.data) {
+          console.log('Espacios cargados:', response.data);
+          setEspacios(response.data.espacios || []);
+        } else {
+          console.error('Error en respuesta de espacios:', response.error);
+        }
+      } catch (err) {
+        console.error('Error cargando espacios:', err);
+      } finally {
+        setLoadingEspacios(false);
+      }
+    };
+
+    if (isAuthenticated) {
+      loadEspacios();
+    }
+  }, [isAuthenticated, success]); // Recargar cuando se crea un espacio exitosamente
+
   // Cargar zonas disponibles
   useEffect(() => {
     const loadZonas = async () => {
+      if (!isAuthenticated) return;
+      
       try {
         setLoadingZonas(true);
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://mui3vsx73f.execute-api.us-east-1.amazonaws.com';
-        const response = await fetch(`${apiUrl}/api/zonas`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setZonas(data.zonas || []);
+        const response = await apiClient.getZonas();
+        
+        if (response.ok && response.data) {
+          console.log('Zonas cargadas:', response.data.zonas);
+          setZonas(response.data.zonas || []);
+        } else {
+          console.error('Error en respuesta de zonas:', response.error);
         }
       } catch (err) {
         console.error('Error cargando zonas:', err);
@@ -62,10 +83,10 @@ export default function EspaciosPage() {
       }
     };
 
-    if (showForm) {
+    if (showForm && isAuthenticated) {
       loadZonas();
     }
-  }, [showForm]);
+  }, [showForm, isAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,29 +95,25 @@ export default function EspaciosPage() {
     setSuccess('');
 
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No hay token de autenticación');
-      }
+      // Estructura que el serializador convertirá al formato correcto
+      const espacioData: any = {
+        nombre: formData.nombre,
+        descripcion: formData.descripcion,
+        capacidad: parseInt(formData.capacidad, 10),
+        zona: formData.zona, // El serializador lo convierte a zona_id y ubicacion.zona
+        tipo: 'oficina', // valores válidos: sala_juntas, oficina, laboratorio, auditorio, sala_capacitacion, otro
+        estado: formData.estado,
+        edificio: 'A', // El serializador lo convierte a ubicacion.edificio
+        piso: 1, // El serializador lo convierte a ubicacion.piso
+        equipamiento: []
+      };
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://mui3vsx73f.execute-api.us-east-1.amazonaws.com';
-      
-      const response = await fetch(`${apiUrl}/api/espacios`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          capacidad: parseInt(formData.capacidad, 10),
-        }),
-      });
-
-      const data = await response.json();
+      console.log('📤 Enviando datos de espacio:', espacioData);
+      const response = await apiClient.createEspacio(espacioData);
+      console.log('📥 Respuesta recibida:', response);
 
       if (!response.ok) {
-        throw new Error(data.message || 'Error al crear espacio');
+        throw new Error(response.error || response.message || 'Error al crear espacio');
       }
 
       setSuccess('¡Espacio creado exitosamente!');
@@ -109,7 +126,9 @@ export default function EspaciosPage() {
       });
       setShowForm(false);
     } catch (err: any) {
-      setError(err.message || 'Error al crear espacio');
+      console.error('❌ Error completo:', err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Error al crear espacio';
+      setError(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -128,12 +147,25 @@ export default function EspaciosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Espacios</h1>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        title="Gestión de Espacios"
+        breadcrumbs={[
+          { label: 'Espacios', href: '/espacios' }
+        ]}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Description */}
+        <div className="mb-6 flex items-center justify-between">
           <p className="text-gray-600">Administra los espacios disponibles en el sistema</p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver al Dashboard
+          </Link>
         </div>
 
         {/* Success Message */}
@@ -150,29 +182,101 @@ export default function EspaciosPage() {
           </div>
         )}
 
-        {/* Create Button */}
+        {/* Lista de Espacios o Botón de Crear */}
         {!showForm ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <div className="p-4 bg-blue-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-              <Package className="h-10 w-10 text-blue-600" />
+          espacios.length === 0 && !loadingEspacios ? (
+            <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+              <div className="p-4 bg-blue-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                <Package className="h-10 w-10 text-blue-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                Crea tu primer espacio
+              </h3>
+              <p className="text-gray-600 mb-8">
+                Los espacios son los recursos que tus usuarios podrán reservar
+              </p>
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Crear Espacio
+              </button>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              Crea tu primer espacio
-            </h3>
-            <p className="text-gray-600 mb-8">
-              Los espacios son los recursos que tus usuarios podrán reservar
-            </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Crear Espacio
-            </button>
-          </div>
+          ) : (
+            <div>
+              <div className="mb-6 flex justify-end">
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Crear Espacio
+                </button>
+              </div>
+              
+              {loadingEspacios ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Cargando espacios...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {espacios.map((espacio) => (
+                    <div key={espacio.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                          <MapPin className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          espacio.estado === 'disponible' ? 'bg-green-100 text-green-800' :
+                          espacio.estado === 'ocupado' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {espacio.estado}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">{espacio.nombre}</h3>
+                      <p className="text-gray-600 text-sm mb-4">{espacio.descripcion}</p>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Capacidad:</span>
+                          <span className="font-medium">{espacio.capacidad} personas</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Tipo:</span>
+                          <span className="font-medium">{espacio.tipo}</span>
+                        </div>
+                        {espacio.ubicacion && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Ubicación:</span>
+                            <span className="font-medium">Edif. {espacio.ubicacion.edificio}, Piso {espacio.ubicacion.piso}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Nuevo Espacio</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Nuevo Espacio</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setError('');
+                  setSuccess('');
+                }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Cancelar
+              </button>
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Nombre */}
@@ -240,7 +344,7 @@ export default function EspaciosPage() {
                       {loadingZonas ? 'Cargando zonas...' : zonas.length === 0 ? 'No hay zonas disponibles' : 'Selecciona una zona'}
                     </option>
                     {zonas.map((zona) => (
-                      <option key={zona.zonaId} value={zona.nombre}>
+                      <option key={zona.id} value={zona.nombre}>
                         {zona.nombre} - Piso {zona.piso}{zona.edificio ? ` (Edif. ${zona.edificio})` : ''}
                       </option>
                     ))}

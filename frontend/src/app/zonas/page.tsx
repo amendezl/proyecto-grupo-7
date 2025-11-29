@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Plus } from 'lucide-react';
+import { Building2, Plus, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient, Zona } from '@/lib/api-client';
+import AppHeader from '@/components/AppHeader';
+import Link from 'next/link';
 
 export default function ZonasPage() {
   const router = useRouter();
@@ -69,7 +71,9 @@ export default function ZonasPage() {
         activa: true,
       };
 
+      console.log('📤 Enviando datos de zona:', zonaData);
       const response = await apiClient.createZona(zonaData);
+      console.log('📥 Respuesta recibida:', response);
 
       if (!response.ok) {
         throw new Error(response.error || response.message || 'Error al crear zona');
@@ -91,7 +95,11 @@ export default function ZonasPage() {
       });
       setShowForm(false);
     } catch (err: any) {
-      setError(err.message || 'Error al crear zona');
+      console.error('❌ Error completo:', err);
+      console.error('❌ Error response:', err.response);
+      console.error('❌ Error message:', err.message);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Error al crear zona';
+      setError(`Error: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -110,12 +118,25 @@ export default function ZonasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Zonas</h1>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        title="Gestión de Zonas"
+        breadcrumbs={[
+          { label: 'Zonas', href: '/zonas' }
+        ]}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Description */}
+        <div className="mb-6 flex items-center justify-between">
           <p className="text-gray-600">Administra las zonas de tu organización</p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver al Dashboard
+          </Link>
         </div>
 
         {/* Success Message */}
@@ -196,7 +217,21 @@ export default function ZonasPage() {
           </>
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Nueva Zona</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Nueva Zona</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setError('');
+                  setSuccess('');
+                }}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Cancelar
+              </button>
+            </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Nombre */}

@@ -21,6 +21,7 @@ export interface User {
 
 export interface AuthTokens {
   accessToken: string;
+  idToken: string;
   refreshToken: string;
   expiresAt: number;
 }

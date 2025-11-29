@@ -918,7 +918,7 @@ dashboardStats:
 #   events:
 #     - sns:
 #         arn: { Ref: SpaceNotificationsTopic }
-        topicName: ${self:service}-${self:provider.stage}-space-notifications
-    - sns:
-        arn: { Ref: SystemAlertsTopic }
-        topicName: ${self:service}-${self:provider.stage}-system-alerts
+#         topicName: ${self:service}-${self:provider.stage}-space-notifications
+#     - sns:
+#         arn: { Ref: SystemAlertsTopic }
+#         topicName: ${self:service}-${self:provider.stage}-system-alerts

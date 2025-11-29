@@ -9,6 +9,7 @@ import {
   User,
   Mail,
   Phone,
+  ArrowLeft,
   Building2,
   MapPin,
   Settings,
@@ -31,6 +32,8 @@ import {
 import { useResponsables, useEspacios } from '@/hooks/useApi';
 import { Responsable } from '@/lib/api-client';
 import ResponsableModal from '@/components/ResponsableModal';
+import AppHeader from '@/components/AppHeader';
+import Link from 'next/link';
 
 // Componente de tarjeta para responsable
 function ResponsableCard({ 
@@ -233,20 +236,34 @@ export default function ResponsablesPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Responsables</h1>
-          <p className="text-gray-600 mt-1">
-            Administra responsables de áreas y asignación de espacios
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      <AppHeader 
+        title="Gestión de Responsables"
+        breadcrumbs={[
+          { label: 'Responsables', href: '/responsables' }
+        ]}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Page Description and Actions */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <p className="text-gray-600">
+              Administra responsables de áreas y asignación de espacios
+            </p>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Dashboard
+            </Link>
+          </div>
+          <Button variant="primary" onClick={handleCreateNew}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Responsable
+          </Button>
         </div>
-        <Button variant="primary" onClick={handleCreateNew}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Responsable
-        </Button>
-      </div>
 
       {/* Estadísticas de resumen */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -421,6 +438,7 @@ export default function ResponsablesPage() {
         espacios={espacios.map(e => ({ id: e.id, nombre: e.nombre, zona: e.zona }))}
         mode={modalMode}
       />
+      </div>
     </div>
   );
 }

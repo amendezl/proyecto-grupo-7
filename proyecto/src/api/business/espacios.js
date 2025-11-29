@@ -120,17 +120,14 @@ const createEspacio = withPermissions(async (event) => {
             return badRequest('Business rules validation failed', businessRulesResult.errors);
         }
         
-        const { nombre, tipo, capacidad, ubicacion } = validatedData;
+        const { nombre, tipo, capacidad, ubicacion, zona_id } = validatedData;
         const esCritico = tipo.toLowerCase().includes('emergencia') ||
                          tipo.toLowerCase().includes('quirófano') ||
                          tipo.toLowerCase().includes('uci') ||
                          tipo.toLowerCase().includes('urgencia') ||
                          nombre.toLowerCase().includes('emergencia');
         
-        const nuevoEspacio = await (esCritico ? 
-            resilienceManager.executeCritical : 
-            resilienceManager.executeDatabase
-        )(
+        const nuevoEspacio = await resilienceManager.executeWithFullResilience(
             async () => {
                 if (zona_id) {
                     const espaciosExistentes = await db.getEspacios({ zona_id });
@@ -149,9 +146,9 @@ const createEspacio = withPermissions(async (event) => {
                     prioridad: esCritico ? 'critico' : 'normal'
                 });
             },
+            esCritico ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',
             {
                 operation: 'createEspacio',
-                priority: esCritico ? 'critical' : 'standard',
                 espacioTipo: tipo,
                 esCritico
             }
@@ -190,7 +187,7 @@ const createEspacio = withPermissions(async (event) => {
             requestId: event.requestContext?.requestId
         });
         
-        if (error.name === 'CircuitOpenError') {
+        if (validationError.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
                 headers: { 'Content-Type': 'application/json' },
@@ -202,7 +199,7 @@ const createEspacio = withPermissions(async (event) => {
             };
         }
         
-        if (error.name === 'RetryExhaustedError') {
+        if (validationError.name === 'RetryExhaustedError') {
             return {
                 statusCode: 503,
                 headers: { 'Content-Type': 'application/json' },

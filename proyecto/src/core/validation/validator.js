@@ -325,7 +325,7 @@ const zonaSchema = {
       format: 'date-time' 
     }
   },
-  required: ['nombre', 'edificio', 'piso', 'tipo_zona'],
+  required: ['nombre', 'edificio', 'piso'],
   additionalProperties: false
 };
 

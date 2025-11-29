@@ -2,8 +2,10 @@ const {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
   GetUserCommand,
-  GlobalSignOutCommand
-  , SignUpCommand, AdminConfirmSignUpCommand
+  GlobalSignOutCommand,
+  SignUpCommand,
+  AdminConfirmSignUpCommand,
+  AdminAddUserToGroupCommand
 } = require("@aws-sdk/client-cognito-identity-provider");
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { logger } = require('../../infrastructure/monitoring/logger');
@@ -239,6 +241,21 @@ const register = async (event) => {
         adminConfirmError = err.message;
         logger.warn('[COGNITO_REGISTER] Auto-confirm failed', { errorMessage: err.message, errorType: err.constructor?.name });
       }
+    }
+
+    // Add user to 'admin' group (self-registered users get full permissions)
+    try {
+      await client.send(new AdminAddUserToGroupCommand({
+        UserPoolId: process.env.USER_POOL_ID,
+        Username: email,
+        GroupName: 'admin'
+      }));
+      logger.info('[COGNITO_REGISTER] User added to admin group', { email });
+    } catch (err) {
+      logger.warn('[COGNITO_REGISTER] Failed to add user to admin group', { 
+        errorMessage: err.message, 
+        errorType: err.constructor?.name 
+      });
     }
 
     // Crear organización para el nuevo usuario
