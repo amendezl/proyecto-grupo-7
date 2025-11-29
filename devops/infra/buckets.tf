@@ -196,9 +196,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "frontend_bucket" {
 # === CLOUDFRONT OAI AND BUCKET POLICY ===
 # CloudFront Origin Access Identity (OAI) - Permite solo a CloudFront acceder a S3
 # Incluye controles de seguridad para producción
-resource "aws_cloudfront_origin_access_identity" "frontend_oai" {
-  comment = "${var.app_name}-${var.environment}-frontend-oai"
-}
+
 
 # S3 Bucket Policy - Allows CloudFront + deployment, but denies public access
 resource "aws_s3_bucket_policy" "frontend_bucket" {

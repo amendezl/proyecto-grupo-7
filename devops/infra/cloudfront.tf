@@ -5,7 +5,7 @@
 # remove aws_s3_bucket_policy resource and apply changes manually.
 
 resource "aws_cloudfront_origin_access_identity" "frontend_oai" {
-  comment = "OAI for sistema-gestion-espacios frontend"
+  comment = "OAI for ${var.app_name}-${var.environment}-frontend-oai"
 }
 
 resource "aws_cloudfront_distribution" "frontend" {
