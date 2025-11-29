@@ -1,22 +1,13 @@
 
 import type { NextConfig } from "next";
-import withPWAInit from "@ducanh2912/next-pwa";
-
-const withPWA = withPWAInit({
-  dest: "public",
-  cacheOnFrontEndNav: true,
-  aggressiveFrontEndNavCaching: true,
-  reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development",
-  workboxOptions: {
-    disableDevLogs: true,
-  },
-});
+import path from "path";
 
 const nextConfig: NextConfig = {
   output: 'export',
   distDir: '.next',
   trailingSlash: true,
+  // Fix for multiple lockfiles warning
+  outputFileTracingRoot: path.join(__dirname, '../'),
   images: {
     unoptimized: true,
     domains: [
@@ -39,4 +30,4 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;

@@ -4,11 +4,13 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Bell, Search, Settings, User, AlertTriangle, LogOut } from 'lucide-react';
 import LanguageSelector from '@/components/LanguageSelector';
 import { useNotificationsContext } from '@/context/NotificationsContext';
 import { NotificationCenter } from '@/components/NotificationCenter';
+import { useAuth } from '@/context/AuthContext';
 
 interface HeaderProps {
   urgentMode?: boolean;
@@ -16,6 +18,8 @@ interface HeaderProps {
 
 export default function Header({ urgentMode = false }: HeaderProps) {
   const { t } = useTranslation();
+  const router = useRouter();
+  const { logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -30,6 +34,12 @@ export default function Header({ urgentMode = false }: HeaderProps) {
 
   const unreadCount = stats.unread;
   const headerRef = useRef<HTMLDivElement>(null);
+
+  const handleLogout = async () => {
+    await logout(() => {
+      router.push('/auth/login');
+    });
+  };
 
   const toggleNotifications = useCallback(() => {
     setShowNotifications((prev) => !prev);
@@ -219,7 +229,10 @@ export default function Header({ urgentMode = false }: HeaderProps) {
                     <span className="text-sm">{t('nav.settings')}</span>
                   </button>
                   <hr className="my-1" />
-                  <button className="w-full text-left p-3 hover:bg-gray-50 rounded-lg flex items-center space-x-2 text-red-600">
+                  <button 
+                    onClick={handleLogout}
+                    className="w-full text-left p-3 hover:bg-gray-50 rounded-lg flex items-center space-x-2 text-red-600"
+                  >
                     <LogOut className="w-4 h-4" />
                     <span className="text-sm">{t('nav.logout')}</span>
                   </button>

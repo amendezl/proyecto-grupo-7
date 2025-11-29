@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button, Badge } from '@/components/ui/components';
 import LanguageSelector from '@/components/LanguageSelector';
+import TerminologyEditor from '@/components/TerminologyEditor';
 import { 
   Settings, 
   User, 
@@ -51,7 +52,7 @@ interface ConfiguracionSistema {
 
 export default function ConfiguracionPage() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'general' | 'notificaciones' | 'sistema' | 'seguridad'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'notificaciones' | 'sistema' | 'seguridad' | 'personalizacion'>('general');
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -125,6 +126,7 @@ export default function ConfiguracionPage() {
   const tabs = [
     { id: 'general', label: t('config.tabs.general'), icon: Settings },
     { id: 'notificaciones', label: t('config.tabs.notifications'), icon: Bell },
+    { id: 'personalizacion', label: 'Personalización', icon: Palette },
     { id: 'sistema', label: t('config.tabs.system'), icon: Monitor },
     { id: 'seguridad', label: t('config.tabs.security'), icon: Shield }
   ];
@@ -531,6 +533,19 @@ export default function ConfiguracionPage() {
                       />
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'personalizacion' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Personalización de Terminología</h3>
+                  <p className="text-gray-600 mb-6">
+                    Personaliza cómo se muestran los términos en todo el sistema
+                  </p>
+
+                  <TerminologyEditor />
                 </div>
               </div>
             )}

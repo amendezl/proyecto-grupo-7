@@ -2,7 +2,7 @@
 
 import { ReactNode, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
@@ -19,6 +19,7 @@ import {
   Tablet
 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { useAuth } from '@/context/AuthContext';
 import { useDeviceInfo } from '@/lib/api-client';
 
 interface NavigationProps {
@@ -52,7 +53,15 @@ const DeviceIndicator = () => {
 export const Navigation = ({ children }: NavigationProps) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout } = useAuth();
   const { isMobile } = useDeviceInfo();
+
+  const handleLogout = async () => {
+    await logout(() => {
+      router.push('/auth/login');
+    });
+  };
 
   // Cerrar menú móvil al cambiar de ruta
   useEffect(() => {
@@ -136,7 +145,7 @@ export const Navigation = ({ children }: NavigationProps) => {
                 variant="ghost"
                 fullWidth
                 icon={<LogOut className="w-4 h-4" />}
-                onClick={() => {/* Logout logic */}}
+                onClick={handleLogout}
               >
                 Cerrar Sesión
               </Button>
@@ -211,7 +220,7 @@ export const Navigation = ({ children }: NavigationProps) => {
                       variant="ghost"
                       fullWidth
                       icon={<LogOut className="w-5 h-5" />}
-                      onClick={() => {/* Logout logic */}}
+                      onClick={handleLogout}
                     >
                       Cerrar Sesión
                     </Button>

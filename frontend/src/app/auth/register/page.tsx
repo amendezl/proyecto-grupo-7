@@ -14,7 +14,9 @@ export default function RegisterPage() {
     nombre: '',
     apellido: '',
     departamento: '',
-    telefono: ''
+    telefono: '',
+    organizationName: '',
+    industry: 'office' as string
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -25,7 +27,18 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const industries = [
+    { id: 'office', name: 'Oficinas' },
+    { id: 'healthcare', name: 'Salud' },
+    { id: 'education', name: 'Educación' },
+    { id: 'coworking', name: 'Coworking' },
+    { id: 'parking', name: 'Estacionamientos' },
+    { id: 'sports', name: 'Deportes' },
+    { id: 'equipment', name: 'Equipamiento' },
+    { id: 'events', name: 'Eventos' }
+  ];
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -66,7 +79,9 @@ export default function RegisterPage() {
         nombre: formData.nombre,
         apellido: formData.apellido,
         departamento: formData.departamento || undefined,
-        telefono: formData.telefono || undefined
+        telefono: formData.telefono || undefined,
+        organizationName: formData.organizationName,
+        industry: formData.industry
       });
       
       if (result.success) {
@@ -153,6 +168,51 @@ export default function RegisterPage() {
                 placeholder="tu@email.com"
                 disabled={isLoading}
               />
+            </div>
+
+            {/* Información de organización */}
+            <div className="border-t pt-6 mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Información de tu organización</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="organizationName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre de la organización *
+                  </label>
+                  <input
+                    id="organizationName"
+                    name="organizationName"
+                    type="text"
+                    required
+                    value={formData.organizationName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Ej: Mi Empresa S.A."
+                    disabled={isLoading}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Este será el nombre de tu espacio de trabajo</p>
+                </div>
+
+                <div>
+                  <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-2">
+                    Industria *
+                  </label>
+                  <select
+                    id="industry"
+                    name="industry"
+                    required
+                    value={formData.industry}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    disabled={isLoading}
+                  >
+                    {industries.map(ind => (
+                      <option key={ind.id} value={ind.id}>{ind.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">Esto nos ayudará a configurar tu sistema con valores óptimos</p>
+                </div>
+              </div>
             </div>
 
             {/* Información adicional */}

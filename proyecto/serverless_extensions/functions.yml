@@ -111,75 +111,75 @@ healthCheck:
         method: get
 
 # === DEVOPS AUTOMATION ===
-devopsAutomation:
-  handler: src/handlers/devops.automation
-  timeout: 25
-  memorySize: 512
-  events:
-    - schedule:
-        rate: rate(60 minutes)
-        description: "DevOps automation tasks"
-    - httpApi:
-        path: /api/devops/automation
-        method: post
-        authorizer:
-          name: cognitoJwt
-  environment:
-    DEVOPS_MODE: automation
+# devopsAutomation:
+#   handler: src/handlers/devops.automation
+#   timeout: 25
+#   memorySize: 512
+#   events:
+#     - schedule:
+#         rate: rate(60 minutes)
+#         description: "DevOps automation tasks"
+#     - httpApi:
+#         path: /api/devops/automation
+#         method: post
+#         authorizer:
+#           name: cognitoJwt
+#   environment:
+#     DEVOPS_MODE: automation
 
-devopsAutomationWorker:
-  handler: src/handlers/devops.automationWorker
-  timeout: 300
-  memorySize: 512
-  events:
-    - sqs:
-        arn: { Fn::GetAtt: [DevOpsQueue, Arn] }
-        batchSize: 5
-        functionResponseType: ReportBatchItemFailures
-  environment:
-    DEVOPS_MODE: automation
-    WORKER_MODE: true
+# devopsAutomationWorker:
+#   handler: src/handlers/devops.automationWorker
+#   timeout: 300
+#   memorySize: 512
+#   events:
+#     - sqs:
+#         arn: { Fn::GetAtt: [DevOpsQueue, Arn] }
+#         batchSize: 5
+#         functionResponseType: ReportBatchItemFailures
+#   environment:
+#     DEVOPS_MODE: automation
+#     WORKER_MODE: true
 
-devopsStatus:
-  handler: src/handlers/devops.status
-  timeout: 25
-  memorySize: 256
-  events:
-    - httpApi:
-        path: /api/devops/status
-        method: get
+# devopsStatus:
+#   handler: src/handlers/devops.status
+#   timeout: 25
+#   memorySize: 256
+#   events:
+#     - httpApi:
+#         path: /api/devops/status
+#         method: get
 
 # === CHAOS ENGINEERING ===
-chaosEngineering:
-  handler: src/handlers/chaos.resilience
-  timeout: 25
-  memorySize: 256
-  events:
-    - httpApi:
-        path: /api/chaos/test
-        method: post
-        authorizer:
-          name: cognitoJwt
-    - httpApi:
-        path: /api/chaos/proxy
-        method: any
-  environment:
-    CHAOS_MODE: testing
-    CHAOS_TARGET_URL:
-      Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+# chaosEngineering:
+#   handler: src/handlers/chaos.resilience
+#   timeout: 25
+#   memorySize: 256
+#   events:
+#     - httpApi:
+#         path: /api/chaos/test
+#         method: post
+#         authorizer:
+#           name: cognitoJwt
+#     - httpApi:
+#         path: /api/chaos/proxy
+#         method: any
+#   environment:
+#     CHAOS_MODE: testing
+#     CHAOS_TARGET_URL:
+#       Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
 
 # === SYSTEM MONITORING & RESILIENCE ===
 # FASE 1 - MEJORA 3: Dashboard de Circuit Breakers
-circuitStatus:
-  handler: src/api/system/circuitStatus.handler
-  timeout: 10
-  memorySize: 256
-  events:
-    - httpApi:
-        path: /api/system/circuit-status
-        method: get
-        authorizer:
-          name: cognitoJwt
+# circuitStatus:
+#   handler: src/api/system/circuitStatus.handler
+#   timeout: 10
+#   memorySize: 256
+#   events:
+#     - httpApi:
+#         path: /api/system/circuit-status
+#         method: get
+#         authorizer:
+#           name: cognitoJwt
 
 # === CORE BUSINESS DOMAINS ===
 # Usuarios
@@ -760,6 +760,84 @@ personalizationIndustryConfig:
         authorizer:
           name: cognitoJwt
 
+# === ORGANIZATIONS & MULTI-TENANT ===
+organizationGetMyConfig:
+  handler: src/handlers/organizations.getMyOrganizationConfig
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/organizations/my/config
+        method: get
+        authorizer:
+          name: cognitoJwt
+
+organizationGetMyTerminology:
+  handler: src/handlers/organizations.getMyOrganizationTerminology
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/organizations/my/terminology
+        method: get
+        authorizer:
+          name: cognitoJwt
+
+organizationUpdateMyConfig:
+  handler: src/handlers/organizations.updateMyOrganizationConfig
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/organizations/my/config
+        method: put
+        authorizer:
+          name: cognitoJwt
+
+organizationUpdateMyTerminology:
+  handler: src/handlers/organizations.updateMyOrganizationTerminology
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/organizations/my/terminology
+        method: put
+        authorizer:
+          name: cognitoJwt
+
+organizationGetMyStats:
+  handler: src/handlers/organizations.getMyOrganizationStats
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/organizations/my/stats
+        method: get
+        authorizer:
+          name: cognitoJwt
+
+organizationList:
+  handler: src/handlers/organizations.listOrganizations
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/organizations
+        method: get
+        authorizer:
+          name: cognitoJwt
+
+organizationGetIndustries:
+  handler: src/handlers/organizations.getAvailableIndustries
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/organizations/industries
+        method: get
+        authorizer:
+          name: cognitoJwt
+
 # Dashboard Analytics
 dashboardMetrics:
   handler: src/handlers/dashboard.getDashboardMetrics
@@ -809,37 +887,37 @@ dashboardStats:
 #         route: $default
 
 # Queue Workers & Streams
-queueWorker:
-  handler: src/handlers/queueWorker.handler
-  timeout: 60
-  memorySize: 512
-  events:
-    - sqs:
-        arn: { Fn::GetAtt: [MainQueue, Arn] }
-        batchSize: 10
-        maximumBatchingWindow: 5
+# queueWorker:
+#   handler: src/handlers/queueWorker.handler
+#   timeout: 60
+#   memorySize: 512
+#   events:
+#     - sqs:
+#         arn: { Fn::GetAtt: [MainQueue, Arn] }
+#         batchSize: 10
+#         maximumBatchingWindow: 5
 
-dynamoStreamProcessor:
-  handler: src/handlers/dynamoStreamProcessor.handler
-  timeout: 60
-  memorySize: 512
-  events:
-    - stream:
-        type: dynamodb
-        arn: { Fn::GetAtt: [MainDynamoDBTable, StreamArn] }
-        batchSize: 10
-        startingPosition: LATEST
-        filterPatterns:
-          - eventName: [INSERT, MODIFY, REMOVE]
+# dynamoStreamProcessor:
+#   handler: src/handlers/dynamoStreamProcessor.handler
+#   timeout: 60
+#   memorySize: 512
+#   events:
+#     - stream:
+#         type: dynamodb
+#         arn: { Fn::GetAtt: [MainDynamoDBTable, StreamArn] }
+#         batchSize: 10
+#         startingPosition: LATEST
+#         filterPatterns:
+#           - eventName: [INSERT, MODIFY, REMOVE]
 
 # Notifications
-notificationProcessor:
-  handler: src/handlers/sns.handler
-  timeout: 30
-  memorySize: 256
-  events:
-    - sns:
-        arn: { Ref: SpaceNotificationsTopic }
+# notificationProcessor:
+#   handler: src/handlers/sns.handler
+#   timeout: 30
+#   memorySize: 256
+#   events:
+#     - sns:
+#         arn: { Ref: SpaceNotificationsTopic }
         topicName: ${self:service}-${self:provider.stage}-space-notifications
     - sns:
         arn: { Ref: SystemAlertsTopic }

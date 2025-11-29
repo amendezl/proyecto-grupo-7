@@ -34,7 +34,7 @@ export interface AuthState {
 
 export interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: (onLogoutComplete?: () => void) => Promise<void>;
   register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
@@ -48,6 +48,8 @@ export interface RegisterData {
   apellido: string;
   departamento?: string;
   telefono?: string;
+  organizationName?: string;
+  industry?: string;
 }
 
 const mapUsuarioToUser = (usuario: Usuario): User => ({
@@ -267,13 +269,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [loadUserProfile, persistAuthState]);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (onLogoutComplete?: () => void) => {
     try {
       await apiClient.logout();
     } catch (error) {
       console.error('Error en logout del servidor:', error);
     } finally {
       clearAuthStorage();
+      // Call callback after clearing storage to allow components to handle navigation
+      if (onLogoutComplete) {
+        onLogoutComplete();
+      }
     }
   }, [clearAuthStorage]);
 
