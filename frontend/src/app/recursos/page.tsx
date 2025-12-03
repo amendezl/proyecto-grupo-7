@@ -40,14 +40,14 @@ export default function RecursosPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Description */}
         <div className="mb-6 flex items-center justify-between">
-          <p className="text-gray-600">Selecciona el tipo de recurso que deseas gestionar</p>
-          <Link
-            href="/dashboard"
+          <p className="text-gray-600">Gestiona los recursos disponibles</p>
+          <button
+            onClick={() => router.back()}
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver al Dashboard
-          </Link>
+            Volver
+          </button>
         </div>
 
         {/* Recursos Grid */}

@@ -103,13 +103,13 @@ export default function UsuariosPage() {
         {/* Page Description */}
         <div className="mb-6 flex items-center justify-between">
           <p className="text-gray-600">Administra los usuarios del sistema</p>
-          <Link
-            href="/dashboard"
+          <button
+            onClick={() => router.back()}
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver al Dashboard
-          </Link>
+            Volver
+          </button>
         </div>
 
         {/* Success Message */}

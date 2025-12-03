@@ -26,6 +26,7 @@ export default function EspaciosPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingEspacio, setEditingEspacio] = useState<any>(null);
 
   // Verificar autenticación
   useEffect(() => {
@@ -88,6 +89,51 @@ export default function EspaciosPage() {
     }
   }, [showForm, isAuthenticated]);
 
+  const handleEdit = (espacio: any) => {
+    setEditingEspacio(espacio);
+    setFormData({
+      nombre: espacio.nombre,
+      descripcion: espacio.descripcion || '',
+      capacidad: espacio.capacidad.toString(),
+      zona: espacio.ubicacion?.zona || '',
+      estado: espacio.estado,
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (espacio: any) => {
+    if (!confirm(`¿Estás seguro de eliminar el espacio "${espacio.nombre}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      const response = await apiClient.deleteEspacio(espacio.id);
+      if (!response.ok) {
+        throw new Error(response.error || 'Error al eliminar espacio');
+      }
+      setSuccess('Espacio eliminado exitosamente');
+      // Recargar espacios
+      const espaciosResponse = await apiClient.getEspacios();
+      if (espaciosResponse.ok && espaciosResponse.data) {
+        setEspacios(espaciosResponse.data.espacios || []);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar espacio');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEspacio(null);
+    setFormData({
+      nombre: '',
+      descripcion: '',
+      capacidad: '',
+      zona: '',
+      estado: 'disponible',
+    });
+    setShowForm(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -95,28 +141,42 @@ export default function EspaciosPage() {
     setSuccess('');
 
     try {
-      // Estructura que el serializador convertirá al formato correcto
       const espacioData: any = {
         nombre: formData.nombre,
         descripcion: formData.descripcion,
         capacidad: parseInt(formData.capacidad, 10),
-        zona: formData.zona, // El serializador lo convierte a zona_id y ubicacion.zona
-        tipo: 'oficina', // valores válidos: sala_juntas, oficina, laboratorio, auditorio, sala_capacitacion, otro
+        zona: formData.zona,
+        tipo: 'oficina',
         estado: formData.estado,
-        edificio: 'A', // El serializador lo convierte a ubicacion.edificio
-        piso: 1, // El serializador lo convierte a ubicacion.piso
+        edificio: 'A',
+        piso: 1,
         equipamiento: []
       };
 
       console.log('📤 Enviando datos de espacio:', espacioData);
-      const response = await apiClient.createEspacio(espacioData);
-      console.log('📥 Respuesta recibida:', response);
-
-      if (!response.ok) {
-        throw new Error(response.error || response.message || 'Error al crear espacio');
+      
+      let response: any;
+      if (editingEspacio) {
+        response = await apiClient.updateEspacio(editingEspacio.id, espacioData);
+        console.log('📥 Respuesta de actualización:', response);
+        
+        if (!response.ok) {
+          throw new Error(response.error || response.message || 'Error al actualizar espacio');
+        }
+        
+        setSuccess('¡Espacio actualizado exitosamente!');
+        setEditingEspacio(null);
+      } else {
+        response = await apiClient.createEspacio(espacioData);
+        console.log('📥 Respuesta de creación:', response);
+        
+        if (!response.ok) {
+          throw new Error(response.error || response.message || 'Error al crear espacio');
+        }
+        
+        setSuccess('¡Espacio creado exitosamente!');
       }
-
-      setSuccess('¡Espacio creado exitosamente!');
+      
       setFormData({
         nombre: '',
         descripcion: '',
@@ -159,13 +219,13 @@ export default function EspaciosPage() {
         {/* Page Description */}
         <div className="mb-6 flex items-center justify-between">
           <p className="text-gray-600">Administra los espacios disponibles en el sistema</p>
-          <Link
-            href="/dashboard"
+          <button
+            onClick={() => router.back()}
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver al Dashboard
-          </Link>
+            Volver
+          </button>
         </div>
 
         {/* Success Message */}
@@ -254,6 +314,20 @@ export default function EspaciosPage() {
                           </div>
                         )}
                       </div>
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                        <button
+                          onClick={() => handleEdit(espacio)}
+                          className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(espacio)}
+                          className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -263,14 +337,12 @@ export default function EspaciosPage() {
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Nuevo Espacio</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {editingEspacio ? 'Editar Espacio' : 'Nuevo Espacio'}
+              </h2>
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setError('');
-                  setSuccess('');
-                }}
+                onClick={handleCancelEdit}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -378,7 +450,7 @@ export default function EspaciosPage() {
               <div className="flex justify-end space-x-4 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={handleCancelEdit}
                   disabled={loading}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
@@ -389,7 +461,7 @@ export default function EspaciosPage() {
                   disabled={loading}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Creando...' : 'Crear Espacio'}
+                  {loading ? (editingEspacio ? 'Actualizando...' : 'Creando...') : (editingEspacio ? 'Actualizar Espacio' : 'Crear Espacio')}
                 </button>
               </div>
             </form>

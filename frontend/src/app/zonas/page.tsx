@@ -24,6 +24,8 @@ export default function ZonasPage() {
   const [loadingZonas, setLoadingZonas] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingZona, setEditingZona] = useState<Zona | null>(null);
+  const [deletingZona, setDeletingZona] = useState<Zona | null>(null);
 
   // Verificar autenticación
   useEffect(() => {
@@ -40,7 +42,9 @@ export default function ZonasPage() {
       setLoadingZonas(true);
       try {
         const response = await apiClient.getZonas();
+        console.log('🔍 [DEBUG] Respuesta de getZonas:', response);
         if (response.ok && response.data) {
+          console.log('🔍 [DEBUG] Zonas recibidas:', response.data.zonas);
           setZonas(response.data.zonas || []);
         }
       } catch (err) {
@@ -52,6 +56,47 @@ export default function ZonasPage() {
 
     fetchZonas();
   }, [isAuthenticated]);
+
+  const handleEdit = (zona: Zona) => {
+    setEditingZona(zona);
+    setFormData({
+      nombre: zona.nombre,
+      descripcion: zona.descripcion || '',
+      piso: zona.piso.toString(),
+      edificio: zona.edificio || '',
+      capacidadTotal: zona.capacidadTotal?.toString() || '',
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (zona: Zona) => {
+    if (!confirm(`¿Estás seguro de eliminar la zona "${zona.nombre}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      const response = await apiClient.deleteZona(zona.id);
+      if (!response.ok) {
+        throw new Error(response.error || 'Error al eliminar zona');
+      }
+      setSuccess('Zona eliminada exitosamente');
+      setZonas(prev => prev.filter(z => z.id !== zona.id));
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar zona');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingZona(null);
+    setFormData({
+      nombre: '',
+      descripcion: '',
+      piso: '',
+      edificio: '',
+      capacidadTotal: '',
+    });
+    setShowForm(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,23 +112,42 @@ export default function ZonasPage() {
         piso: parseInt(formData.piso, 10),
         edificio: formData.edificio,
         capacidadTotal: capacidadTotal,
-        espaciosDisponibles: capacidadTotal, // Inicialmente igual a capacidadTotal
+        espaciosDisponibles: capacidadTotal,
         activa: true,
       };
 
       console.log('📤 Enviando datos de zona:', zonaData);
-      const response = await apiClient.createZona(zonaData);
-      console.log('📥 Respuesta recibida:', response);
-
-      if (!response.ok) {
-        throw new Error(response.error || response.message || 'Error al crear zona');
-      }
-
-      setSuccess('¡Zona creada exitosamente!');
       
-      // Agregar la nueva zona a la lista
-      if (response.data) {
-        setZonas(prev => [...prev, response.data!]);
+      let response: any;
+      if (editingZona) {
+        response = await apiClient.updateZona(editingZona.id, zonaData);
+        console.log('📥 Respuesta de actualización:', response);
+        
+        if (!response.ok) {
+          throw new Error(response.error || response.message || 'Error al actualizar zona');
+        }
+        
+        setSuccess('¡Zona actualizada exitosamente!');
+        
+        // Actualizar la zona en la lista
+        if (response.data) {
+          setZonas(prev => prev.map(z => z.id === editingZona.id ? response.data! : z));
+        }
+        setEditingZona(null);
+      } else {
+        response = await apiClient.createZona(zonaData);
+        console.log('📥 Respuesta de creación:', response);
+        
+        if (!response.ok) {
+          throw new Error(response.error || response.message || 'Error al crear zona');
+        }
+        
+        setSuccess('¡Zona creada exitosamente!');
+        
+        // Agregar la nueva zona a la lista
+        if (response.data) {
+          setZonas(prev => [...prev, response.data!]);
+        }
       }
 
       setFormData({
@@ -129,14 +193,14 @@ export default function ZonasPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Description */}
         <div className="mb-6 flex items-center justify-between">
-          <p className="text-gray-600">Administra las zonas de tu organización</p>
-          <Link
-            href="/dashboard"
+          <p className="text-gray-600">Organiza los espacios de tu empresa por zonas</p>
+          <button
+            onClick={() => router.back()}
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver al Dashboard
-          </Link>
+            Volver
+          </button>
         </div>
 
         {/* Success Message */}
@@ -154,6 +218,7 @@ export default function ZonasPage() {
         )}
 
         {/* Create Button or List */}
+        {/* DEBUG: zonas.length = {zonas.length}, showForm = {showForm.toString()} */}
         {zonas.length === 0 && !showForm ? (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">
             <div className="p-4 bg-purple-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
@@ -206,9 +271,23 @@ export default function ZonasPage() {
                     {zona.descripcion && (
                       <p className="text-sm text-gray-600 mb-3">{zona.descripcion}</p>
                     )}
-                    <div className="space-y-1 text-sm text-gray-500">
+                    <div className="space-y-1 text-sm text-gray-500 mb-4">
                       <p>Piso: {zona.piso}{zona.edificio ? ` - Edificio ${zona.edificio}` : ''}</p>
                       <p>Capacidad: {zona.capacidadTotal || 0} personas</p>
+                    </div>
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                      <button
+                        onClick={() => handleEdit(zona)}
+                        className="flex-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(zona)}
+                        className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                      >
+                        Eliminar
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -218,14 +297,12 @@ export default function ZonasPage() {
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Nueva Zona</h2>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {editingZona ? 'Editar Zona' : 'Nueva Zona'}
+              </h2>
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setError('');
-                  setSuccess('');
-                }}
+                onClick={handleCancelEdit}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -320,7 +397,7 @@ export default function ZonasPage() {
               <div className="flex justify-end space-x-4 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={handleCancelEdit}
                   disabled={loading}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
@@ -331,7 +408,7 @@ export default function ZonasPage() {
                   disabled={loading}
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Creando...' : 'Crear Zona'}
+                  {loading ? (editingZona ? 'Actualizando...' : 'Creando...') : (editingZona ? 'Actualizar Zona' : 'Crear Zona')}
                 </button>
               </div>
             </form>
