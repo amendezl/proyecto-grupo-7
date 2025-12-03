@@ -11,11 +11,14 @@ const db = new DynamoDBManager();
 
 const getUsuarios = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
+    const user = event.user;
     
     try {
         const result = await resilienceManager.executeDatabase(
             async () => {
-                const filters = {};
+                const filters = {
+                    empresa_id: user.empresa_id // MULTITENANCY: Filtrar por empresa
+                };
                 if (queryParams.rol) filters.rol = queryParams.rol;
                 if (queryParams.activo !== undefined) filters.activo = queryParams.activo === 'true';
                 
@@ -115,8 +118,15 @@ const getUsuario = withPermissions(async (event) => {
 const createUsuario = withPermissions(async (event) => {
     try {
         const userData = parseBody(event);
+        const user = event.user;
         
-        const validatedData = validateForDynamoDB('user', userData);
+        // El nuevo usuario hereda el empresa_id del admin que lo crea
+        const dataWithEmpresa = {
+            ...userData,
+            empresa_id: user.empresa_id || 'empresa-default'
+        };
+        
+        const validatedData = validateForDynamoDB('user', dataWithEmpresa);
         
         const businessRulesResult = validateBusinessRules('user', validatedData);
         if (!businessRulesResult.valid) {
@@ -299,7 +309,7 @@ const updatePerfilActual = withPermissions(async (event) => {
     const user = event.user;
     const updateData = parseBody(event);
     
-    const allowedFields = ['nombre', 'apellido', 'telefono'];
+    const allowedFields = ['nombre', 'apellido', 'telefono', 'departamento'];
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
         if (allowedFields.includes(key)) {

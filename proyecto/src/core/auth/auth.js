@@ -60,12 +60,20 @@ const claimsToUser = async (claims) => {
     
     console.log('[AUTH] Final role:', role, 'type:', typeof role);
     
+    // MULTITENANCY: Obtener empresa_id desde custom attribute o usar default
+    const empresaId = claims['custom:empresa_id'] || process.env.DEFAULT_EMPRESA_ID || 'empresa-default';
+    
+    // DEBUG: Log para verificar custom:empresa_id
+    console.log('[AUTH] custom:empresa_id from claims:', claims['custom:empresa_id']);
+    console.log('[AUTH] Final empresa_id:', empresaId);
+    
     return {
         id: claims.sub,
         email: claims.email,
         nombre: claims.name || claims.given_name,
         apellido: claims.family_name,
         rol: role || 'usuario',
+        empresa_id: empresaId,
         claims
     };
 };

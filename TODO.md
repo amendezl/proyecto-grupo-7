@@ -33,7 +33,7 @@ _(Ningún bug pendiente)_
 - [ ] Mejorar manejo de errores en formularios (validaciones más específicas)
 
 ### Backend
-- [ ] Verificar que los endpoints de logout funcionen correctamente
+- [v] Verificar que los endpoints de logout funcionen correctamente
 - [ ] Implementar refresh token automático antes de expiración
 
 ---

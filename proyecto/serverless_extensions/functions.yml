@@ -63,7 +63,7 @@ authRolesCatalog:
 
 # Register (new)
 authRegister:
-  handler: src/handlers/cognitoAuth.register
+  handler: src/handlers/auth.register
   timeout: 10
   memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
   events:

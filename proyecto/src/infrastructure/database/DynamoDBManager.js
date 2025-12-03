@@ -79,6 +79,11 @@ class DynamoDBManager {
         });
         let items = result.Items || [];
 
+        // MULTITENANCY: Filtrar por empresa_id si se proporciona
+        if (filters.empresa_id) {
+            items = items.filter(item => item.empresa_id === filters.empresa_id);
+        }
+        
         if (filters.tipo) {
             items = items.filter(item => item.tipo === filters.tipo);
         }
@@ -215,6 +220,11 @@ class DynamoDBManager {
         const result = await this.docClient.send(command);
         let items = result.Items || [];
 
+        // MULTITENANCY: Filtrar por empresa_id si se proporciona
+        if (filters.empresa_id) {
+            items = items.filter(item => item.empresa_id === filters.empresa_id);
+        }
+        
         if (filters.espacio_id) {
             items = items.filter(item => item.espacio_id === filters.espacio_id);
         }
@@ -264,6 +274,7 @@ class DynamoDBManager {
             telefono: validatedData.telefono,
             cargo: usuarioData.cargo,
             departamento: usuarioData.departamento,
+            empresa_id: validatedData.empresa_id || 'empresa-default',
             createdAt: validatedData.fecha_creacion || new Date().toISOString(),
             updatedAt: validatedData.fecha_actualizacion
         };

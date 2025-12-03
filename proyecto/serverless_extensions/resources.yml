@@ -745,6 +745,13 @@ Resources:
         - email
       AutoVerifiedAttributes:
         - email
+      Schema:
+        - Name: empresa_id
+          AttributeDataType: String
+          Mutable: false
+        - Name: empresa_nombre
+          AttributeDataType: String
+          Mutable: true
       Policies:
         PasswordPolicy:
           MinimumLength: 8

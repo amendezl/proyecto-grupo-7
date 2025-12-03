@@ -24,6 +24,32 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Estilos para inputs, selects y textareas - asegurar texto visible */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+select,
+textarea {
+  background-color: white !important;
+  color: #111827 !important; /* text-gray-900 */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important; /* text-gray-400 */
+}
+
+select option {
+  background-color: white !important;
+  color: #111827 !important;
+}
+
 /* Toast Notifications Styles */
 @keyframes shrink {
   from {

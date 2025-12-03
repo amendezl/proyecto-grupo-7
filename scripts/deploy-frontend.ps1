@@ -20,7 +20,7 @@ Write-Host "`n✅ Build completado exitosamente" -ForegroundColor Green
 
 # 3. Sincronizar con S3
 Write-Host "`n[3/4] Sincronizando archivos con S3..." -ForegroundColor Yellow
-aws s3 sync out/ s3://sistema-gestion-espacios-frontend-dev --profile Admin --delete
+aws s3 sync out/ s3://sistema-gestion-espacios-frontend-dev --delete
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "`n❌ Error al sincronizar con S3. Abortando despliegue." -ForegroundColor Red
@@ -31,7 +31,7 @@ Write-Host "`n✅ Archivos sincronizados con S3" -ForegroundColor Green
 
 # 4. Invalidar caché de CloudFront
 Write-Host "`n[4/4] Invalidando caché de CloudFront..." -ForegroundColor Yellow
-$invalidation = aws cloudfront create-invalidation --distribution-id EX85UQ1KKM9BI --paths "/*" --profile Admin | ConvertFrom-Json
+$invalidation = aws cloudfront create-invalidation --distribution-id EX85UQ1KKM9BI --paths "/*" | ConvertFrom-Json
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "`n❌ Error al invalidar CloudFront." -ForegroundColor Red

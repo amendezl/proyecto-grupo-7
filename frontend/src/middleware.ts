@@ -2,13 +2,25 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Rutas que requieren autenticación
-const protectedRoutes = ['/dashboard', '/profile', '/admin'];
+const protectedRoutes = [
+  '/dashboard',
+  '/profile', 
+  '/admin',
+  '/espacios',
+  '/zonas',
+  '/usuarios',
+  '/reservas',
+  '/responsables',
+  '/recursos',
+  '/reportes',
+  '/configuracion'
+];
 
 // Rutas de autenticación (solo accesibles si NO está autenticado)
 const authRoutes = ['/auth/login', '/auth/register'];
 
 // Rutas públicas (accesibles sin autenticación)
-const publicRoutes = ['/'];
+const publicRoutes = ['/', '/landing'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

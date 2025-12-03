@@ -9,10 +9,14 @@ const db = new DynamoDBManager();
 
 const getResponsables = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
+    const user = event.user;
     
     return await resilienceManager.executeDatabase(
         async () => {
             let responsables = await db.getEntities('responsable');
+            
+            // MULTITENANCY: Filtrar por empresa
+            responsables = responsables.filter(resp => resp.empresa_id === user.empresa_id);
             
             if (queryParams.area) {
                 responsables = responsables.filter(resp => resp.area === queryParams.area);
@@ -61,6 +65,7 @@ const getResponsable = withPermissions(async (event) => {
 
 const createResponsable = withPermissions(async (event) => {
     const responsableData = parseBody(event);
+    const user = event.user; // MULTITENANCY: Obtener usuario autenticado
     
     const { nombre, apellido, email, telefono, area, cargo } = responsableData;
     
@@ -84,7 +89,8 @@ const createResponsable = withPermissions(async (event) => {
                 horarioInicio: responsableData.horarioInicio,
                 horarioFin: responsableData.horarioFin,
                 diasTrabajo: responsableData.diasTrabajo || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
-                observaciones: responsableData.observaciones
+                observaciones: responsableData.observaciones,
+                empresa_id: user.empresa_id // MULTITENANCY: Asignar empresa del usuario
             };
             
             const validatedResponsable = validateForDynamoDB('responsable', responsableToCreate);

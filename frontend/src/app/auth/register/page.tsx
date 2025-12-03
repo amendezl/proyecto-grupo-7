@@ -73,15 +73,23 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      // Generar empresa_id a partir del nombre de la organización
+      const empresa_id = formData.organizationName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+        .replace(/[^a-z0-9]+/g, '-') // Reemplazar espacios y caracteres especiales con guiones
+        .replace(/^-+|-+$/g, ''); // Remover guiones al inicio y final
+
       const result = await register({
         email: formData.email,
         password: formData.password,
         nombre: formData.nombre,
         apellido: formData.apellido,
+        empresa_id,
+        empresa_nombre: formData.organizationName,
         departamento: formData.departamento || undefined,
-        telefono: formData.telefono || undefined,
-        organizationName: formData.organizationName,
-        industry: formData.industry
+        telefono: formData.telefono || undefined
       });
       
       if (result.success) {

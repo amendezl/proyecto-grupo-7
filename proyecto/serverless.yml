@@ -126,6 +126,9 @@ provider:
         - cognito-idp:AdminConfirmSignUp
         - cognito-idp:AdminAddUserToGroup
         - cognito-idp:AdminListGroupsForUser
+        - cognito-idp:AdminCreateUser
+        - cognito-idp:AdminSetUserPassword
+        - cognito-idp:AdminGetUser
       Resource:
         - Fn::Sub: arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPool}
     - Effect: Allow
@@ -149,6 +152,8 @@ provider:
     CONNECTIONS_TABLE: ${self:service}-${self:provider.stage}-connections
     CIRCUIT_STATE_TABLE: ${self:service}-${self:provider.stage}-circuit-state
     IDEMPOTENCY_TABLE: ${self:service}-${self:provider.stage}-idempotency
+    COGNITO_USER_POOL_ID:
+      Ref: CognitoUserPool
     HTTP_API_URL:
       Fn::Sub: "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
     WEBSOCKET_ENDPOINT:

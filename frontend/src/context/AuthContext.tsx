@@ -14,6 +14,7 @@ export interface User {
   apellido: string;
   rol: 'admin' | 'responsable' | 'usuario';
   activo: boolean;
+  empresa_id?: string;
   departamento?: string;
   telefono?: string;
   created_at?: string;
@@ -47,10 +48,10 @@ export interface RegisterData {
   password: string;
   nombre: string;
   apellido: string;
+  empresa_id: string;
+  empresa_nombre: string;
   departamento?: string;
   telefono?: string;
-  organizationName?: string;
-  industry?: string;
 }
 
 const mapUsuarioToUser = (usuario: Usuario): User => ({
@@ -188,7 +189,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storedUserRaw = localStorage.getItem('auth_user');
         const storedTokens = apiClient.getTokens();
 
-        if (storedTokens && storedTokens.expiresAt && storedTokens.expiresAt > Date.now()) {
+        // Si no hay tokens en absoluto, directamente marca como no autenticado
+        if (!storedTokens) {
+          setAuthState(prev => ({ ...prev, isLoading: false }));
+          return;
+        }
+
+        if (storedTokens.expiresAt && storedTokens.expiresAt > Date.now()) {
           let user: User | null = null;
           if (storedUserRaw) {
             user = JSON.parse(storedUserRaw) as User;
@@ -202,13 +209,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
 
-        if (storedTokens) {
+        // Solo intentar refresh si hay refreshToken
+        if (storedTokens.refreshToken) {
           const refreshed = await refreshAuth();
           if (!refreshed) {
             clearAuthStorage();
           }
         } else {
-          setAuthState(prev => ({ ...prev, isLoading: false }));
+          clearAuthStorage();
         }
       } catch (error) {
         console.error('Error cargando autenticación:', error);
@@ -276,7 +284,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Error en logout del servidor:', error);
     } finally {
+      // Limpiar TODO el localStorage y sessionStorage para invalidar tokens
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
       clearAuthStorage();
+      
+      // Limpiar múltiples entradas del historial
+      if (typeof window !== 'undefined') {
+        // Reemplazar varias veces para asegurar que no se pueda volver
+        for (let i = 0; i < 10; i++) {
+          window.history.replaceState(null, '', '/auth/login');
+        }
+        
+        // Forzar recarga completa de la página
+        window.location.replace('/auth/login');
+      }
+      
       // Call callback after clearing storage to allow components to handle navigation
       if (onLogoutComplete) {
         onLogoutComplete();

@@ -11,11 +11,15 @@ const db = new DynamoDBManager();
 
 const getEspacios = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
+    const user = event.user;
     
     try {
         const result = await resilienceManager.executeDatabase(
             async () => {
-                const filters = {};
+                const filters = {
+                    empresa_id: user.empresa_id // MULTITENANCY: Filtrar por empresa
+                };
+                
                 if (queryParams.tipo) filters.tipo = queryParams.tipo;
                 if (queryParams.estado) filters.estado = queryParams.estado;
                 if (queryParams.zona_id) filters.zona_id = queryParams.zona_id;
@@ -108,6 +112,7 @@ const getEspacio = withPermissions(async (event) => {
 const createEspacio = withPermissions(async (event) => {
     try {
         const espacioData = parseBody(event);
+        const user = event.user; // MULTITENANCY: Obtener usuario autenticado
         
         const validatedData = validateForDynamoDB('espacio', espacioData);
         
@@ -143,7 +148,8 @@ const createEspacio = withPermissions(async (event) => {
                 return await db.createEspacio({
                     ...validatedData,
                     capacidad: parseInt(validatedData.capacidad),
-                    prioridad: esCritico ? 'critico' : 'normal'
+                    prioridad: esCritico ? 'critico' : 'normal',
+                    empresa_id: user.empresa_id // MULTITENANCY: Asignar empresa del usuario
                 });
             },
             esCritico ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',

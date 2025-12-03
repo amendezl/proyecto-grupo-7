@@ -406,16 +406,35 @@ const serializeUsuarioInput = (data: Partial<Usuario> & { password?: string }) =
 const serializeReservaInput = (data: Partial<Reserva>) => {
   const payload: Record<string, any> = {};
 
+  // Handle both camelCase and snake_case fields
   if (data.espacioId !== undefined) payload.espacio_id = data.espacioId;
+  if ((data as any).espacio_id !== undefined) payload.espacio_id = (data as any).espacio_id;
+  
   if (data.usuarioId !== undefined) payload.usuario_id = data.usuarioId;
+  if ((data as any).usuario_id !== undefined) payload.usuario_id = (data as any).usuario_id;
+  
   if (data.fechaInicio !== undefined) payload.fecha_inicio = data.fechaInicio;
+  if ((data as any).fecha_inicio !== undefined) payload.fecha_inicio = (data as any).fecha_inicio;
+  
   if (data.fechaFin !== undefined) payload.fecha_fin = data.fechaFin;
+  if ((data as any).fecha_fin !== undefined) payload.fecha_fin = (data as any).fecha_fin;
+  
   if (data.proposito !== undefined) payload.proposito = data.proposito;
   if (data.estado !== undefined) payload.estado = data.estado;
+  
   if (data.participantes !== undefined) {
     payload.participantes = data.participantes;
     payload.numero_asistentes = data.participantes;
   }
+  if ((data as any).numero_asistentes !== undefined) payload.numero_asistentes = (data as any).numero_asistentes;
+  
+  if ((data as any).notas !== undefined) payload.notas = (data as any).notas;
+  if ((data as any).prioridad !== undefined) payload.prioridad = (data as any).prioridad;
+  
+  // Handle split date/time fields sent from form (legacy)
+  if ((data as any).fecha_reserva !== undefined) payload.fecha_reserva = (data as any).fecha_reserva;
+  if ((data as any).hora_inicio !== undefined) payload.hora_inicio = (data as any).hora_inicio;
+  if ((data as any).hora_fin !== undefined) payload.hora_fin = (data as any).hora_fin;
 
   return payload;
 };
@@ -960,9 +979,11 @@ class ApiClient {
     password: string;
     nombre: string;
     apellido: string;
+    empresa_id: string;
+    empresa_nombre: string;
     departamento?: string;
     telefono?: string;
-  }): Promise<ApiResponse<{ message: string }>> {
+  }): Promise<ApiResponse<{ message: string; userId?: string; rol?: string }>> {
     return this.post('/api/auth/register', userData);
   }
 
@@ -971,11 +992,11 @@ class ApiClient {
   }
 
   async getCurrentUserProfile(): Promise<ApiResponse<Usuario>> {
-    return this.get('/usuarios/perfil');
+    return this.get('/api/usuarios/perfil');
   }
 
   async updateProfile(userData: any): Promise<ApiResponse<Usuario>> {
-    return this.put('/usuarios/perfil', userData);
+    return this.put('/api/usuarios/perfil', userData);
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {

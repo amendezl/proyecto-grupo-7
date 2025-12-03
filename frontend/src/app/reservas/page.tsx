@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Plus, 
   Search, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Clock, 
   User, 
   MapPin,
@@ -13,7 +13,10 @@ import {
   Eye,
   Edit,
   X,
-  CheckCircle
+  CheckCircle,
+  List,
+  Grid3x3,
+  CalendarDays
 } from 'lucide-react';
 import { 
   Button, 
@@ -31,8 +34,22 @@ export default function ReservasPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEstado, setSelectedEstado] = useState<string>('');
   const [selectedEspacio, setSelectedEspacio] = useState<string>('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'ocupacion'>('list');
+  const [formData, setFormData] = useState({
+    espacioId: '',
+    fechaReserva: '',
+    horaInicio: '',
+    horaFin: '',
+    proposito: '',
+    numeroAsistentes: 1,
+    equipamientoSolicitado: [] as string[],
+    notasAdicionales: ''
+  });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const { reservas, loading, error, refetch } = useReservas({
+  const { reservas, loading, error: reservasError, refetch } = useReservas({
     estado: selectedEstado || undefined,
     espacio_id: selectedEspacio || undefined
   });
@@ -113,6 +130,91 @@ export default function ReservasPage() {
     setSelectedEspacio('');
   };
 
+  // Verificar si un espacio está ocupado actualmente
+  const isEspacioOcupado = (espacioId: string) => {
+    const now = new Date();
+    return reservas.some(reserva => {
+      if (reserva.espacioId !== espacioId) return false;
+      if (reserva.estado === 'cancelada') return false;
+      
+      const inicio = new Date(reserva.fechaInicio);
+      const fin = new Date(reserva.fechaFin);
+      return now >= inicio && now <= fin;
+    });
+  };
+
+  // Generar días del mes actual para vista calendario
+  const calendarDays = useMemo(() => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const days = [];
+
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const date = new Date(year, month, d);
+      const dateString = date.toISOString().split('T')[0];
+      
+      // Filtrar reservas para este día y espacio
+      const dayReservas = filteredReservas.filter(r => {
+        const reservaDate = new Date(r.fechaInicio).toISOString().split('T')[0];
+        return reservaDate === dateString && (!selectedEspacio || r.espacioId === selectedEspacio);
+      });
+
+      days.push({
+        date,
+        dateString,
+        dayNumber: d,
+        reservas: dayReservas,
+        isToday: dateString === today.toISOString().split('T')[0]
+      });
+    }
+
+    return days;
+  }, [filteredReservas, selectedEspacio]);
+
+  const handleCreateReserva = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    try {
+      // Construir timestamps y convertir a ISO 8601 usando Date.toISOString()
+      const fechaInicioDate = new Date(`${formData.fechaReserva}T${formData.horaInicio}:00`);
+      const fechaFinDate = new Date(`${formData.fechaReserva}T${formData.horaFin}:00`);
+      
+      const response = await apiClient.createReserva({
+        espacio_id: formData.espacioId,
+        fecha_inicio: fechaInicioDate.toISOString(),
+        fecha_fin: fechaFinDate.toISOString(),
+        proposito: formData.proposito,
+        notas: formData.notasAdicionales || '',
+        prioridad: 'normal'
+      } as any);
+
+      if (!response.ok) {
+        throw new Error(response.error || 'Error al crear reserva');
+      }
+
+      setSuccess('¡Reserva creada exitosamente!');
+      setShowCreateModal(false);
+      setFormData({
+        espacioId: '',
+        fechaReserva: '',
+        horaInicio: '',
+        horaFin: '',
+        proposito: '',
+        numeroAsistentes: 1,
+        equipamientoSolicitado: [],
+        notasAdicionales: ''
+      });
+      refetch();
+    } catch (err: any) {
+      setError(err.message || 'Error al crear la reserva');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AppHeader 
@@ -137,18 +239,67 @@ export default function ReservasPage() {
               Dashboard
             </Link>
           </div>
-          <Button variant="primary">
-            <Plus className="h-4 w-4 mr-2" />
-            Nueva Reserva
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nueva Reserva
+            </Button>
+          </div>
+        </div>
+
+        {/* View Mode Selector */}
+        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 mr-2">Vista:</span>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <List className="h-4 w-4 mr-2" />
+              Lista
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                viewMode === 'calendar'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Calendario
+            </button>
+            <button
+              onClick={() => setViewMode('ocupacion')}
+              className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
+                viewMode === 'ocupacion'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Grid3x3 className="h-4 w-4 mr-2" />
+              Ocupación
+            </button>
+          </div>
         </div>
 
       {/* Alertas */}
+      {success && (
+        <Alert
+          type="success"
+          title="¡Éxito!"
+          message={success}
+        />
+      )}
       {error && (
         <Alert
-          type="warning"
-          title="Modo sin conexión"
-          message="Mostrando datos simulados. Verifique la conexión al backend."
+          type="error"
+          title="Error"
+          message={error}
         />
       )}
 
@@ -210,7 +361,7 @@ export default function ReservasPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
           <div className="flex items-center">
-            <Calendar className="h-8 w-8 text-blue-600" />
+            <CalendarIcon className="h-8 w-8 text-blue-600" />
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-600">Total Reservas</p>
               <p className="text-2xl font-bold text-gray-900">{reservas.length}</p>
@@ -261,25 +412,134 @@ export default function ReservasPage() {
         </div>
       </div>
 
-      {/* Lista de reservas */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Reservas ({filteredReservas.length})
-            </h2>
-            <div className="flex items-center space-x-2">
-              <Badge variant="disponible" size="sm">
-                {filteredReservas.filter(r => r.estado === 'confirmada').length} confirmadas
-              </Badge>
-              <Badge variant="reservado" size="sm">
-                {filteredReservas.filter(r => r.estado === 'pendiente').length} pendientes
-              </Badge>
-            </div>
+      {/* Vista de Ocupación de Espacios */}
+      {viewMode === 'ocupacion' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Estado Actual de Espacios</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {espacios.map(espacio => {
+              const ocupado = isEspacioOcupado(espacio.id);
+              return (
+                <div
+                  key={espacio.id}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    ocupado
+                      ? 'bg-red-50 border-red-300'
+                      : 'bg-green-50 border-green-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-gray-900">{espacio.nombre}</h3>
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        ocupado ? 'bg-red-500' : 'bg-green-500'
+                      }`}
+                    />
+                  </div>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <div className="flex items-center">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      <span>{espacio.edificio || 'N/A'} - Piso {espacio.piso}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <User className="h-3 w-3 mr-1" />
+                      <span>Capacidad: {espacio.capacidad}</span>
+                    </div>
+                    <div className={`font-medium mt-2 ${ocupado ? 'text-red-700' : 'text-green-700'}`}>
+                      {ocupado ? '🔴 Ocupado' : '🟢 Disponible'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
+      )}
 
-        <div className="overflow-x-auto">
+      {/* Vista de Calendario */}
+      {viewMode === 'calendar' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Calendario de Reservas - {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+            </h2>
+            {selectedEspacio && (
+              <Badge variant="disponible">
+                Espacio: {espacios.find(e => e.id === selectedEspacio)?.nombre || 'Seleccionado'}
+              </Badge>
+            )}
+          </div>
+          <div className="grid grid-cols-7 gap-2">
+            {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
+              <div key={day} className="text-center font-semibold text-gray-700 py-2">
+                {day}
+              </div>
+            ))}
+            {Array.from({ length: new Date(new Date().getFullYear(), new Date().getMonth(), 1).getDay() }).map((_, i) => (
+              <div key={`empty-${i}`} className="aspect-square" />
+            ))}
+            {calendarDays.map(day => {
+              const confirmadas = day.reservas.filter(r => r.estado === 'confirmada').length;
+              const pendientes = day.reservas.filter(r => r.estado === 'pendiente').length;
+              const canceladas = day.reservas.filter(r => r.estado === 'cancelada').length;
+              
+              return (
+                <div
+                  key={day.dateString}
+                  className={`min-h-[120px] border rounded-lg p-2 ${
+                    day.isToday ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  } ${day.reservas.length > 0 ? 'bg-gray-50' : 'bg-white'}`}
+                >
+                  <div className="text-sm font-medium text-gray-900 mb-2">{day.dayNumber}</div>
+                  {day.reservas.length > 0 && (
+                    <div className="space-y-1">
+                      {confirmadas > 0 && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-green-100 border border-green-300 rounded text-xs text-green-800 font-medium">
+                          <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                          <span>{confirmadas} confirmada{confirmadas > 1 ? 's' : ''}</span>
+                        </div>
+                      )}
+                      {pendientes > 0 && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 border border-yellow-300 rounded text-xs text-yellow-800 font-medium">
+                          <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                          <span>{pendientes} pendiente{pendientes > 1 ? 's' : ''}</span>
+                        </div>
+                      )}
+                      {canceladas > 0 && (
+                        <div className="flex items-center gap-1 px-2 py-1 bg-red-100 border border-red-300 rounded text-xs text-red-800 font-medium">
+                          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                          <span>{canceladas} cancelada{canceladas > 1 ? 's' : ''}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Lista de reservas */}
+      {viewMode === 'list' && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Reservas ({filteredReservas.length})
+              </h2>
+              <div className="flex items-center space-x-2">
+                <Badge variant="disponible" size="sm">
+                  {filteredReservas.filter(r => r.estado === 'confirmada').length} confirmadas
+                </Badge>
+                <Badge variant="reservado" size="sm">
+                  {filteredReservas.filter(r => r.estado === 'pendiente').length} pendientes
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
           {loading ? (
             <div className="p-6">
               <div className="space-y-4">
@@ -295,7 +555,7 @@ export default function ReservasPage() {
             </div>
           ) : filteredReservas.length === 0 ? (
             <div className="text-center py-12">
-              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+              <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No hay reservas</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {searchTerm || selectedEstado || selectedEspacio
@@ -303,7 +563,7 @@ export default function ReservasPage() {
                   : 'Comienza creando tu primera reserva.'}
               </p>
               <div className="mt-6">
-                <Button variant="primary">
+                <Button variant="primary" onClick={() => setShowCreateModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nueva Reserva
                 </Button>
@@ -406,8 +666,153 @@ export default function ReservasPage() {
               </tbody>
             </table>
           )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Modal de crear reserva */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Nueva Reserva</h2>
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateReserva} className="space-y-4">
+                {/* Espacio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Espacio <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.espacioId}
+                    onChange={(e) => setFormData({ ...formData, espacioId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  >
+                    <option value="">Selecciona un espacio</option>
+                    {espacios.filter(e => e.estado === 'disponible').map(espacio => (
+                      <option key={espacio.id} value={espacio.id}>
+                        {espacio.nombre} - Capacidad: {espacio.capacidad}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Fecha */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={formData.fechaReserva}
+                    onChange={(e) => setFormData({ ...formData, fechaReserva: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+
+                {/* Hora inicio y fin */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hora Inicio <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={formData.horaInicio}
+                      onChange={(e) => setFormData({ ...formData, horaInicio: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hora Fin <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={formData.horaFin}
+                      onChange={(e) => setFormData({ ...formData, horaFin: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Propósito */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Propósito <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    minLength={5}
+                    placeholder="Reunión de equipo, capacitación, etc."
+                    value={formData.proposito}
+                    onChange={(e) => setFormData({ ...formData, proposito: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* Número de asistentes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Número de Asistentes <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={formData.numeroAsistentes}
+                    onChange={(e) => setFormData({ ...formData, numeroAsistentes: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+
+                {/* Notas adicionales */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notas Adicionales
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Información adicional sobre la reserva..."
+                    value={formData.notasAdicionales}
+                    onChange={(e) => setFormData({ ...formData, notasAdicionales: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* Botones */}
+                <div className="flex justify-end space-x-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" variant="primary">
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    Crear Reserva
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

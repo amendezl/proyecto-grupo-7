@@ -161,6 +161,30 @@ const me = async (event) => {
   try {
     const claims = event.requestContext?.authorizer?.jwt?.claims || {};
     
+    // Buscar información adicional del usuario en DynamoDB
+    const DynamoDBManager = require('../../infrastructure/database/DynamoDBManager');
+    const db = new DynamoDBManager();
+    
+    let empresa_id = 'empresa-default';
+    let rol = null;
+    let usuarioData = null;
+    
+    try {
+      // Buscar usuario por email en DynamoDB
+      if (claims.email) {
+        usuarioData = await db.getUsuarioByEmail(claims.email);
+        if (usuarioData) {
+          empresa_id = usuarioData.empresa_id || 'empresa-default';
+          rol = usuarioData.rol;
+        }
+      }
+    } catch (dbError) {
+      // No fallar si DynamoDB falla, solo loggear
+      logger.warn('[COGNITO_ME] Could not fetch user from DynamoDB', { 
+        errorMessage: dbError.message 
+      });
+    }
+    
     return response(200, {
       ok: true,
       user: {
@@ -172,7 +196,9 @@ const me = async (event) => {
         aud: claims.aud,
         iss: claims.iss,
         exp: claims.exp,
-        iat: claims.iat
+        iat: claims.iat,
+        empresa_id: empresa_id,
+        rol: rol
       }
     });
   } catch (error) {

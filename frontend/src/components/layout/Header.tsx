@@ -37,7 +37,8 @@ export default function Header({ urgentMode = false }: HeaderProps) {
 
   const handleLogout = async () => {
     await logout(() => {
-      router.push('/auth/login');
+      // Use window.location for full page reload to avoid CloudFront routing issues
+      window.location.href = '/auth/login';
     });
   };
 

@@ -39,22 +39,52 @@ export default function Dashboard() {
       setError(null);
       
       // Cargar datos desde los diferentes endpoints
-      const [espaciosRes, zonasRes] = await Promise.all([
+      const [espaciosRes, zonasRes, reservasRes, usuariosRes, responsablesRes] = await Promise.all([
         import('@/lib/api-client').then(m => m.apiClient.getEspacios()),
-        import('@/lib/api-client').then(m => m.apiClient.getZonas())
+        import('@/lib/api-client').then(m => m.apiClient.getZonas()),
+        import('@/lib/api-client').then(m => m.apiClient.getReservas()),
+        import('@/lib/api-client').then(m => m.apiClient.getUsuarios()),
+        import('@/lib/api-client').then(m => m.apiClient.getResponsables())
       ]);
 
       const espacios = espaciosRes.ok && espaciosRes.data ? espaciosRes.data.espacios || [] : [];
       const zonas = zonasRes.ok && zonasRes.data ? zonasRes.data.zonas || [] : [];
+      const reservas = reservasRes.ok && reservasRes.data ? reservasRes.data.reservas || [] : [];
+      const usuarios = usuariosRes.ok && usuariosRes.data ? usuariosRes.data.usuarios || [] : [];
+      const responsables = responsablesRes.ok && responsablesRes.data ? responsablesRes.data.responsables || [] : [];
+
+      // Filtrar reservas activas (no canceladas y que no hayan terminado)
+      const now = new Date();
+      const reservasActivas = reservas.filter((r: any) => {
+        if (r.estado === 'cancelada') return false;
+        const fechaFin = new Date(r.fechaFin);
+        return fechaFin >= now;
+      });
+
+      // Calcular espacios ocupados AHORA MISMO (reservas en curso)
+      const espaciosOcupadosIds = new Set<string>();
+      reservas.forEach((r: any) => {
+        if (r.estado === 'cancelada') return;
+        const inicio = new Date(r.fechaInicio);
+        const fin = new Date(r.fechaFin);
+        if (now >= inicio && now <= fin) {
+          espaciosOcupadosIds.add(r.espacioId);
+        }
+      });
+
+      const espaciosOcupados = espaciosOcupadosIds.size;
+      const espaciosDisponibles = espacios.filter((e: any) => 
+        e.estado === 'disponible' && !espaciosOcupadosIds.has(e.id)
+      ).length;
 
       setStats({
         totalEspacios: espacios.length,
-        totalReservas: 0, // Por ahora
-        totalUsuarios: 0, // Por ahora
-        totalResponsables: 0, // Por ahora
+        totalReservas: reservas.length,
+        totalUsuarios: usuarios.length,
+        totalResponsables: responsables.length,
         totalZonas: zonas.length,
-        espaciosActivos: espacios.filter((e: any) => e.estado === 'disponible').length,
-        reservasActivas: 0 // Por ahora
+        espaciosActivos: espaciosOcupados, // Ahora representa espacios ocupados
+        reservasActivas: reservasActivas.length
       });
     } catch (err: any) {
       console.error('Error loading dashboard stats:', err);
@@ -106,9 +136,9 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-medium text-gray-600 mb-1">Espacios</p>
                 <p className="text-3xl font-bold text-gray-900">{stats.totalEspacios}</p>
-                <p className="text-xs text-green-600 mt-1 flex items-center">
+                <p className="text-xs text-red-600 mt-1 flex items-center">
                   <TrendingUp className="h-3 w-3 mr-1" />
-                  {stats.espaciosActivos} activos
+                  {stats.espaciosActivos} ocupados ahora
                 </p>
               </div>
               <div className="p-4 bg-blue-50 rounded-full">
@@ -164,7 +194,7 @@ export default function Dashboard() {
         </div>
 
         {/* Empty state o Quick actions */}
-        {stats.totalEspacios === 0 && stats.totalReservas === 0 ? (
+        {stats.totalEspacios === 0 && stats.totalZonas === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
             <div className="max-w-md mx-auto">
               <div className="p-4 bg-blue-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
@@ -219,6 +249,12 @@ export default function Dashboard() {
                       : '0%'}
                   </span>
                 </div>
+                <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                  <span className="text-gray-600">Espacios ocupados ahora</span>
+                  <span className="font-semibold text-red-600">
+                    {stats.espaciosActivos}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between py-3">
                   <span className="text-gray-600">Espacios disponibles</span>
                   <span className="font-semibold text-green-600">
@@ -237,14 +273,14 @@ export default function Dashboard() {
                   className="w-full flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors group cursor-pointer border-2 border-transparent hover:border-blue-200"
                 >
                   <Calendar className="h-5 w-5 text-blue-600 mr-3" />
-                  <span className="text-blue-900 font-medium">Nueva Reserva</span>
+                  <span className="text-blue-900 font-medium">Gestionar Reservas</span>
                 </button>
                 <button
-                  onClick={() => window.location.href = '/espacios'}
+                  onClick={() => window.location.href = '/recursos'}
                   className="w-full flex items-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors group cursor-pointer border-2 border-transparent hover:border-purple-200"
                 >
-                  <MapPin className="h-5 w-5 text-purple-600 mr-3" />
-                  <span className="text-purple-900 font-medium">Gestionar Espacios</span>
+                  <Package className="h-5 w-5 text-purple-600 mr-3" />
+                  <span className="text-purple-900 font-medium">Gestionar Recursos</span>
                 </button>
                 <button
                   onClick={() => window.location.href = '/reportes'}
