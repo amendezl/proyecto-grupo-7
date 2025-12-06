@@ -268,6 +268,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: 'No se pudo obtener la información del usuario' };
       }
 
+      // Limpiar idioma temporal de sessionStorage (usado en páginas públicas)
+      sessionStorage.removeItem('temp_language');
+
       persistAuthState(userProfile, tokens);
       return { success: true };
     } catch (error) {

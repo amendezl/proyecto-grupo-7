@@ -14,5 +14,11 @@ module.exports = registerHandlers(businessLogic, {
 		entityType: 'user',
 		validationOptions: { allowPartial: true },
 		metricName: 'UsuariosUpdated'
+	},
+	getSettingsActual: {
+		metricName: 'UserSettingsRetrieved'
+	},
+	updateSettingsActual: {
+		metricName: 'UserSettingsUpdated'
 	}
 });

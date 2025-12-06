@@ -4,8 +4,9 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Home, MapPin, Calendar, Users, BarChart3, Settings, Building2, Clock, Shield } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home, MapPin, Calendar, Users, BarChart3, Settings, Building2, Clock, Shield, Package } from 'lucide-react';
 import { designSystem } from '@/lib/design-system';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SidebarProps {
   className?: string;
@@ -13,60 +14,68 @@ interface SidebarProps {
 
 export default function Sidebar({ className = '' }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { t } = useLanguage();
 
   const menuItems = [
     {
       icon: Home,
-      label: 'Dashboard',
+      label: t.nav.dashboard,
       href: '/dashboard',
       count: null,
       active: true
     },
     {
       icon: MapPin,
-      label: 'Espacios',
+      label: t.nav.spaces,
       href: '/espacios',
       count: 45,
       active: false
     },
     {
       icon: Calendar,
-      label: 'Reservas',
+      label: t.nav.reservations,
       href: '/reservas',
       count: 12,
       active: false
     },
     {
       icon: Building2,
-      label: 'Zonas',
+      label: t.nav.zones,
       href: '/zonas',
       count: 8,
       active: false
     },
     {
+      icon: Package,
+      label: t.nav.resources,
+      href: '/recursos',
+      count: null,
+      active: false
+    },
+    {
       icon: Users,
-      label: 'Usuarios',
+      label: t.nav.users,
       href: '/usuarios',
       count: 156,
       active: false
     },
     {
       icon: Shield,
-      label: 'Responsables',
+      label: t.nav.responsibles,
       href: '/responsables',
       count: 8,
       active: false
     },
     {
       icon: BarChart3,
-      label: 'Reportes',
+      label: t.nav.reports,
       href: '/reportes',
       count: null,
       active: false
     },
     {
       icon: Settings,
-      label: 'Configuración',
+      label: t.nav.settings,
       href: '/configuracion',
       count: null,
       active: false

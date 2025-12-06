@@ -44,6 +44,7 @@ class DynamoDBManager {
             estado: validatedData.estado || 'disponible',
             zona_id: validatedData.zona_id,
             responsable_id: validatedData.responsable_id,
+            empresa_id: validatedData.empresa_id, // MULTITENANCY: Guardar empresa del usuario
             createdAt: validatedData.fecha_creacion || new Date().toISOString(),
             updatedAt: validatedData.fecha_actualizacion
         };
@@ -314,6 +315,21 @@ class DynamoDBManager {
     }
 
     async getUsuarioById(id) {
+        // Primero intentar buscar por PK directa (nuevo formato)
+        const directCommand = new GetCommand({
+            TableName: this.tableName,
+            Key: {
+                PK: `USER#${id}`,
+                SK: `USER#${id}`
+            }
+        });
+
+        const directResult = await this.docClient.send(directCommand);
+        if (directResult.Item) {
+            return directResult.Item;
+        }
+
+        // Fallback: buscar en GSI1 (formato antiguo)
         const command = new QueryCommand({
             TableName: this.tableName,
             IndexName: 'GSI1',
@@ -503,6 +519,53 @@ class DynamoDBManager {
 
         await this.docClient.send(command);
         return { success: true };
+    }
+
+    async getUserSettings(userId) {
+        const usuario = await this.getUsuarioById(userId);
+        if (!usuario) {
+            return null;
+        }
+        
+        // Retornar settings del usuario o settings por defecto
+        return usuario.settings || {
+            theme: 'light',
+            language: 'es',
+            fontSize: 16,
+            fontFamily: 'inter',
+            accentColor: '#3b82f6'
+        };
+    }
+
+    async updateUserSettings(userId, settingsData) {
+        const usuario = await this.getUsuarioById(userId);
+        if (!usuario) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        // Combinar settings existentes con los nuevos
+        const currentSettings = usuario.settings || {};
+        const updatedSettings = {
+            ...currentSettings,
+            ...settingsData
+        };
+
+        const command = new UpdateCommand({
+            TableName: this.tableName,
+            Key: {
+                PK: usuario.PK,
+                SK: usuario.SK
+            },
+            UpdateExpression: 'SET settings = :settings, updatedAt = :updatedAt',
+            ExpressionAttributeValues: {
+                ':settings': updatedSettings,
+                ':updatedAt': new Date().toISOString()
+            },
+            ReturnValues: 'ALL_NEW'
+        });
+
+        const result = await this.docClient.send(command);
+        return result.Attributes.settings;
     }
 }
 

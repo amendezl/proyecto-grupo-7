@@ -11,17 +11,115 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark mode styles */
+.dark {
+  --background: #1a1f2e;
+  --foreground: #e5e7eb;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  color-scheme: dark;
+}
+
+.dark body {
+  background: #1a1f2e;
+  color: #e5e7eb;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode - Cards and containers */
+.dark .bg-white {
+  background-color: #242938 !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #2d3548 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #3a4259 !important;
+}
+
+.dark .bg-gray-200 {
+  background-color: #4a5568 !important;
+}
+
+/* Dark mode - Text colors */
+.dark .text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+.dark .text-gray-800 {
+  color: #e5e7eb !important;
+}
+
+.dark .text-gray-700 {
+  color: #d1d5db !important;
+}
+
+.dark .text-gray-600 {
+  color: #9ca3af !important;
+}
+
+.dark .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.dark .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+/* Dark mode - Borders */
+.dark .border-gray-200 {
+  border-color: #374151 !important;
+}
+
+.dark .border-gray-300 {
+  border-color: #4b5563 !important;
+}
+
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #374151 !important;
+}
+
+/* Dark mode - Hover states */
+.dark .hover\:bg-gray-50:hover {
+  background-color: #374151 !important;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: #4b5563 !important;
+}
+
+.dark .hover\:text-gray-900:hover {
+  color: #f3f4f6 !important;
+}
+
+/* Dark mode - Buttons */
+.dark button:not(.bg-blue-600):not(.bg-red-600):not(.bg-green-600):not(.bg-yellow-600):not([class*="bg-purple"]):not([class*="bg-indigo"]) {
+  color: #e5e7eb;
+}
+
+/* Dark mode - Shadows - más sutiles y con tono azulado */
+.dark .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.dark .shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.7), 0 1px 2px -1px rgba(0, 0, 0, 0.7);
+}
+
+.dark .shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.7), 0 2px 4px -2px rgba(0, 0, 0, 0.7);
+}
+
+.dark .shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.8), 0 4px 6px -4px rgba(0, 0, 0, 0.8);
 }
 
 /* Estilos para inputs, selects y textareas - asegurar texto visible */
@@ -40,14 +138,57 @@ textarea {
   color: #111827 !important; /* text-gray-900 */
 }
 
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="tel"],
+.dark input[type="url"],
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"],
+.dark select,
+.dark textarea {
+  background-color: #2d3548 !important;
+  color: #e5e7eb !important;
+  border-color: #4b5563 !important;
+}
+
+.dark input[type="text"]:focus,
+.dark input[type="email"]:focus,
+.dark input[type="password"]:focus,
+.dark input[type="number"]:focus,
+.dark input[type="tel"]:focus,
+.dark input[type="url"]:focus,
+.dark input[type="date"]:focus,
+.dark input[type="time"]:focus,
+.dark input[type="datetime-local"]:focus,
+.dark select:focus,
+.dark textarea:focus {
+  background-color: #374151 !important;
+  border-color: #60a5fa !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1) !important;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: #9ca3af !important; /* text-gray-400 */
 }
 
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6b7280 !important;
+}
+
 select option {
   background-color: white !important;
   color: #111827 !important;
+}
+
+.dark select option {
+  background-color: #2d3548 !important;
+  color: #e5e7eb !important;
 }
 
 /* Toast Notifications Styles */

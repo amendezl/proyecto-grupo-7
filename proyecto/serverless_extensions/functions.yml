@@ -282,6 +282,28 @@ usuariosCambioPassword:
         authorizer:
           name: cognitoJwt
 
+usuariosSettingsActual:
+  handler: src/handlers/usuarios.getSettingsActual
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/usuarios/settings
+        method: get
+        authorizer:
+          name: cognitoJwt
+
+usuariosActualizarSettings:
+  handler: src/handlers/usuarios.updateSettingsActual
+  timeout: 10
+  memorySize: ${self:custom.stages.${self:provider.stage}.memorySize}
+  events:
+    - httpApi:
+        path: /api/usuarios/settings
+        method: put
+        authorizer:
+          name: cognitoJwt
+
 # Espacios
 espaciosListar:
   handler: src/handlers/espacios.getEspacios

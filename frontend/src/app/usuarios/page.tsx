@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Plus, Package, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AppHeader from '@/components/AppHeader';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
@@ -11,6 +12,7 @@ import { apiClient } from '@/lib/api-client';
 export default function UsuariosPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useLanguage();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -37,6 +39,28 @@ export default function UsuariosPage() {
     setLoading(true);
     setError('');
     setSuccess('');
+
+    // Validar password policy de Cognito
+    if (formData.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      setLoading(false);
+      return;
+    }
+    if (!/[a-z]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos una letra minúscula');
+      setLoading(false);
+      return;
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos una letra mayúscula');
+      setLoading(false);
+      return;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos un número');
+      setLoading(false);
+      return;
+    }
 
     try {
       const usuarioData = {
@@ -81,7 +105,7 @@ export default function UsuariosPage() {
   // Mostrar loading mientras verifica autenticación
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando...</p>
@@ -91,25 +115,18 @@ export default function UsuariosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <AppHeader 
-        title="Gestión de Usuarios"
+        title={t.usersManagement.management}
         breadcrumbs={[
-          { label: 'Usuarios', href: '/usuarios' }
+          { label: t.usersManagement.title, href: '/usuarios' }
         ]}
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Description */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6">
           <p className="text-gray-600">Administra los usuarios del sistema</p>
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </button>
         </div>
 
         {/* Success Message */}
@@ -133,35 +150,23 @@ export default function UsuariosPage() {
               <Users className="h-10 w-10 text-green-600" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              Agrega tu primer usuario
+              {t.usersManagement.createFirst}
             </h3>
             <p className="text-gray-600 mb-8">
-              Los usuarios podrán acceder al sistema y hacer reservas
+              {t.usersManagement.createFirstDesc}
             </p>
             <button
               onClick={() => setShowForm(true)}
               className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               <Plus className="h-5 w-5 mr-2" />
-              Crear Usuario
+              {t.usersManagement.createUser}
             </button>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Nuevo Usuario</h2>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  setError('');
-                  setSuccess('');
-                }}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Cancelar
-              </button>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">{t.usersManagement.newUser}</h2>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -169,7 +174,7 @@ export default function UsuariosPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre *
+                    {t.usersManagement.name} *
                   </label>
                   <input
                     type="text"
@@ -178,13 +183,13 @@ export default function UsuariosPage() {
                     value={formData.nombre}
                     onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-                    placeholder="Juan"
+                    placeholder={t.usersManagement.namePlaceholder}
                   />
                 </div>
 
                 <div>
                   <label htmlFor="apellido" className="block text-sm font-medium text-gray-700 mb-2">
-                    Apellido *
+                    {t.usersManagement.lastName} *
                   </label>
                   <input
                     type="text"
@@ -193,7 +198,7 @@ export default function UsuariosPage() {
                     value={formData.apellido}
                     onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-                    placeholder="Pérez"
+                    placeholder={t.usersManagement.lastNamePlaceholder}
                   />
                 </div>
               </div>
@@ -201,7 +206,7 @@ export default function UsuariosPage() {
               {/* Email */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email *
+                  {t.usersManagement.email} *
                 </label>
                 <input
                   type="email"
@@ -210,7 +215,7 @@ export default function UsuariosPage() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-                  placeholder="juan.perez@empresa.com"
+                  placeholder={t.usersManagement.emailPlaceholder}
                 />
               </div>
 
@@ -229,13 +234,16 @@ export default function UsuariosPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
                   placeholder="Mínimo 8 caracteres"
                 />
+                <p className="text-sm text-gray-500 mt-1">
+                  Debe contener: mayúsculas, minúsculas y números
+                </p>
               </div>
 
               {/* Departamento y Teléfono */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="departamento" className="block text-sm font-medium text-gray-700 mb-2">
-                    Departamento *
+                    {t.usersManagement.department} *
                   </label>
                   <input
                     type="text"
@@ -244,13 +252,13 @@ export default function UsuariosPage() {
                     value={formData.departamento}
                     onChange={(e) => setFormData({ ...formData, departamento: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-                    placeholder="Ej: Ventas"
+                    placeholder={t.usersManagement.departmentPlaceholder}
                   />
                 </div>
 
                 <div>
                   <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-2">
-                    Teléfono
+                    {t.usersManagement.phone}
                   </label>
                   <input
                     type="tel"
@@ -258,7 +266,7 @@ export default function UsuariosPage() {
                     value={formData.telefono}
                     onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
-                    placeholder="+56 9 1234 5678"
+                    placeholder={t.usersManagement.phonePlaceholder}
                   />
                 </div>
               </div>
@@ -266,7 +274,7 @@ export default function UsuariosPage() {
               {/* Rol */}
               <div>
                 <label htmlFor="rol" className="block text-sm font-medium text-gray-700 mb-2">
-                  Rol *
+                  {t.usersManagement.role} *
                 </label>
                 <select
                   id="rol"
@@ -275,9 +283,9 @@ export default function UsuariosPage() {
                   onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
                 >
-                  <option value="usuario">Usuario</option>
+                  <option value="usuario">{t.usersManagement.user}</option>
                   <option value="responsable">Responsable</option>
-                  <option value="admin">Administrador</option>
+                  <option value="admin">{t.usersManagement.admin}</option>
                 </select>
                 <p className="text-sm text-gray-500 mt-1">
                   {formData.rol === 'admin' && 'Acceso completo al sistema'}
@@ -294,14 +302,14 @@ export default function UsuariosPage() {
                   disabled={loading}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancelar
+                  {t.usersManagement.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
                   className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Creando...' : 'Crear Usuario'}
+                  {loading ? t.usersManagement.creating : t.usersManagement.createUser}
                 </button>
               </div>
             </form>

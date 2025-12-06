@@ -4,13 +4,41 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapPin, Plus, Package, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import AppHeader from '@/components/AppHeader';
 import Link from 'next/link';
 import { apiClient, Zona } from '@/lib/api-client';
 
 export default function EspaciosPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+
+  // Helper para traducir tipos de espacios
+  const getSpaceType = (tipo: string) => {
+    const typeMap: { [key: string]: string } = {
+      'sala_reunion': t.spaces.meetingRoom,
+      'oficina': t.spaces.office,
+      'sala_conferencia': t.spaces.conferenceRoom,
+      'estacion_trabajo': t.spaces.workstation,
+      'auditorio': t.spaces.auditorium,
+      'laboratorio': t.spaces.laboratory,
+      'almacen': t.spaces.warehouse,
+      'estacionamiento': t.spaces.parking,
+      'otro': t.spaces.other,
+    };
+    return typeMap[tipo] || tipo;
+  };
+
+  // Helper para traducir estado
+  const getSpaceStatus = (estado: string) => {
+    const statusMap: { [key: string]: string } = {
+      'disponible': t.spaces.available,
+      'ocupado': t.spaces.occupied,
+      'mantenimiento': t.spaces.maintenance,
+    };
+    return statusMap[estado] || estado;
+  };
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -197,7 +225,7 @@ export default function EspaciosPage() {
   // Mostrar loading mientras verifica autenticación
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando...</p>
@@ -207,25 +235,18 @@ export default function EspaciosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <AppHeader 
-        title="Gestión de Espacios"
+        title={t.spaces.management}
         breadcrumbs={[
-          { label: 'Espacios', href: '/espacios' }
+          { label: t.spaces.title, href: '/espacios' }
         ]}
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Description */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6">
           <p className="text-gray-600">Administra los espacios disponibles en el sistema</p>
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </button>
         </div>
 
         {/* Success Message */}
@@ -250,17 +271,17 @@ export default function EspaciosPage() {
                 <Package className="h-10 w-10 text-blue-600" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                Crea tu primer espacio
+                {t.spaces.createFirst}
               </h3>
               <p className="text-gray-600 mb-8">
-                Los espacios son los recursos que tus usuarios podrán reservar
+                {t.spaces.createFirstDesc}
               </p>
               <button
                 onClick={() => setShowForm(true)}
                 className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="h-5 w-5 mr-2" />
-                Crear Espacio
+                {t.spaces.createSpace}
               </button>
             </div>
           ) : (
@@ -271,14 +292,14 @@ export default function EspaciosPage() {
                   className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Plus className="h-5 w-5 mr-2" />
-                  Crear Espacio
+                  {t.spaces.createSpace}
                 </button>
               </div>
               
               {loadingEspacios ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Cargando espacios...</p>
+                  <p className="text-gray-600">{t.spaces.loadingSpaces}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -293,39 +314,39 @@ export default function EspaciosPage() {
                           espacio.estado === 'ocupado' ? 'bg-red-100 text-red-800' :
                           'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {espacio.estado}
+                          {getSpaceStatus(espacio.estado)}
                         </span>
                       </div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">{espacio.nombre}</h3>
                       <p className="text-gray-600 text-sm mb-4">{espacio.descripcion}</p>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Capacidad:</span>
-                          <span className="font-medium">{espacio.capacidad} personas</span>
+                          <span className="text-gray-500">{t.spaces.capacity}:</span>
+                          <span className="font-medium">{espacio.capacidad} {t.spaces.people}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-500">Tipo:</span>
-                          <span className="font-medium">{espacio.tipo}</span>
+                          <span className="text-gray-500">{t.spaces.type}:</span>
+                          <span className="font-medium">{getSpaceType(espacio.tipo)}</span>
                         </div>
                         {espacio.ubicacion && (
                           <div className="flex justify-between">
                             <span className="text-gray-500">Ubicación:</span>
-                            <span className="font-medium">Edif. {espacio.ubicacion.edificio}, Piso {espacio.ubicacion.piso}</span>
+                            <span className="font-medium">{t.spaces.building} {espacio.ubicacion.edificio}, {t.spaces.floor} {espacio.ubicacion.piso}</span>
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                         <button
                           onClick={() => handleEdit(espacio)}
-                          className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                          className="flex-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
                         >
-                          Editar
+                          {t.spaces.edit}
                         </button>
                         <button
                           onClick={() => handleDelete(espacio)}
-                          className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                          className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
                         >
-                          Eliminar
+                          {t.spaces.delete}
                         </button>
                       </div>
                     </div>
@@ -336,25 +357,17 @@ export default function EspaciosPage() {
           )
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
-                {editingEspacio ? 'Editar Espacio' : 'Nuevo Espacio'}
+                {editingEspacio ? t.spaces.editSpace : t.spaces.newSpace}
               </h2>
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Cancelar
-              </button>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Nombre */}
               <div>
                 <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre del Espacio *
+                  {t.spaces.spaceName} *
                 </label>
                 <input
                   type="text"
@@ -363,14 +376,14 @@ export default function EspaciosPage() {
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="Ej: Sala de Reuniones A"
+                  placeholder={t.spaces.spaceNamePlaceholder}
                 />
               </div>
 
               {/* Descripción */}
               <div>
                 <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-2">
-                  Descripción
+                  {t.spaces.description}
                 </label>
                 <textarea
                   id="descripcion"
@@ -378,7 +391,7 @@ export default function EspaciosPage() {
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-                  placeholder="Describe este espacio..."
+                  placeholder={t.spaces.descriptionPlaceholder}
                 />
               </div>
 
@@ -386,7 +399,7 @@ export default function EspaciosPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="capacidad" className="block text-sm font-medium text-gray-700 mb-2">
-                    Capacidad *
+                    {t.spaces.capacity} *
                   </label>
                   <input
                     type="number"
@@ -402,7 +415,7 @@ export default function EspaciosPage() {
 
                 <div>
                   <label htmlFor="zona" className="block text-sm font-medium text-gray-700 mb-2">
-                    Zona *
+                    {t.spaces.zone} *
                   </label>
                   <select
                     id="zona"
@@ -413,7 +426,7 @@ export default function EspaciosPage() {
                     disabled={loadingZonas}
                   >
                     <option value="">
-                      {loadingZonas ? 'Cargando zonas...' : zonas.length === 0 ? 'No hay zonas disponibles' : 'Selecciona una zona'}
+                      {loadingZonas ? t.spaces.loadingZones : zonas.length === 0 ? t.spaces.noZonesAvailable : t.spaces.selectZone}
                     </option>
                     {zonas.map((zona) => (
                       <option key={zona.id} value={zona.nombre}>
@@ -423,7 +436,7 @@ export default function EspaciosPage() {
                   </select>
                   {zonas.length === 0 && !loadingZonas && (
                     <p className="text-sm text-amber-600 mt-1">
-                      ⚠️ Primero debes crear una zona
+                      ⚠️ {t.spaces.createZoneFirst}
                     </p>
                   )}
                 </div>
@@ -432,7 +445,7 @@ export default function EspaciosPage() {
               {/* Estado */}
               <div>
                 <label htmlFor="estado" className="block text-sm font-medium text-gray-700 mb-2">
-                  Estado Inicial
+                  {t.spaces.initialStatus}
                 </label>
                 <select
                   id="estado"
@@ -440,9 +453,9 @@ export default function EspaciosPage() {
                   onChange={(e) => setFormData({ ...formData, estado: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                 >
-                  <option value="disponible">Disponible</option>
-                  <option value="mantenimiento">En Mantenimiento</option>
-                  <option value="ocupado">Ocupado</option>
+                  <option value="disponible">{t.spaces.available}</option>
+                  <option value="mantenimiento">{t.spaces.maintenance}</option>
+                  <option value="ocupado">{t.spaces.occupied}</option>
                 </select>
               </div>
 
@@ -454,14 +467,14 @@ export default function EspaciosPage() {
                   disabled={loading}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancelar
+                  {t.spaces.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (editingEspacio ? 'Actualizando...' : 'Creando...') : (editingEspacio ? 'Actualizar Espacio' : 'Crear Espacio')}
+                  {loading ? (editingEspacio ? t.spaces.updating : t.spaces.creating) : (editingEspacio ? t.spaces.updateSpace : t.spaces.createSpace)}
                 </button>
               </div>
             </form>

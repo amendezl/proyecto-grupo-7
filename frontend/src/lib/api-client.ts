@@ -1002,6 +1002,26 @@ class ApiClient {
   async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
     return this.post('/usuarios/cambiar-password', { passwordActual: currentPassword, passwordNuevo: newPassword });
   }
+
+  async getSettings(): Promise<ApiResponse<{
+    theme: 'light' | 'dark' | 'auto';
+    language: 'es' | 'en' | 'ko' | 'ja' | 'fr' | 'de' | 'it' | 'zh' | 'hi' | 'pt';
+    fontSize: number;
+    fontFamily: string;
+    accentColor: string;
+  }>> {
+    return this.get('/api/usuarios/settings');
+  }
+
+  async updateSettings(settings: {
+    theme?: 'light' | 'dark' | 'auto';
+    language?: 'es' | 'en' | 'ko' | 'ja' | 'fr' | 'de' | 'it' | 'zh' | 'hi' | 'pt';
+    fontSize?: number;
+    fontFamily?: string;
+    accentColor?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.put('/api/usuarios/settings', settings);
+  }
 }
 
 // Instancia singleton del cliente API

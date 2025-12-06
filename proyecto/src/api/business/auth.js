@@ -14,7 +14,7 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient);
 const register = async (event) => {
     try {
         const body = JSON.parse(event.body);
-        const { email, password, nombre, apellido, empresa_id, empresa_nombre } = body;
+        const { email, password, nombre, apellido, empresa_id, empresa_nombre, departamento, telefono } = body;
 
         if (!email || !password || !empresa_id || !empresa_nombre) {
             return badRequest('Email, password, empresa_id y empresa_nombre son requeridos');
@@ -41,18 +41,21 @@ const register = async (event) => {
         const userPoolId = process.env.COGNITO_USER_POOL_ID;
         
         try {
+            // Construir atributos del usuario (solo los que Cognito soporta)
+            const userAttributes = [
+                { Name: 'email', Value: email },
+                { Name: 'email_verified', Value: 'true' },
+                { Name: 'name', Value: nombre || email },
+                { Name: 'family_name', Value: apellido || '' },
+                { Name: 'custom:empresa_id', Value: empresa_id },
+                { Name: 'custom:empresa_nombre', Value: empresa_nombre }
+            ];
+
             // Crear usuario
             const createUserCommand = new AdminCreateUserCommand({
                 UserPoolId: userPoolId,
                 Username: email,
-                UserAttributes: [
-                    { Name: 'email', Value: email },
-                    { Name: 'email_verified', Value: 'true' },
-                    { Name: 'name', Value: nombre || email },
-                    { Name: 'family_name', Value: apellido || '' },
-                    { Name: 'custom:empresa_id', Value: empresa_id },
-                    { Name: 'custom:empresa_nombre', Value: empresa_nombre }
-                ],
+                UserAttributes: userAttributes,
                 MessageAction: 'SUPPRESS' // No enviar email de bienvenida
             });
 
@@ -79,7 +82,7 @@ const register = async (event) => {
             await cognitoClient.send(addToGroupCommand);
 
             // Guardar registro de empresa en DynamoDB
-            const putCommand = new PutCommand({
+            const putEmpresaCommand = new PutCommand({
                 TableName: process.env.DYNAMODB_TABLE,
                 Item: {
                     PK: `EMPRESA#${empresa_id}`,
@@ -95,13 +98,42 @@ const register = async (event) => {
                 }
             });
             
-            await docClient.send(putCommand);
+            await docClient.send(putEmpresaCommand);
+
+            // Guardar registro del usuario en DynamoDB
+            const putUsuarioCommand = new PutCommand({
+                TableName: process.env.DYNAMODB_TABLE,
+                Item: {
+                    PK: `USER#${userId}`,
+                    SK: `USER#${userId}`,
+                    GSI1PK: `EMPRESA#${empresa_id}`,
+                    GSI1SK: `USER#${userId}`,
+                    id: userId,
+                    email,
+                    nombre: nombre || email,
+                    apellido: apellido || '',
+                    departamento: departamento || '',
+                    telefono: telefono || '',
+                    empresa_id,
+                    rol: 'admin',
+                    activo: true,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    entity_type: 'usuario'
+                }
+            });
+
+            await docClient.send(putUsuarioCommand);
 
             logger.info('Usuario propietario de empresa creado exitosamente', {
                 userId,
                 email,
                 empresa_id,
-                empresa_nombre
+                empresa_nombre,
+                nombre,
+                apellido,
+                departamento,
+                telefono
             });
 
             return created({
@@ -110,6 +142,10 @@ const register = async (event) => {
                 email,
                 empresa_id,
                 empresa_nombre,
+                nombre,
+                apellido,
+                departamento,
+                telefono,
                 rol: 'admin'
             });
 

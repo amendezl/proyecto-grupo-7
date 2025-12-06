@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MapPin, Calendar, Users, BarChart3, Building2, AlertTriangle, TrendingUp, Package } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import axios from 'axios';
 
 interface DashboardStats {
@@ -17,6 +18,7 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardStats>({
     totalEspacios: 0,
     totalReservas: 0,
@@ -99,22 +101,22 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando estadísticas...</p>
+          <p className="text-gray-600">{t.dashboard.loadingStats}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Bienvenido, {user?.nombre || 'Usuario'}
+            {t.dashboard.welcome}, {user?.nombre || 'Usuario'}
           </h1>
           <p className="text-lg text-gray-600">
-            Aquí tienes un resumen de tu sistema de gestión
+            {t.dashboard.welcomeMessage}
           </p>
         </div>
 
@@ -134,11 +136,11 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Espacios</p>
+                <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.spaces}</p>
                 <p className="text-3xl font-bold text-gray-900">{stats.totalEspacios}</p>
                 <p className="text-xs text-red-600 mt-1 flex items-center">
                   <TrendingUp className="h-3 w-3 mr-1" />
-                  {stats.espaciosActivos} ocupados ahora
+                  {stats.espaciosActivos} {t.dashboard.occupiedNow}
                 </p>
               </div>
               <div className="p-4 bg-blue-50 rounded-full">
@@ -151,11 +153,11 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Reservas</p>
+                <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.reservations}</p>
                 <p className="text-3xl font-bold text-gray-900">{stats.totalReservas}</p>
                 <p className="text-xs text-green-600 mt-1 flex items-center">
                   <TrendingUp className="h-3 w-3 mr-1" />
-                  {stats.reservasActivas} activas
+                  {stats.reservasActivas} {t.dashboard.active}
                 </p>
               </div>
               <div className="p-4 bg-purple-50 rounded-full">
@@ -168,9 +170,9 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Usuarios</p>
+                <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.users}</p>
                 <p className="text-3xl font-bold text-gray-900">{stats.totalUsuarios}</p>
-                <p className="text-xs text-gray-500 mt-1">Usuarios registrados</p>
+                <p className="text-xs text-gray-500 mt-1">{t.dashboard.registeredUsers}</p>
               </div>
               <div className="p-4 bg-green-50 rounded-full">
                 <Users className="h-8 w-8 text-green-600" />
@@ -182,9 +184,9 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">Zonas</p>
+                <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.zones}</p>
                 <p className="text-3xl font-bold text-gray-900">{stats.totalZonas}</p>
-                <p className="text-xs text-gray-500 mt-1">Áreas organizadas</p>
+                <p className="text-xs text-gray-500 mt-1">{t.dashboard.organizedAreas}</p>
               </div>
               <div className="p-4 bg-orange-50 rounded-full">
                 <Building2 className="h-8 w-8 text-orange-600" />
@@ -201,32 +203,32 @@ export default function Dashboard() {
                 <Package className="h-10 w-10 text-blue-600" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                ¡Comienza a gestionar tus espacios!
+                {t.dashboard.getStarted}
               </h3>
               <p className="text-gray-600 mb-8">
-                Tu sistema está listo. Empieza creando espacios, zonas y usuarios para aprovechar todas las funcionalidades.
+                {t.dashboard.getStartedMessage}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
                   onClick={() => window.location.href = '/espacios'}
-                  className="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer border-2 border-transparent hover:border-blue-200"
+                  className="flex flex-col items-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer border-2 border-transparent hover:border-blue-200 dark:bg-blue-950/50 dark:hover:bg-blue-950/70 dark:border-blue-800/50 dark:hover:border-blue-700"
                 >
-                  <MapPin className="h-6 w-6 text-blue-600 mb-2" />
-                  <span className="text-sm font-medium text-blue-900">Crear Espacios</span>
+                  <MapPin className="h-6 w-6 text-blue-600 mb-2 dark:text-blue-400" />
+                  <span className="text-sm font-medium text-blue-900 dark:text-blue-300">{t.dashboard.createSpaces}</span>
                 </button>
                 <button
                   onClick={() => window.location.href = '/zonas'}
-                  className="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer border-2 border-transparent hover:border-purple-200"
+                  className="flex flex-col items-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer border-2 border-transparent hover:border-purple-200 dark:bg-purple-950/50 dark:hover:bg-purple-950/70 dark:border-purple-800/50 dark:hover:border-purple-700"
                 >
-                  <Building2 className="h-6 w-6 text-purple-600 mb-2" />
-                  <span className="text-sm font-medium text-purple-900">Crear Zonas</span>
+                  <Building2 className="h-6 w-6 text-purple-600 mb-2 dark:text-purple-400" />
+                  <span className="text-sm font-medium text-purple-900 dark:text-purple-300">{t.dashboard.createZones}</span>
                 </button>
                 <button
                   onClick={() => window.location.href = '/usuarios'}
-                  className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors cursor-pointer border-2 border-transparent hover:border-green-200"
+                  className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors cursor-pointer border-2 border-transparent hover:border-green-200 dark:bg-green-950/50 dark:hover:bg-green-950/70 dark:border-green-800/50 dark:hover:border-green-700"
                 >
-                  <Users className="h-6 w-6 text-green-600 mb-2" />
-                  <span className="text-sm font-medium text-green-900">Agregar Usuarios</span>
+                  <Users className="h-6 w-6 text-green-600 mb-2 dark:text-green-400" />
+                  <span className="text-sm font-medium text-green-900 dark:text-green-300">{t.dashboard.addUsers}</span>
                 </button>
               </div>
             </div>
@@ -235,14 +237,14 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Quick stats */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen del Sistema</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t.dashboard.systemSummary}</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <span className="text-gray-600">Responsables</span>
+                  <span className="text-gray-600">{t.dashboard.responsibles}</span>
                   <span className="font-semibold text-gray-900">{stats.totalResponsables}</span>
                 </div>
                 <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <span className="text-gray-600">Tasa de ocupación</span>
+                  <span className="text-gray-600">{t.dashboard.occupancyRate}</span>
                   <span className="font-semibold text-gray-900">
                     {stats.totalEspacios > 0 
                       ? `${Math.round((stats.espaciosActivos / stats.totalEspacios) * 100)}%`
@@ -250,13 +252,13 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between py-3 border-b border-gray-100">
-                  <span className="text-gray-600">Espacios ocupados ahora</span>
+                  <span className="text-gray-600">{t.dashboard.spacesOccupiedNow}</span>
                   <span className="font-semibold text-red-600">
                     {stats.espaciosActivos}
                   </span>
                 </div>
                 <div className="flex items-center justify-between py-3">
-                  <span className="text-gray-600">Espacios disponibles</span>
+                  <span className="text-gray-600">{t.dashboard.spacesAvailable}</span>
                   <span className="font-semibold text-green-600">
                     {stats.totalEspacios - stats.espaciosActivos}
                   </span>
@@ -266,28 +268,28 @@ export default function Dashboard() {
 
             {/* Quick actions */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t.dashboard.quickActions}</h3>
               <div className="space-y-3">
                 <button
                   onClick={() => window.location.href = '/reservas'}
-                  className="w-full flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors group cursor-pointer border-2 border-transparent hover:border-blue-200"
+                  className="w-full flex items-center p-3 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors group cursor-pointer border-2 border-transparent hover:border-blue-200 dark:bg-blue-950/50 dark:hover:bg-blue-950/70 dark:border-blue-800/50 dark:hover:border-blue-700"
                 >
-                  <Calendar className="h-5 w-5 text-blue-600 mr-3" />
-                  <span className="text-blue-900 font-medium">Gestionar Reservas</span>
+                  <Calendar className="h-5 w-5 text-blue-600 mr-3 dark:text-blue-400" />
+                  <span className="text-blue-900 font-medium dark:text-blue-300">{t.dashboard.manageReservations}</span>
                 </button>
                 <button
                   onClick={() => window.location.href = '/recursos'}
-                  className="w-full flex items-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors group cursor-pointer border-2 border-transparent hover:border-purple-200"
+                  className="w-full flex items-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors group cursor-pointer border-2 border-transparent hover:border-purple-200 dark:bg-purple-950/50 dark:hover:bg-purple-950/70 dark:border-purple-800/50 dark:hover:border-purple-700"
                 >
-                  <Package className="h-5 w-5 text-purple-600 mr-3" />
-                  <span className="text-purple-900 font-medium">Gestionar Recursos</span>
+                  <Package className="h-5 w-5 text-purple-600 mr-3 dark:text-purple-400" />
+                  <span className="text-purple-900 font-medium dark:text-purple-300">{t.dashboard.manageResources}</span>
                 </button>
                 <button
                   onClick={() => window.location.href = '/reportes'}
-                  className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer border-2 border-transparent hover:border-gray-200"
+                  className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group cursor-pointer border-2 border-transparent hover:border-gray-200 dark:bg-gray-800/50 dark:hover:bg-gray-800/70 dark:border-gray-700/50 dark:hover:border-gray-600"
                 >
-                  <BarChart3 className="h-5 w-5 text-gray-600 mr-3" />
-                  <span className="text-gray-900 font-medium">Ver Reportes</span>
+                  <BarChart3 className="h-5 w-5 text-gray-600 mr-3 dark:text-gray-400" />
+                  <span className="text-gray-900 font-medium dark:text-gray-300">{t.dashboard.viewReports}</span>
                 </button>
               </div>
             </div>

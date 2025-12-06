@@ -55,6 +55,17 @@ const userSchema = {
       enum: ['activo', 'inactivo', 'suspendido'],
       default: 'activo'
     },
+    activo: {
+      type: 'boolean'
+    },
+    departamento: {
+      type: 'string',
+      maxLength: 100
+    },
+    cargo: {
+      type: 'string',
+      maxLength: 100
+    },
     fecha_creacion: { 
       type: 'string', 
       format: 'date-time' 

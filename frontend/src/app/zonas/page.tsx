@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Plus, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { apiClient, Zona } from '@/lib/api-client';
 import AppHeader from '@/components/AppHeader';
 import Link from 'next/link';
@@ -11,6 +12,7 @@ import Link from 'next/link';
 export default function ZonasPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useLanguage();
   const [zonas, setZonas] = useState<Zona[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -172,7 +174,7 @@ export default function ZonasPage() {
   // Mostrar loading mientras verifica autenticación
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 p-6 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando...</p>
@@ -182,25 +184,18 @@ export default function ZonasPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <AppHeader 
-        title="Gestión de Zonas"
+        title={t.zones.management}
         breadcrumbs={[
-          { label: 'Zonas', href: '/zonas' }
+          { label: t.zones.title, href: '/zonas' }
         ]}
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Description */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6">
           <p className="text-gray-600">Organiza los espacios de tu empresa por zonas</p>
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
-          </button>
         </div>
 
         {/* Success Message */}
@@ -225,17 +220,17 @@ export default function ZonasPage() {
               <Building2 className="h-10 w-10 text-purple-600" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              Crea tu primera zona
+              {t.zones.createFirst}
             </h3>
             <p className="text-gray-600 mb-8">
-              Las zonas agrupan espacios por ubicación física
+              {t.zones.createFirstDesc}
             </p>
             <button
               onClick={() => setShowForm(true)}
               className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <Plus className="h-5 w-5 mr-2" />
-              Crear Zona
+              {t.zones.createZone}
             </button>
           </div>
         ) : !showForm ? (
@@ -246,14 +241,14 @@ export default function ZonasPage() {
                 className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
               >
                 <Plus className="h-5 w-5 mr-2" />
-                Nueva Zona
+                {t.zones.newZone}
               </button>
             </div>
             
             {loadingZonas ? (
               <div className="bg-white rounded-xl shadow-sm p-12 text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Cargando zonas...</p>
+                <p className="text-gray-600">{t.zones.loadingZones}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -275,18 +270,18 @@ export default function ZonasPage() {
                       <p>Piso: {zona.piso}{zona.edificio ? ` - Edificio ${zona.edificio}` : ''}</p>
                       <p>Capacidad: {zona.capacidadTotal || 0} personas</p>
                     </div>
-                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                       <button
                         onClick={() => handleEdit(zona)}
-                        className="flex-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+                        className="flex-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50"
                       >
-                        Editar
+                        {t.zones.edit}
                       </button>
                       <button
                         onClick={() => handleDelete(zona)}
-                        className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                        className="flex-1 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
                       >
-                        Eliminar
+                        {t.zones.delete}
                       </button>
                     </div>
                   </div>
@@ -296,25 +291,17 @@ export default function ZonasPage() {
           </>
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
-                {editingZona ? 'Editar Zona' : 'Nueva Zona'}
+                {editingZona ? t.zones.editZone : t.zones.newZone}
               </h2>
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Cancelar
-              </button>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Nombre */}
               <div>
                 <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre *
+                  {t.zones.zoneName} *
                 </label>
                 <input
                   type="text"
@@ -323,21 +310,21 @@ export default function ZonasPage() {
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
-                  placeholder="Ej: Edificio A - Piso 3"
+                  placeholder={t.zones.zoneNamePlaceholder}
                 />
               </div>
 
               {/* Descripción */}
               <div>
                 <label htmlFor="descripcion" className="block text-sm font-medium text-gray-700 mb-2">
-                  Descripción
+                  {t.zones.description}
                 </label>
                 <textarea
                   id="descripcion"
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
-                  placeholder="Describe la ubicación y características de esta zona"
+                  placeholder={t.zones.descriptionPlaceholder}
                   rows={3}
                 />
               </div>
@@ -346,7 +333,7 @@ export default function ZonasPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="piso" className="block text-sm font-medium text-gray-700 mb-2">
-                    Piso *
+                    {t.zones.floor} *
                   </label>
                   <input
                     type="number"
@@ -355,13 +342,13 @@ export default function ZonasPage() {
                     value={formData.piso}
                     onChange={(e) => setFormData({ ...formData, piso: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
-                    placeholder="3"
+                    placeholder={t.zones.floorPlaceholder}
                   />
                 </div>
 
                 <div>
                   <label htmlFor="edificio" className="block text-sm font-medium text-gray-700 mb-2">
-                    Edificio
+                    {t.zones.building}
                   </label>
                   <input
                     type="text"
@@ -369,7 +356,7 @@ export default function ZonasPage() {
                     value={formData.edificio}
                     onChange={(e) => setFormData({ ...formData, edificio: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900"
-                    placeholder="A"
+                    placeholder={t.zones.buildingPlaceholder}
                   />
                 </div>
               </div>
@@ -401,14 +388,14 @@ export default function ZonasPage() {
                   disabled={loading}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancelar
+                  {t.zones.cancel}
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
                   className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (editingZona ? 'Actualizando...' : 'Creando...') : (editingZona ? 'Actualizar Zona' : 'Crear Zona')}
+                  {loading ? (editingZona ? t.zones.updating : t.zones.creating) : (editingZona ? t.zones.updateZone : t.zones.createZone)}
                 </button>
               </div>
             </form>

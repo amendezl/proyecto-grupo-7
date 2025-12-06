@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   Plus, 
   Search, 
@@ -31,6 +32,7 @@ import AppHeader from '@/components/AppHeader';
 import Link from 'next/link';
 
 export default function ReservasPage() {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEstado, setSelectedEstado] = useState<string>('');
   const [selectedEspacio, setSelectedEspacio] = useState<string>('');
@@ -69,12 +71,12 @@ export default function ReservasPage() {
   });
 
   const estadosReserva = [
-    { value: '', label: 'Todos los estados' },
-    { value: 'pendiente', label: 'Pendiente' },
-    { value: 'confirmada', label: 'Confirmada' },
-    { value: 'en_curso', label: 'En Curso' },
-    { value: 'completada', label: 'Completada' },
-    { value: 'cancelada', label: 'Cancelada' }
+    { value: '', label: t.reservations.allStatuses },
+    { value: 'pendiente', label: t.reservations.statusPending },
+    { value: 'confirmada', label: t.reservations.statusConfirmed },
+    { value: 'en_curso', label: t.reservations.statusInProgress },
+    { value: 'completada', label: t.reservations.statusCompleted },
+    { value: 'cancelada', label: t.reservations.statusCanceled }
   ];
 
   // Función para manejar cancelación de reserva
@@ -197,7 +199,7 @@ export default function ReservasPage() {
         throw new Error(response.error || 'Error al crear reserva');
       }
 
-      setSuccess('¡Reserva creada exitosamente!');
+      setSuccess(t.reservations.reservationCreated);
       setShowCreateModal(false);
       setFormData({
         espacioId: '',
@@ -216,11 +218,11 @@ export default function ReservasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <AppHeader 
-        title="Gestión de Reservas"
+        title={t.reservations.title}
         breadcrumbs={[
-          { label: 'Reservas', href: '/reservas' }
+          { label: t.nav.reservations, href: '/reservas' }
         ]}
       />
       
@@ -229,20 +231,20 @@ export default function ReservasPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <p className="text-gray-600">
-              Administra y monitorea todas las reservas del sistema
+              {t.reservations.description}
             </p>
             <Link
               href="/dashboard"
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Dashboard
+              {t.nav.dashboard}
             </Link>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Nueva Reserva
+              {t.reservations.newReservation}
             </Button>
           </div>
         </div>
@@ -250,7 +252,7 @@ export default function ReservasPage() {
         {/* View Mode Selector */}
         <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 mr-2">Vista:</span>
+            <span className="text-sm font-medium text-gray-700 mr-2">{t.reservations.viewMode}</span>
             <button
               onClick={() => setViewMode('list')}
               className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
@@ -260,7 +262,7 @@ export default function ReservasPage() {
               }`}
             >
               <List className="h-4 w-4 mr-2" />
-              Lista
+              {t.reservations.viewList}
             </button>
             <button
               onClick={() => setViewMode('calendar')}
@@ -271,7 +273,7 @@ export default function ReservasPage() {
               }`}
             >
               <CalendarDays className="h-4 w-4 mr-2" />
-              Calendario
+              {t.reservations.viewCalendar}
             </button>
             <button
               onClick={() => setViewMode('ocupacion')}
@@ -282,7 +284,7 @@ export default function ReservasPage() {
               }`}
             >
               <Grid3x3 className="h-4 w-4 mr-2" />
-              Ocupación
+              {t.reservations.viewOccupancy}
             </button>
           </div>
         </div>
@@ -291,14 +293,14 @@ export default function ReservasPage() {
       {success && (
         <Alert
           type="success"
-          title="¡Éxito!"
+          title={t.reservations.success}
           message={success}
         />
       )}
       {error && (
         <Alert
           type="error"
-          title="Error"
+          title={t.reservations.errorTitle}
           message={error}
         />
       )}
@@ -312,7 +314,7 @@ export default function ReservasPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar por usuario, espacio o propósito..."
+                placeholder={t.reservations.searchPlaceholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -326,7 +328,7 @@ export default function ReservasPage() {
               value={selectedEstado}
               onChange={(e) => setSelectedEstado(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              title="Filtrar por estado"
+              title={t.reservations.filterByStatus}
             >
               {estadosReserva.map(estado => (
                 <option key={estado.value} value={estado.value}>
@@ -339,9 +341,9 @@ export default function ReservasPage() {
               value={selectedEspacio}
               onChange={(e) => setSelectedEspacio(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              title="Filtrar por espacio"
+              title={t.reservations.filterBySpace}
             >
-              <option value="">Todos los espacios</option>
+              <option value="">{t.reservations.allSpaces}</option>
               {espacios.map(espacio => (
                 <option key={espacio.id} value={espacio.id}>
                   {espacio.nombre}
@@ -351,7 +353,7 @@ export default function ReservasPage() {
 
             <Button variant="secondary" onClick={clearFilters}>
               <Filter className="h-4 w-4 mr-2" />
-              Limpiar
+              {t.reservations.clearFilters}
             </Button>
           </div>
         </div>
@@ -363,7 +365,7 @@ export default function ReservasPage() {
           <div className="flex items-center">
             <CalendarIcon className="h-8 w-8 text-blue-600" />
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Total Reservas</p>
+              <p className="text-sm font-medium text-gray-600">{t.reservations.totalReservations}</p>
               <p className="text-2xl font-bold text-gray-900">{reservas.length}</p>
             </div>
           </div>
@@ -375,7 +377,7 @@ export default function ReservasPage() {
               <CheckCircle className="w-4 h-4 text-green-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Confirmadas</p>
+              <p className="text-sm font-medium text-gray-600">{t.reservations.confirmed}</p>
               <p className="text-2xl font-bold text-green-600">
                 {reservas.filter(r => r.estado === 'confirmada').length}
               </p>
@@ -389,7 +391,7 @@ export default function ReservasPage() {
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Pendientes</p>
+              <p className="text-sm font-medium text-gray-600">{t.reservations.pending}</p>
               <p className="text-2xl font-bold text-amber-600">
                 {reservas.filter(r => r.estado === 'pendiente').length}
               </p>
@@ -403,7 +405,7 @@ export default function ReservasPage() {
               <X className="w-4 h-4 text-red-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Canceladas</p>
+              <p className="text-sm font-medium text-gray-600">{t.reservations.canceled}</p>
               <p className="text-2xl font-bold text-red-600">
                 {reservas.filter(r => r.estado === 'cancelada').length}
               </p>
@@ -415,7 +417,7 @@ export default function ReservasPage() {
       {/* Vista de Ocupación de Espacios */}
       {viewMode === 'ocupacion' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Estado Actual de Espacios</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.reservations.currentSpaceStatus}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {espacios.map(espacio => {
               const ocupado = isEspacioOcupado(espacio.id);
@@ -443,10 +445,10 @@ export default function ReservasPage() {
                     </div>
                     <div className="flex items-center">
                       <User className="h-3 w-3 mr-1" />
-                      <span>Capacidad: {espacio.capacidad}</span>
+                      <span>{t.reservations.capacity}: {espacio.capacidad}</span>
                     </div>
                     <div className={`font-medium mt-2 ${ocupado ? 'text-red-700' : 'text-green-700'}`}>
-                      {ocupado ? '🔴 Ocupado' : '🟢 Disponible'}
+                      {ocupado ? `🔴 ${t.reservations.occupied}` : `🟢 ${t.reservations.available}`}
                     </div>
                   </div>
                 </div>
@@ -461,11 +463,11 @@ export default function ReservasPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
-              Calendario de Reservas - {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+              {t.reservations.calendarTitle} - {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
             </h2>
             {selectedEspacio && (
               <Badge variant="disponible">
-                Espacio: {espacios.find(e => e.id === selectedEspacio)?.nombre || 'Seleccionado'}
+                {t.reservations.space} {espacios.find(e => e.id === selectedEspacio)?.nombre || 'Seleccionado'}
               </Badge>
             )}
           </div>
@@ -526,14 +528,14 @@ export default function ReservasPage() {
           <div className="p-6 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">
-                Reservas ({filteredReservas.length})
+                {t.reservations.reservationsCount} ({filteredReservas.length})
               </h2>
               <div className="flex items-center space-x-2">
                 <Badge variant="disponible" size="sm">
-                  {filteredReservas.filter(r => r.estado === 'confirmada').length} confirmadas
+                  {filteredReservas.filter(r => r.estado === 'confirmada').length} {t.reservations.confirmed.toLowerCase()}
                 </Badge>
                 <Badge variant="reservado" size="sm">
-                  {filteredReservas.filter(r => r.estado === 'pendiente').length} pendientes
+                  {filteredReservas.filter(r => r.estado === 'pendiente').length} {t.reservations.pending.toLowerCase()}
                 </Badge>
               </div>
             </div>
@@ -556,16 +558,16 @@ export default function ReservasPage() {
           ) : filteredReservas.length === 0 ? (
             <div className="text-center py-12">
               <CalendarIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No hay reservas</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">{t.reservations.noReservations}</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {searchTerm || selectedEstado || selectedEspacio
-                  ? 'No se encontraron reservas con los filtros seleccionados.'
-                  : 'Comienza creando tu primera reserva.'}
+                  ? t.reservations.noReservationsFiltered
+                  : t.reservations.noReservationsStart}
               </p>
               <div className="mt-6">
                 <Button variant="primary" onClick={() => setShowCreateModal(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Nueva Reserva
+                  {t.reservations.newReservation}
                 </Button>
               </div>
             </div>
@@ -574,22 +576,22 @@ export default function ReservasPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Usuario
+                    {t.reservations.user}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Espacio
+                    {t.reservations.spaceLabel}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha y Hora
+                    {t.reservations.dateTime}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
+                    {t.reservations.status}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Propósito
+                    {t.reservations.purpose}
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
+                    {t.reservations.actions}
                   </th>
                 </tr>
               </thead>
@@ -638,18 +640,18 @@ export default function ReservasPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 max-w-xs truncate">
-                          {reserva.proposito || 'Sin propósito especificado'}
+                          {reserva.proposito || t.reservations.noPurpose}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           <Button variant="secondary" size="sm">
                             <Eye className="h-3 w-3 mr-1" />
-                            Ver
+                            {t.reservations.view}
                           </Button>
                           <Button variant="secondary" size="sm">
                             <Edit className="h-3 w-3 mr-1" />
-                            Editar
+                            {t.reservations.edit}
                           </Button>
                           {(reserva.estado === 'pendiente' || reserva.estado === 'confirmada') && (
                             <CancelReservaButton
@@ -676,7 +678,7 @@ export default function ReservasPage() {
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Nueva Reserva</h2>
+                <h2 className="text-2xl font-bold text-gray-900">{t.reservations.createReservation}</h2>
                 <button
                   onClick={() => setShowCreateModal(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -689,7 +691,7 @@ export default function ReservasPage() {
                 {/* Espacio */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Espacio <span className="text-red-500">*</span>
+                    {t.reservations.spaceLabel} <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
@@ -697,10 +699,10 @@ export default function ReservasPage() {
                     onChange={(e) => setFormData({ ...formData, espacioId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                   >
-                    <option value="">Selecciona un espacio</option>
+                    <option value="">{t.reservations.selectSpace}</option>
                     {espacios.filter(e => e.estado === 'disponible').map(espacio => (
                       <option key={espacio.id} value={espacio.id}>
-                        {espacio.nombre} - Capacidad: {espacio.capacidad}
+                        {espacio.nombre} - {t.reservations.capacity}: {espacio.capacidad}
                       </option>
                     ))}
                   </select>
@@ -709,7 +711,7 @@ export default function ReservasPage() {
                 {/* Fecha */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha <span className="text-red-500">*</span>
+                    {t.reservations.date} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -725,7 +727,7 @@ export default function ReservasPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hora Inicio <span className="text-red-500">*</span>
+                      {t.reservations.startTime} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="time"
@@ -737,7 +739,7 @@ export default function ReservasPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hora Fin <span className="text-red-500">*</span>
+                      {t.reservations.endTime} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="time"
@@ -752,13 +754,13 @@ export default function ReservasPage() {
                 {/* Propósito */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Propósito <span className="text-red-500">*</span>
+                    {t.reservations.purposeField} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     minLength={5}
-                    placeholder="Reunión de equipo, capacitación, etc."
+                    placeholder={t.reservations.purposePlaceholder}
                     value={formData.proposito}
                     onChange={(e) => setFormData({ ...formData, proposito: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
@@ -768,7 +770,7 @@ export default function ReservasPage() {
                 {/* Número de asistentes */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de Asistentes <span className="text-red-500">*</span>
+                    {t.reservations.attendees} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -783,11 +785,11 @@ export default function ReservasPage() {
                 {/* Notas adicionales */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notas Adicionales
+                    {t.reservations.additionalNotes}
                   </label>
                   <textarea
                     rows={3}
-                    placeholder="Información adicional sobre la reserva..."
+                    placeholder={t.reservations.notesPlaceholder}
                     value={formData.notasAdicionales}
                     onChange={(e) => setFormData({ ...formData, notasAdicionales: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
@@ -801,11 +803,11 @@ export default function ReservasPage() {
                     variant="secondary"
                     onClick={() => setShowCreateModal(false)}
                   >
-                    Cancelar
+                    {t.common.cancel}
                   </Button>
                   <Button type="submit" variant="primary">
                     <CalendarIcon className="h-4 w-4 mr-2" />
-                    Crear Reserva
+                    {t.reservations.createButton}
                   </Button>
                 </div>
               </form>
