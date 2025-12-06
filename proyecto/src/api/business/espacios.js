@@ -11,11 +11,15 @@ const db = new DynamoDBManager();
 
 const getEspacios = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
+    const user = event.user;
     
     try {
         const result = await resilienceManager.executeDatabase(
             async () => {
-                const filters = {};
+                const filters = {
+                    empresa_id: user.empresa_id // MULTITENANCY: Filtrar por empresa
+                };
+                
                 if (queryParams.tipo) filters.tipo = queryParams.tipo;
                 if (queryParams.estado) filters.estado = queryParams.estado;
                 if (queryParams.zona_id) filters.zona_id = queryParams.zona_id;
@@ -108,6 +112,7 @@ const getEspacio = withPermissions(async (event) => {
 const createEspacio = withPermissions(async (event) => {
     try {
         const espacioData = parseBody(event);
+        const user = event.user; // MULTITENANCY: Obtener usuario autenticado
         
         const validatedData = validateForDynamoDB('espacio', espacioData);
         
@@ -120,17 +125,14 @@ const createEspacio = withPermissions(async (event) => {
             return badRequest('Business rules validation failed', businessRulesResult.errors);
         }
         
-        const { nombre, tipo, capacidad, ubicacion } = validatedData;
+        const { nombre, tipo, capacidad, ubicacion, zona_id } = validatedData;
         const esCritico = tipo.toLowerCase().includes('emergencia') ||
                          tipo.toLowerCase().includes('quirófano') ||
                          tipo.toLowerCase().includes('uci') ||
                          tipo.toLowerCase().includes('urgencia') ||
                          nombre.toLowerCase().includes('emergencia');
         
-        const nuevoEspacio = await (esCritico ? 
-            resilienceManager.executeCritical : 
-            resilienceManager.executeDatabase
-        )(
+        const nuevoEspacio = await resilienceManager.executeWithFullResilience(
             async () => {
                 if (zona_id) {
                     const espaciosExistentes = await db.getEspacios({ zona_id });
@@ -146,12 +148,13 @@ const createEspacio = withPermissions(async (event) => {
                 return await db.createEspacio({
                     ...validatedData,
                     capacidad: parseInt(validatedData.capacidad),
-                    prioridad: esCritico ? 'critico' : 'normal'
+                    prioridad: esCritico ? 'critico' : 'normal',
+                    empresa_id: user.empresa_id // MULTITENANCY: Asignar empresa del usuario
                 });
             },
+            esCritico ? 'CRITICAL_BUSINESS' : 'DATABASE_OPERATIONS',
             {
                 operation: 'createEspacio',
-                priority: esCritico ? 'critical' : 'standard',
                 espacioTipo: tipo,
                 esCritico
             }
@@ -190,7 +193,7 @@ const createEspacio = withPermissions(async (event) => {
             requestId: event.requestContext?.requestId
         });
         
-        if (error.name === 'CircuitOpenError') {
+        if (validationError.name === 'CircuitOpenError') {
             return {
                 statusCode: 503,
                 headers: { 'Content-Type': 'application/json' },
@@ -202,7 +205,7 @@ const createEspacio = withPermissions(async (event) => {
             };
         }
         
-        if (error.name === 'RetryExhaustedError') {
+        if (validationError.name === 'RetryExhaustedError') {
             return {
                 statusCode: 503,
                 headers: { 'Content-Type': 'application/json' },

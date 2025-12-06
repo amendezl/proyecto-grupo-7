@@ -11,11 +11,14 @@ const db = new DynamoDBManager();
 
 const getUsuarios = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
+    const user = event.user;
     
     try {
         const result = await resilienceManager.executeDatabase(
             async () => {
-                const filters = {};
+                const filters = {
+                    empresa_id: user.empresa_id // MULTITENANCY: Filtrar por empresa
+                };
                 if (queryParams.rol) filters.rol = queryParams.rol;
                 if (queryParams.activo !== undefined) filters.activo = queryParams.activo === 'true';
                 
@@ -115,8 +118,15 @@ const getUsuario = withPermissions(async (event) => {
 const createUsuario = withPermissions(async (event) => {
     try {
         const userData = parseBody(event);
+        const user = event.user;
         
-        const validatedData = validateForDynamoDB('user', userData);
+        // El nuevo usuario hereda el empresa_id del admin que lo crea
+        const dataWithEmpresa = {
+            ...userData,
+            empresa_id: user.empresa_id || 'empresa-default'
+        };
+        
+        const validatedData = validateForDynamoDB('user', dataWithEmpresa);
         
         const businessRulesResult = validateBusinessRules('user', validatedData);
         if (!businessRulesResult.valid) {
@@ -299,7 +309,7 @@ const updatePerfilActual = withPermissions(async (event) => {
     const user = event.user;
     const updateData = parseBody(event);
     
-    const allowedFields = ['nombre', 'apellido', 'telefono'];
+    const allowedFields = ['nombre', 'apellido', 'telefono', 'departamento'];
     const filteredData = {};
     Object.keys(updateData).forEach(key => {
         if (allowedFields.includes(key)) {
@@ -356,6 +366,70 @@ const { logger } = require('../monitoring/logger');
     }
 }, [PERMISSIONS.USUARIOS_CHANGE_PASSWORD]);
 
+const getSettingsActual = withPermissions(async (event) => {
+    const user = event.user;
+    
+    try {
+        const settings = await db.getUserSettings(user.id);
+        
+        if (!settings) {
+            // Crear settings por defecto si no existen
+            const defaultSettings = {
+                theme: 'light',
+                language: 'es',
+                fontSize: 16,
+                fontFamily: 'inter',
+                accentColor: '#3b82f6'
+            };
+            
+            // Guardar en BD para que persistan
+            await db.updateUserSettings(user.id, defaultSettings);
+            
+            logger.info('Default settings created for user', { userId: user.id });
+            
+            return success(defaultSettings);
+        }
+        
+        return success(settings);
+    } catch (error) {
+        logger.error('Error obteniendo settings del usuario:', { error: error.message, userId: user.id });
+        throw error;
+    }
+}, [PERMISSIONS.USUARIOS_READ_PROFILE]);
+
+const updateSettingsActual = withPermissions(async (event) => {
+    const user = event.user;
+    const settingsData = parseBody(event);
+    
+    // Validar que los settings sean válidos
+    const allowedSettings = ['theme', 'language', 'fontSize', 'fontFamily', 'accentColor'];
+    const filteredSettings = {};
+    
+    Object.keys(settingsData).forEach(key => {
+        if (allowedSettings.includes(key)) {
+            filteredSettings[key] = settingsData[key];
+        }
+    });
+    
+    if (Object.keys(filteredSettings).length === 0) {
+        return badRequest('No se proporcionaron settings válidos');
+    }
+    
+    try {
+        const updatedSettings = await db.updateUserSettings(user.id, filteredSettings);
+        
+        logger.info('Settings actualizados correctamente', { 
+            userId: user.id,
+            settingsUpdated: Object.keys(filteredSettings)
+        });
+        
+        return success(updatedSettings);
+    } catch (error) {
+        logger.error('Error actualizando settings del usuario:', { error: error.message, userId: user.id });
+        throw error;
+    }
+}, [PERMISSIONS.USUARIOS_UPDATE_PROFILE]);
+
 module.exports = {
     getUsuarios,
     getUsuario,
@@ -365,5 +439,7 @@ module.exports = {
     toggleUsuarioEstado,
     getPerfilActual,
     updatePerfilActual,
-    cambiarPassword
+    cambiarPassword,
+    getSettingsActual,
+    updateSettingsActual
 };

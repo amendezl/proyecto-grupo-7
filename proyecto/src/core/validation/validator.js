@@ -46,10 +46,25 @@ const userSchema = {
       type: 'string', 
       enum: ['admin', 'usuario', 'responsable', 'super_admin'] 
     },
+    empresa_id: { 
+      type: 'string', 
+      pattern: '^[a-zA-Z0-9_-]{1,50}$' 
+    },
     estado: { 
       type: 'string', 
       enum: ['activo', 'inactivo', 'suspendido'],
       default: 'activo'
+    },
+    activo: {
+      type: 'boolean'
+    },
+    departamento: {
+      type: 'string',
+      maxLength: 100
+    },
+    cargo: {
+      type: 'string',
+      maxLength: 100
     },
     fecha_creacion: { 
       type: 'string', 
@@ -137,6 +152,10 @@ const espacioSchema = {
       type: 'string', 
       pattern: '^[a-zA-Z0-9_-]{1,50}$' 
     },
+    empresa_id: { 
+      type: 'string', 
+      pattern: '^[a-zA-Z0-9_-]{1,50}$' 
+    },
     fecha_creacion: { 
       type: 'string', 
       format: 'date-time' 
@@ -166,9 +185,21 @@ const reservaSchema = {
       type: 'string', 
       pattern: '^[a-zA-Z0-9_-]{1,50}$' 
     },
-    fecha_reserva: { 
+    empresa_id: { 
       type: 'string', 
-      format: 'date'
+      pattern: '^[a-zA-Z0-9_-]{1,50}$' 
+    },
+    fecha_inicio: { 
+      type: 'string',
+      minLength: 1
+    },
+    fecha_fin: { 
+      type: 'string',
+      minLength: 1
+    },
+    fecha_reserva: { 
+      type: 'string',
+      minLength: 1
     },
     hora_inicio: { 
       type: 'string', 
@@ -187,6 +218,14 @@ const reservaSchema = {
       type: 'integer', 
       minimum: 1,
       maximum: 1000
+    },
+    notas: { 
+      type: 'string', 
+      maxLength: 1000 
+    },
+    prioridad: {
+      type: 'string',
+      enum: ['baja', 'normal', 'alta', 'urgente']
     },
     estado: { 
       type: 'string', 
@@ -219,8 +258,8 @@ const reservaSchema = {
       format: 'date-time' 
     }
   },
-  required: ['usuario_id', 'espacio_id', 'fecha_reserva', 'hora_inicio', 'hora_fin', 'proposito', 'numero_asistentes'],
-  additionalProperties: false
+  required: ['espacio_id', 'fecha_inicio', 'fecha_fin', 'proposito'],
+  additionalProperties: true
 };
 
 // Responsable
@@ -298,6 +337,10 @@ const zonaSchema = {
       minimum: -10, 
       maximum: 100 
     },
+    empresa_id: { 
+      type: 'string', 
+      pattern: '^[a-zA-Z0-9_-]{1,50}$' 
+    },
     capacidad_total: { 
       type: 'integer', 
       minimum: 0,
@@ -325,7 +368,7 @@ const zonaSchema = {
       format: 'date-time' 
     }
   },
-  required: ['nombre', 'edificio', 'piso', 'tipo_zona'],
+  required: ['nombre', 'edificio', 'piso'],
   additionalProperties: false
 };
 

@@ -3,8 +3,36 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, UserPlus, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useLanguage } from '@/contexts/LanguageContext';
+
+// Función para traducir errores de Cognito a mensajes específicos
+const translatePasswordError = (error: string): string => {
+  if (error.includes('Password did not conform') || error.includes('password policy')) {
+    return 'La contraseña no cumple con los requisitos de seguridad. Debe tener al menos 8 caracteres, incluyendo mayúsculas, minúsculas y números.';
+  }
+  if (error.includes('Member must have length greater than or equal to 8')) {
+    return 'La contraseña debe tener al menos 8 caracteres.';
+  }
+  if (error.includes('lowercase')) {
+    return 'La contraseña debe contener al menos una letra minúscula.';
+  }
+  if (error.includes('uppercase')) {
+    return 'La contraseña debe contener al menos una letra mayúscula.';
+  }
+  if (error.includes('number') || error.includes('digit')) {
+    return 'La contraseña debe contener al menos un número.';
+  }
+  if (error.includes('UsernameExistsException') || error.includes('already exists')) {
+    return 'Este correo electrónico ya está registrado. Intenta iniciar sesión o usa otro correo.';
+  }
+  if (error.includes('InvalidPasswordException')) {
+    return 'La contraseña no es válida. Debe tener al menos 8 caracteres, mayúsculas, minúsculas y números.';
+  }
+  return error;
+};
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -14,7 +42,9 @@ export default function RegisterPage() {
     nombre: '',
     apellido: '',
     departamento: '',
-    telefono: ''
+    telefono: '',
+    organizationName: '',
+    industry: 'office' as string
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -24,8 +54,20 @@ export default function RegisterPage() {
   
   const { register } = useAuth();
   const router = useRouter();
+  const { t } = useLanguage();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const industries = [
+    { id: 'office', name: 'Oficinas' },
+    { id: 'healthcare', name: 'Salud' },
+    { id: 'education', name: 'Educación' },
+    { id: 'coworking', name: 'Coworking' },
+    { id: 'parking', name: 'Estacionamientos' },
+    { id: 'sports', name: 'Deportes' },
+    { id: 'equipment', name: 'Equipamiento' },
+    { id: 'events', name: 'Eventos' }
+  ];
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -41,10 +83,25 @@ export default function RegisterPage() {
       setError('Las contraseñas no coinciden');
       return false;
     }
-    if (formData.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
+    
+    // Validar password policy de Cognito
+    if (formData.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
       return false;
     }
+    if (!/[a-z]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos una letra minúscula');
+      return false;
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos una letra mayúscula');
+      return false;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos un número');
+      return false;
+    }
+    
     return true;
   };
 
@@ -60,11 +117,21 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      // Generar empresa_id a partir del nombre de la organización
+      const empresa_id = formData.organizationName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+        .replace(/[^a-z0-9]+/g, '-') // Reemplazar espacios y caracteres especiales con guiones
+        .replace(/^-+|-+$/g, ''); // Remover guiones al inicio y final
+
       const result = await register({
         email: formData.email,
         password: formData.password,
         nombre: formData.nombre,
         apellido: formData.apellido,
+        empresa_id,
+        empresa_nombre: formData.organizationName,
         departamento: formData.departamento || undefined,
         telefono: formData.telefono || undefined
       });
@@ -76,7 +143,9 @@ export default function RegisterPage() {
           router.push('/auth/login');
         }, 2000);
       } else {
-        setError(result.error || 'Error en el registro');
+        // Traducir el error a un mensaje específico
+        const errorMessage = translatePasswordError(result.error || 'Error en el registro');
+        setError(errorMessage);
       }
     } catch (err) {
       setError('Error de conexión. Intenta nuevamente.');
@@ -86,15 +155,31 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      {/* Botón volver en la esquina superior izquierda */}
+      <div className="absolute top-4 left-4">
+        <Link 
+          href="/"
+          className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-200"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm font-medium hidden sm:inline">{t.auth.backToHome}</span>
+        </Link>
+      </div>
+
+      {/* Selector de idioma en la esquina superior derecha */}
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher temporary />
+      </div>
+
       <div className="w-full max-w-2xl">
         {/* Logo y título */}
         <div className="text-center mb-8">
           <div className="bg-green-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
             <UserPlus className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Crear cuenta</h1>
-          <p className="text-gray-600">Regístrate en el sistema de gestión de espacios</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{t.auth.createAccount}</h1>
+          <p className="text-gray-600 dark:text-gray-400">{t.auth.registerSubtitle}</p>
         </div>
 
         {/* Formulario de registro */}
@@ -104,7 +189,7 @@ export default function RegisterPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre *
+                  {t.registerForm.firstName} *
                 </label>
                 <input
                   id="nombre"
@@ -114,14 +199,14 @@ export default function RegisterPage() {
                   value={formData.nombre}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Tu nombre"
+                  placeholder={t.registerForm.firstNamePlaceholder}
                   disabled={isLoading}
                 />
               </div>
 
               <div>
                 <label htmlFor="apellido" className="block text-sm font-medium text-gray-700 mb-2">
-                  Apellido *
+                  {t.registerForm.lastName} *
                 </label>
                 <input
                   id="apellido"
@@ -131,7 +216,7 @@ export default function RegisterPage() {
                   value={formData.apellido}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Tu apellido"
+                  placeholder={t.registerForm.lastNamePlaceholder}
                   disabled={isLoading}
                 />
               </div>
@@ -140,7 +225,7 @@ export default function RegisterPage() {
             {/* Email */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Correo electrónico *
+                {t.auth.email} *
               </label>
               <input
                 id="email"
@@ -155,11 +240,56 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Información de organización */}
+            <div className="border-t pt-6 mt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t.registerForm.organizationInfo}</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="organizationName" className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.registerForm.organizationName} *
+                  </label>
+                  <input
+                    id="organizationName"
+                    name="organizationName"
+                    type="text"
+                    required
+                    value={formData.organizationName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder={t.registerForm.organizationNamePlaceholder}
+                    disabled={isLoading}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">{t.registerForm.organizationNameHelper}</p>
+                </div>
+
+                <div>
+                  <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.registerForm.industry} *
+                  </label>
+                  <select
+                    id="industry"
+                    name="industry"
+                    required
+                    value={formData.industry}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    disabled={isLoading}
+                  >
+                    {industries.map(ind => (
+                      <option key={ind.id} value={ind.id}>{ind.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">{t.registerForm.industryHelper}</p>
+                </div>
+              </div>
+            </div>
+
             {/* Información adicional */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="departamento" className="block text-sm font-medium text-gray-700 mb-2">
-                  Departamento
+                  {t.settings.department}
                 </label>
                 <input
                   id="departamento"
@@ -168,14 +298,14 @@ export default function RegisterPage() {
                   value={formData.departamento}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Ej: Recursos Humanos"
+                  placeholder={t.registerForm.departmentPlaceholder}
                   disabled={isLoading}
                 />
               </div>
 
               <div>
                 <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono
+                  {t.settings.phone}
                 </label>
                 <input
                   id="telefono"
@@ -184,7 +314,7 @@ export default function RegisterPage() {
                   value={formData.telefono}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="+1234567890"
+                  placeholder={t.registerForm.phonePlaceholder}
                   disabled={isLoading}
                 />
               </div>
@@ -194,7 +324,7 @@ export default function RegisterPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Contraseña *
+                  {t.auth.password} *
                 </label>
                 <div className="relative">
                   <input
@@ -205,7 +335,7 @@ export default function RegisterPage() {
                     value={formData.password}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="••••••••"
+                    placeholder={t.registerForm.passwordPlaceholder}
                     disabled={isLoading}
                   />
                   <button
@@ -217,11 +347,32 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
+                {/* Indicadores de requisitos de contraseña */}
+                {formData.password && (
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className={`flex items-center gap-1 ${formData.password.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Mínimo 8 caracteres</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${/[a-z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Al menos una minúscula</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${/[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Al menos una mayúscula</span>
+                    </div>
+                    <div className={`flex items-center gap-1 ${/[0-9]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}`}>
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Al menos un número</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirmar contraseña *
+                  {t.auth.confirmPassword} *
                 </label>
                 <div className="relative">
                   <input
@@ -232,7 +383,7 @@ export default function RegisterPage() {
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="••••••••"
+                    placeholder={t.registerForm.passwordPlaceholder}
                     disabled={isLoading}
                   />
                   <button

@@ -13,7 +13,9 @@ const getReservas = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
     const user = event.user;
     
-    const filters = {};
+    const filters = {
+        empresa_id: user.empresa_id // MULTITENANCY: Filtrar por empresa
+    };
     
     if (user.rol === 'usuario') {
         filters.usuario_id = user.id;
@@ -75,10 +77,11 @@ const createReserva = withPermissions(async (event) => {
                              prioridad === 'alta';
             
             try {
-                const nuevaReserva = await (esCritica ? 
-                    resilienceManager.executeCritical : 
-                    resilienceManager.executeDatabase
-                )(
+                const executeMethod = esCritica ? 
+                    (op, ctx) => resilienceManager.executeCritical(op, ctx) : 
+                    (op, ctx) => resilienceManager.executeDatabase(op, ctx);
+                
+                const nuevaReserva = await executeMethod(
                     async () => {
                         const inicio = new Date(fecha_inicio);
                         const fin = new Date(fecha_fin);
@@ -143,6 +146,7 @@ const createReserva = withPermissions(async (event) => {
                             notas,
                             prioridad: esCritica ? 'emergencia' : (prioridad || 'normal'),
                             estado: esCritica ? 'confirmada' : 'pendiente',
+                            empresa_id: user.empresa_id // MULTITENANCY: Asignar empresa del usuario
                         };
                         
                         const validatedReserva = validateForDynamoDB('reserva', reservaToCreate);

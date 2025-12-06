@@ -1,6 +1,7 @@
 // Configuración de la API backend para producción
+// Using direct API Gateway URL - CloudFront doesn't work with HTTP API
 export const API_CONFIG = {
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://mui3vsx73f.execute-api.us-east-1.amazonaws.com',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -15,6 +16,8 @@ export const ENDPOINTS = {
     LOGIN: '/api/auth/login',
     REFRESH: '/api/auth/refresh', 
     LOGOUT: '/api/auth/logout',
+    // NOTE: register endpoint uses the /api prefix so CloudFront doesn't
+    // route frontend pages under /auth/* to the API origin.
     REGISTER: '/api/auth/register',
     ME: '/api/me',
   },

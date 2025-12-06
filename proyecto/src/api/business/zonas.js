@@ -9,10 +9,21 @@ const db = new DynamoDBManager();
 
 const getZonas = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
+    const user = event.user;
+    
+    // DEBUG: Log para verificar filtrado
+    console.log('[GET_ZONAS] User empresa_id:', user.empresa_id);
     
     return await resilienceManager.executeDatabase(
         async () => {
             let zonas = await db.getEntities('zona');
+            
+            console.log('[GET_ZONAS] Zonas antes de filtrar:', zonas.length);
+            
+            // MULTITENANCY: Filtrar por empresa
+            zonas = zonas.filter(zona => zona.empresa_id === user.empresa_id);
+            
+            console.log('[GET_ZONAS] Zonas después de filtrar:', zonas.length, 'empresa_id:', user.empresa_id);
             
             if (queryParams.piso) {
                 zonas = zonas.filter(zona => zona.piso === queryParams.piso);
@@ -61,6 +72,10 @@ const getZona = withPermissions(async (event) => {
 
 const createZona = withPermissions(async (event) => {
     const zonaData = parseBody(event);
+    const user = event.user;
+    
+    // DEBUG: Log para verificar empresa_id
+    console.log('[CREATE_ZONA] User:', JSON.stringify({ id: user.id, email: user.email, empresa_id: user.empresa_id, rol: user.rol }));
     
     const { nombre, descripcion, piso, edificio } = zonaData;
     
@@ -78,6 +93,7 @@ const createZona = withPermissions(async (event) => {
                 descripcion,
                 piso,
                 edificio,
+                empresa_id: user.empresa_id, // MULTITENANCY: Asignar empresa del usuario
                 activa: zonaData.activa !== false,
                 capacidadMaxima: zonaData.capacidadMaxima,
                 tipoZona: zonaData.tipoZona,

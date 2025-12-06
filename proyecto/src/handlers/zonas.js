@@ -2,7 +2,7 @@
  * Lambda handlers for zonas domain with validation and telemetry
  */
 
-const businessLogic = require('../../api/business/zonas.js');
+const businessLogic = require('../api/business/zonas.js');
 const { registerHandlers } = require('../core/lambda/handlerFactory');
 
 module.exports = registerHandlers(businessLogic, {

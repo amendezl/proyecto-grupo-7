@@ -51,11 +51,15 @@ else
   
   # Create environment file
   echo "==> Creating environment configuration..."
+  # Allow overriding the API base URL used by the frontend via FRONTEND_API_URL env var.
+  FRONTEND_API_URL=${FRONTEND_API_URL:-https://d3tse7z0pwpydh.cloudfront.net}
   cat > .env.production.local << EOF
-NEXT_PUBLIC_API_URL=${API_URL}
+NEXT_PUBLIC_API_URL=${FRONTEND_API_URL}
 NEXT_PUBLIC_WS_URL=${WS_URL}
 NEXT_PUBLIC_STAGE=${STAGE}
 NEXT_PUBLIC_AWS_REGION=${REGION}
+# Public frontend URL (CloudFront)
+NEXT_PUBLIC_FRONTEND_URL=${FRONTEND_URL:-https://d3tse7z0pwpydh.cloudfront.net}
 EOF
   
   # Build and export frontend

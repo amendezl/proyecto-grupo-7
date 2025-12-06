@@ -84,8 +84,17 @@ export default function UsuarioModal({
       newErrors.password = 'La contraseña es requerida';
     }
 
-    if (form.password && form.password.length < 6) {
-      newErrors.password = 'Debe contener al menos 6 caracteres';
+    if (form.password) {
+      // Validar según Cognito password policy
+      if (form.password.length < 8) {
+        newErrors.password = 'Debe contener al menos 8 caracteres';
+      } else if (!/[a-z]/.test(form.password)) {
+        newErrors.password = 'Debe contener al menos una letra minúscula';
+      } else if (!/[A-Z]/.test(form.password)) {
+        newErrors.password = 'Debe contener al menos una letra mayúscula';
+      } else if (!/[0-9]/.test(form.password)) {
+        newErrors.password = 'Debe contener al menos un número';
+      }
     }
 
     if (!form.departamento.trim()) newErrors.departamento = 'El departamento es requerido';
@@ -252,6 +261,7 @@ export default function UsuarioModal({
                 value={form.password}
                 onChange={(value) => setForm((prev) => ({ ...prev, password: value }))}
                 error={errors.password}
+                placeholder={mode === 'create' ? 'Mín. 8 caracteres, mayúsculas, minúsculas y números' : ''}
               />
             </div>
             {mode === 'edit' && (

@@ -13,12 +13,15 @@ export function useEspacios(filters?: {
   edificio?: string;
 }) {
   const [espacios, setEspacios] = useState<Espacio[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const fetchEspacios = useCallback(async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
     setError(null);
     
     try {
@@ -28,54 +31,17 @@ export function useEspacios(filters?: {
         setTotal(response.data.total);
       } else {
         setError(response.error || 'Error al cargar espacios');
-        // Fallback con datos simulados para desarrollo
-        setEspacios([
-          {
-            id: '1',
-            nombre: 'Sala de Reuniones A',
-            descripcion: 'Sala principal para reuniones ejecutivas',
-            capacidad: 8,
-            tipo: 'sala_reunion',
-            estado: 'ocupado',
-            zona: 'Piso 1 - Norte',
-            piso: 1,
-            equipamiento: ['proyector', 'pizarra', 'videoconferencia'],
-            ultimaActualizacion: new Date().toISOString()
-          },
-          {
-            id: '2',
-            nombre: 'Oficina 201',
-            descripcion: 'Oficina individual con vista al jardín',
-            capacidad: 2,
-            tipo: 'oficina',
-            estado: 'disponible',
-            zona: 'Piso 2',
-            piso: 2,
-            equipamiento: ['escritorio', 'silla_ergonomica'],
-            ultimaActualizacion: new Date().toISOString()
-          },
-          {
-            id: '3',
-            nombre: 'Lab. Computación',
-            descripcion: 'Laboratorio de cómputo con 20 estaciones',
-            capacidad: 20,
-            tipo: 'laboratorio',
-            estado: 'mantenimiento',
-            zona: 'Piso 3',
-            piso: 3,
-            equipamiento: ['computadoras', 'proyector', 'aire_acondicionado'],
-            ultimaActualizacion: new Date().toISOString()
-          }
-        ]);
-        setTotal(3);
+        setEspacios([]);
+        setTotal(0);
       }
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching espacios:', err);
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
-  }, [filters]);
+  }, [JSON.stringify(filters)]);
 
   useEffect(() => {
     fetchEspacios();
@@ -100,12 +66,15 @@ export function useReservas(filters?: {
   estado?: string;
 }) {
   const [reservas, setReservas] = useState<Reserva[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const fetchReservas = useCallback(async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
     setError(null);
     
     try {
@@ -115,38 +84,17 @@ export function useReservas(filters?: {
         setTotal(response.data.total);
       } else {
         setError(response.error || 'Error al cargar reservas');
-        // Fallback con datos simulados
-        setReservas([
-          {
-            id: '1',
-            espacioId: '1',
-            usuarioId: 'user-1',
-            fechaInicio: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-            fechaFin: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
-            estado: 'confirmada',
-            proposito: 'Reunión de equipo',
-            participantes: 6
-          },
-          {
-            id: '2',
-            espacioId: '2',
-            usuarioId: 'user-2',
-            fechaInicio: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            fechaFin: new Date(Date.now() + 26 * 60 * 60 * 1000).toISOString(),
-            estado: 'pendiente',
-            proposito: 'Trabajo individual',
-            participantes: 1
-          }
-        ]);
-        setTotal(2);
+        setReservas([]);
+        setTotal(0);
       }
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching reservas:', err);
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
-  }, [filters]);
+  }, [JSON.stringify(filters)]);
 
   useEffect(() => {
     fetchReservas();
@@ -167,12 +115,15 @@ export function useZonas(filters?: {
   edificio?: string;
 }) {
   const [zonas, setZonas] = useState<Zona[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const fetchZonas = useCallback(async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
     setError(null);
     
     try {
@@ -201,40 +152,7 @@ export function useZonas(filters?: {
         zonasBase = response.data.zonas.map(normalizeZona);
       } else {
         setError(response.error || 'Error al cargar zonas');
-        const fallbackData: Zona[] = [
-          {
-            id: 'zona-1',
-            nombre: 'Piso 1 - Norte',
-            descripcion: 'Área norte del primer piso',
-            piso: 1,
-            capacidadTotal: 50,
-            espaciosDisponibles: 35,
-            color: '#3B82F6',
-            activa: true,
-          },
-          {
-            id: 'zona-2',
-            nombre: 'Piso 2',
-            descripcion: 'Segundo piso completo',
-            piso: 2,
-            capacidadTotal: 80,
-            espaciosDisponibles: 60,
-            color: '#10B981',
-            activa: true,
-          },
-          {
-            id: 'zona-3',
-            nombre: 'Piso 3',
-            descripcion: 'Laboratorios y aulas especializadas',
-            piso: 3,
-            capacidadTotal: 100,
-            espaciosDisponibles: 75,
-            color: '#F59E0B',
-            activa: false,
-          }
-        ];
-
-        zonasBase = fallbackData.map(normalizeZona);
+        zonasBase = [];
       }
 
       const zonasFiltradas = applyLocalFilters(zonasBase);
@@ -246,8 +164,9 @@ export function useZonas(filters?: {
       console.error('Error fetching zonas:', err);
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
-  }, [filters]);
+  }, [JSON.stringify(filters)]);
 
   useEffect(() => {
     fetchZonas();
@@ -282,15 +201,7 @@ export function useDashboardMetrics() {
         setMetrics(response.data);
       } else {
         setError(response.error || 'Error al cargar métricas');
-        // Fallback con datos simulados
-        setMetrics({
-          totalEspacios: 45,
-          espaciosDisponibles: 24,
-          espaciosOcupados: 18,
-          espaciosMantenimiento: 3,
-          reservasHoy: 89,
-          ocupacionPromedio: 68
-        });
+        setMetrics(null);
       }
     } catch (err) {
       setError('Error de conexión');
@@ -371,12 +282,15 @@ export function useResponsables(filters?: {
   estado?: string;
 }) {
   const [responsables, setResponsables] = useState<Responsable[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const fetchResponsables = useCallback(async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
     setError(null);
     
     try {
@@ -386,56 +300,17 @@ export function useResponsables(filters?: {
         setTotal(response.data.total);
       } else {
         setError(response.error || 'Error al cargar responsables');
-        // Fallback con datos simulados para desarrollo
-        setResponsables([
-          {
-            id: '1',
-            nombre: 'Dr. Ana',
-            apellido: 'Martínez',
-            email: 'ana.martinez@hospital.com',
-            telefono: '+34 612 345 678',
-            departamento: 'Cardiología',
-            especialidad: 'Cardiología Intervencionista',
-            areas: ['Urgencias', 'Consultas Externas'],
-            espaciosAsignados: ['1', '3', '5'],
-            estado: 'activo',
-            fechaCreacion: '2024-01-15T00:00:00Z',
-            ultimoAcceso: '2024-01-15T10:30:00Z',
-            estadisticas: {
-              espaciosGestionados: 3,
-              reservasAprobadas: 45,
-              incidentesResueltos: 12
-            }
-          },
-          {
-            id: '2',
-            nombre: 'Dr. Carlos',
-            apellido: 'López',
-            email: 'carlos.lopez@hospital.com',
-            telefono: '+34 612 345 679',
-            departamento: 'Neurología',
-            especialidad: 'Neurocirugía',
-            areas: ['Quirófanos', 'UCI'],
-            espaciosAsignados: ['2', '4'],
-            estado: 'activo',
-            fechaCreacion: '2024-01-10T00:00:00Z',
-            ultimoAcceso: '2024-01-15T09:15:00Z',
-            estadisticas: {
-              espaciosGestionados: 2,
-              reservasAprobadas: 32,
-              incidentesResueltos: 8
-            }
-          }
-        ]);
-        setTotal(2);
+        setResponsables([]);
+        setTotal(0);
       }
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching responsables:', err);
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
-  }, [filters]);
+  }, [JSON.stringify(filters)]);
 
   useEffect(() => {
     fetchResponsables();
@@ -461,12 +336,15 @@ export function useUsuarios(filters?: {
   departamento?: string;
 }) {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const fetchUsuarios = useCallback(async () => {
-    setLoading(true);
+    if (initialLoad) {
+      setLoading(true);
+    }
     setError(null);
     
     try {
@@ -476,42 +354,17 @@ export function useUsuarios(filters?: {
         setTotal(response.data.total);
       } else {
         setError(response.error || 'Error al cargar usuarios');
-        // Fallback con datos simulados para desarrollo
-        setUsuarios([
-          {
-            id: '1',
-            nombre: 'Dr. Juan Pérez',
-            email: 'juan.perez@hospital.com',
-            rol: 'admin',
-            departamento: 'Administración',
-            activo: true
-          },
-          {
-            id: '2',
-            nombre: 'Dra. María García',
-            email: 'maria.garcia@hospital.com',
-            rol: 'responsable',
-            departamento: 'Cardiología',
-            activo: true
-          },
-          {
-            id: '3',
-            nombre: 'Carlos López',
-            email: 'carlos.lopez@hospital.com',
-            rol: 'usuario',
-            departamento: 'Neurología',
-            activo: false
-          }
-        ]);
-        setTotal(3);
+        setUsuarios([]);
+        setTotal(0);
       }
     } catch (err) {
       setError('Error de conexión');
       console.error('Error fetching usuarios:', err);
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
-  }, [filters]);
+  }, [JSON.stringify(filters)]);
 
   useEffect(() => {
     fetchUsuarios();

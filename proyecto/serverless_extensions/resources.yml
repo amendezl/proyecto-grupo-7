@@ -745,6 +745,13 @@ Resources:
         - email
       AutoVerifiedAttributes:
         - email
+      Schema:
+        - Name: empresa_id
+          AttributeDataType: String
+          Mutable: false
+        - Name: empresa_nombre
+          AttributeDataType: String
+          Mutable: true
       Policies:
         PasswordPolicy:
           MinimumLength: 8
@@ -752,6 +759,31 @@ Resources:
           RequireNumbers: true
           RequireSymbols: false
           RequireUppercase: true
+
+  # Cognito User Groups for role-based permissions
+  CognitoUserGroupAdmin:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admin
+      Description: Administrators with full system access
+      UserPoolId: { Ref: CognitoUserPool }
+      Precedence: 0
+
+  CognitoUserGroupResponsable:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: responsable
+      Description: Space managers with limited administrative access
+      UserPoolId: { Ref: CognitoUserPool }
+      Precedence: 1
+
+  CognitoUserGroupUsuario:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: usuario
+      Description: Regular users with basic access
+      UserPoolId: { Ref: CognitoUserPool }
+      Precedence: 2
 
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -769,6 +801,17 @@ Resources:
         AccessToken: minutes
         IdToken: minutes
         RefreshToken: days
+      ReadAttributes:
+        - email
+        - email_verified
+        - name
+        - family_name
+        - phone_number
+      WriteAttributes:
+        - email
+        - name
+        - family_name
+        - phone_number
 
   # === WEBSOCKET API ===
   WebSocketApi:

@@ -9,6 +9,7 @@ import {
   User,
   Mail,
   Phone,
+  ArrowLeft,
   Building2,
   MapPin,
   Settings,
@@ -29,20 +30,24 @@ import {
   Alert 
 } from '@/components/ui/components';
 import { useResponsables, useEspacios } from '@/hooks/useApi';
-import { Responsable } from '@/lib/api-client';
+import { Responsable, apiClient } from '@/lib/api-client';
 import ResponsableModal from '@/components/ResponsableModal';
+import AppHeader from '@/components/AppHeader';
+import Link from 'next/link';
 
 // Componente de tarjeta para responsable
 function ResponsableCard({ 
   responsable, 
   onView, 
   onEdit, 
-  onToggleEstado 
+  onToggleEstado,
+  onDelete
 }: {
   responsable: Responsable;
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onToggleEstado: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const estadoBadgeColor = responsable.estado === 'activo' ? 'disponible' : 'urgente';
 
@@ -201,9 +206,44 @@ export default function ResponsablesPage() {
     }
   };
 
-  const handleToggleEstado = (id: string) => {
-    console.log('Toggle estado responsable:', id);
-    // TODO: Implementar toggle de estado con API
+  const handleToggleEstado = async (id: string) => {
+    const responsable = responsables.find(r => r.id === id);
+    if (!responsable) return;
+    
+    const newEstado = responsable.estado === 'activo' ? 'inactivo' : 'activo';
+    const confirmMessage = newEstado === 'inactivo' 
+      ? `¿Deseas desactivar a ${responsable.nombre} ${responsable.apellido}?`
+      : `¿Deseas activar a ${responsable.nombre} ${responsable.apellido}?`;
+    
+    if (!confirm(confirmMessage)) return;
+    
+    try {
+      const response = await apiClient.toggleResponsableEstado(id, newEstado === 'activo');
+      if (response.ok) {
+        await refetch();
+      }
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const responsable = responsables.find(r => r.id === id);
+    if (!responsable) return;
+    
+    if (!confirm(`¿Estás seguro de eliminar a ${responsable.nombre} ${responsable.apellido}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    
+    try {
+      const response = await apiClient.deleteResponsable(id);
+      if (!response.ok) {
+        throw new Error(response.error || 'Error al eliminar responsable');
+      }
+      await refetch();
+    } catch (error: any) {
+      alert(error.message || 'Error al eliminar responsable');
+    }
   };
 
   const handleCreateNew = () => {
@@ -213,10 +253,23 @@ export default function ResponsablesPage() {
   };
 
   const handleModalSave = async (data: Partial<Responsable>) => {
-    console.log('Saving responsable:', data);
-    // TODO: Implementar save con API
-    // Refrescar datos después de guardar
-    refetch();
+    try {
+      if (modalMode === 'edit' && selectedResponsable) {
+        const response = await apiClient.updateResponsable(selectedResponsable.id, data);
+        if (!response.ok) {
+          throw new Error(response.error || 'Error al actualizar responsable');
+        }
+      } else if (modalMode === 'create') {
+        const response = await apiClient.createResponsable(data as Omit<Responsable, 'id' | 'fechaCreacion' | 'estadisticas'>);
+        if (!response.ok) {
+          throw new Error(response.error || 'Error al crear responsable');
+        }
+      }
+      await refetch();
+    } catch (error) {
+      console.error('Error saving responsable:', error);
+      throw error;
+    }
   };
 
   const handleModalClose = () => {
@@ -233,20 +286,34 @@ export default function ResponsablesPage() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Responsables</h1>
-          <p className="text-gray-600 mt-1">
-            Administra responsables de áreas y asignación de espacios
-          </p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <AppHeader 
+        title="Gestión de Responsables"
+        breadcrumbs={[
+          { label: 'Responsables', href: '/responsables' }
+        ]}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Page Description and Actions */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <p className="text-gray-600">
+              Administra responsables de áreas y asignación de espacios
+            </p>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Dashboard
+            </Link>
+          </div>
+          <Button variant="primary" onClick={handleCreateNew}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Responsable
+          </Button>
         </div>
-        <Button variant="primary" onClick={handleCreateNew}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Responsable
-        </Button>
-      </div>
 
       {/* Estadísticas de resumen */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -348,15 +415,6 @@ export default function ResponsablesPage() {
         </div>
       </div>
 
-      {/* Alertas */}
-      {error && (
-        <Alert
-          type="warning"
-          title="Modo de demostración"
-          message="Mostrando datos simulados. La conexión al backend no está disponible."
-        />
-      )}
-
       {/* Grid de responsables */}
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -386,6 +444,7 @@ export default function ResponsablesPage() {
               onView={handleView}
               onEdit={handleEdit}
               onToggleEstado={handleToggleEstado}
+              onDelete={handleDelete}
             />
           ))}
         </div>
@@ -421,6 +480,7 @@ export default function ResponsablesPage() {
         espacios={espacios.map(e => ({ id: e.id, nombre: e.nombre, zona: e.zona }))}
         mode={modalMode}
       />
+      </div>
     </div>
   );
 }

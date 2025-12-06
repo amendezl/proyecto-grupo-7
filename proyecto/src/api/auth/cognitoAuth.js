@@ -2,7 +2,10 @@ const {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
   GetUserCommand,
-  GlobalSignOutCommand
+  GlobalSignOutCommand,
+  SignUpCommand,
+  AdminConfirmSignUpCommand,
+  AdminAddUserToGroupCommand
 } = require("@aws-sdk/client-cognito-identity-provider");
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { logger } = require('../../infrastructure/monitoring/logger');
@@ -158,6 +161,30 @@ const me = async (event) => {
   try {
     const claims = event.requestContext?.authorizer?.jwt?.claims || {};
     
+    // Buscar información adicional del usuario en DynamoDB
+    const DynamoDBManager = require('../../infrastructure/database/DynamoDBManager');
+    const db = new DynamoDBManager();
+    
+    let empresa_id = 'empresa-default';
+    let rol = null;
+    let usuarioData = null;
+    
+    try {
+      // Buscar usuario por email en DynamoDB
+      if (claims.email) {
+        usuarioData = await db.getUsuarioByEmail(claims.email);
+        if (usuarioData) {
+          empresa_id = usuarioData.empresa_id || 'empresa-default';
+          rol = usuarioData.rol;
+        }
+      }
+    } catch (dbError) {
+      // No fallar si DynamoDB falla, solo loggear
+      logger.warn('[COGNITO_ME] Could not fetch user from DynamoDB', { 
+        errorMessage: dbError.message 
+      });
+    }
+    
     return response(200, {
       ok: true,
       user: {
@@ -169,7 +196,9 @@ const me = async (event) => {
         aud: claims.aud,
         iss: claims.iss,
         exp: claims.exp,
-        iat: claims.iat
+        iat: claims.iat,
+        empresa_id: empresa_id,
+        rol: rol
       }
     });
   } catch (error) {
@@ -187,8 +216,8 @@ function response(statusCode, body) {
     headers: {
       "content-type": "application/json",
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
+      "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Api-Version",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS,PATCH"
     },
     body: JSON.stringify(body)
   };
@@ -200,3 +229,115 @@ module.exports = {
   me,
   logout
 };
+
+// Register new user (exposed as POST /auth/register)
+const register = async (event) => {
+  try {
+    const { email, password, nombre, apellido, departamento, telefono, industry, organizationName, customTerminology } = JSON.parse(event.body || '{}');
+
+    if (!email || !password) {
+      return response(400, { ok: false, error: 'email y password son obligatorios' });
+    }
+
+    const cmd = new SignUpCommand({
+      ClientId: process.env.USER_POOL_CLIENT_ID,
+      Username: email,
+      Password: password,
+      UserAttributes: [
+        { Name: 'email', Value: email },
+        { Name: 'name', Value: nombre || '' },
+        { Name: 'family_name', Value: apellido || '' }
+      ]
+    });
+
+    const result = await client.send(cmd);
+
+    // Optionally auto-confirm the user so they can login immediately
+    let autoConfirmed = false;
+    let adminConfirmError = null;
+    if (process.env.AUTO_CONFIRM_REGISTRATION === 'true') {
+      try {
+        await client.send(new AdminConfirmSignUpCommand({
+          UserPoolId: process.env.USER_POOL_ID,
+          Username: email
+        }));
+        autoConfirmed = true;
+      } catch (err) {
+        // non-fatal: log and continue
+        adminConfirmError = err.message;
+        logger.warn('[COGNITO_REGISTER] Auto-confirm failed', { errorMessage: err.message, errorType: err.constructor?.name });
+      }
+    }
+
+    // Add user to 'admin' group (self-registered users get full permissions)
+    try {
+      await client.send(new AdminAddUserToGroupCommand({
+        UserPoolId: process.env.USER_POOL_ID,
+        Username: email,
+        GroupName: 'admin'
+      }));
+      logger.info('[COGNITO_REGISTER] User added to admin group', { email });
+    } catch (err) {
+      logger.warn('[COGNITO_REGISTER] Failed to add user to admin group', { 
+        errorMessage: err.message, 
+        errorType: err.constructor?.name 
+      });
+    }
+
+    // Crear organización para el nuevo usuario
+    let organizationId = null;
+    let organizationCreated = false;
+    try {
+      const OrganizationManager = require('../../shared/utils/organizationManager');
+      const organizationManager = new OrganizationManager();
+      
+      // Crear organización con el nombre de la empresa o email como fallback
+      const orgName = organizationName || `Organización de ${nombre || email}`;
+      const selectedIndustry = industry || 'generic';
+      
+      const organization = await organizationManager.createOrganization({
+        name: orgName,
+        industry: selectedIndustry,
+        adminUserId: result.UserSub,
+        customTerminology: customTerminology || {}
+      });
+      
+      organizationId = organization.id;
+      organizationCreated = true;
+      
+      // Vincular usuario a la organización
+      await organizationManager.linkUserToOrganization(result.UserSub, organizationId);
+      
+      logger.info('[COGNITO_REGISTER] Organization created and linked', {
+        userId: result.UserSub,
+        orgId: organizationId,
+        industry: selectedIndustry
+      });
+    } catch (orgError) {
+      logger.error('[COGNITO_REGISTER] Failed to create organization:', {
+        errorMessage: orgError.message,
+        errorType: orgError.constructor?.name
+      });
+      // No fallar el registro si falla la creación de organización
+    }
+
+    const respBody = { 
+      ok: true, 
+      message: 'Usuario creado', 
+      userConfirmed: (autoConfirmed || !!result.UserConfirmed), 
+      autoConfirmEnv: process.env.AUTO_CONFIRM_REGISTRATION,
+      organizationCreated,
+      organizationId
+    };
+    if (adminConfirmError) respBody.adminConfirmError = adminConfirmError;
+    return response(200, respBody);
+  } catch (err) {
+    logger.error('[COGNITO_REGISTER] Error:', { errorMessage: err.message, errorType: err.constructor?.name });
+    // Map common Cognito errors to friendly messages
+    const errMsg = err && err.message ? err.message : 'Registro falló';
+    return response(400, { ok: false, error: errMsg });
+  }
+};
+
+// Export register alongside existing handlers
+module.exports.register = register;

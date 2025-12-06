@@ -1,449 +1,321 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useUsuarios } from '@/hooks/useApi';
-import { Button, Input, Badge, MetricCard } from '@/components/ui/components';
-import { Card } from '@/components/ui/Card';
-import { Users, UserPlus, Search, Filter, User2, Shield, UserCheck, UserX } from 'lucide-react';
-import { Usuario } from '@/lib/api-client';
-import UsuarioModal from '@/components/UsuarioModal';
-import { useNotificationsContext } from '@/context/NotificationsContext';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Users, Plus, Package, ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import AppHeader from '@/components/AppHeader';
+import Link from 'next/link';
+import { apiClient } from '@/lib/api-client';
 
 export default function UsuariosPage() {
-  const { t } = useTranslation();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filtroRol, setFiltroRol] = useState<string>('');
-  const [filtroEstado, setFiltroEstado] = useState<string>('');
-  const [filtroDepartamento, setFiltroDepartamento] = useState<string>('');
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<Usuario | null>(null);
-  const { showSuccess, showError } = useNotificationsContext();
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useLanguage();
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    apellido: '',
+    email: '',
+    password: '',
+    departamento: '',
+    telefono: '',
+    rol: 'usuario',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const filters = useMemo(() => {
-    const f: any = {};
-    if (filtroRol) f.rol = filtroRol;
-    if (filtroEstado !== '') f.activo = filtroEstado === 'activo';
-    if (filtroDepartamento) f.departamento = filtroDepartamento;
-    return f;
-  }, [filtroRol, filtroEstado, filtroDepartamento]);
-
-  const { usuarios, loading, error, total, refetch, toggleUsuarioEstado, createUsuario, updateUsuario } = useUsuarios(filters);
-
-  const usuariosFiltrados = useMemo(() => {
-    if (!searchTerm) return usuarios;
-    
-    return usuarios.filter(usuario =>
-      usuario.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (usuario.departamento ?? '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [usuarios, searchTerm]);
-
-  // Estadísticas calculadas
-  const estadisticas = useMemo(() => {
-    const activos = usuarios.filter(u => u.activo).length;
-    const inactivos = usuarios.filter(u => !u.activo).length;
-    const admins = usuarios.filter(u => u.rol === 'admin').length;
-    const responsables = usuarios.filter(u => u.rol === 'responsable').length;
-    
-    return { activos, inactivos, admins, responsables };
-  }, [usuarios]);
-
-  const departamentos = useMemo(() => {
-    const depts = [...new Set(
-      usuarios
-        .map((u) => u.departamento)
-        .filter((dept): dept is string => typeof dept === 'string' && dept.length > 0)
-    )];
-    return depts.sort();
-  }, [usuarios]);
-
-  const handleToggleEstado = useCallback(async (usuario: Usuario) => {
-    setTogglingId(usuario.id);
-    try {
-      await toggleUsuarioEstado(usuario.id, !usuario.activo);
-      const nuevoEstado = !usuario.activo ? t('status.active') : t('status.inactive');
-      showSuccess(
-        t('usuariosModule.stateChanged.title'),
-        t('usuariosModule.stateChanged.message', { name: usuario.nombre, status: nuevoEstado })
-      );
-    } catch (err) {
-      console.error('Error actualizando estado de usuario', err);
-      showError(
-        t('usuariosModule.stateError.title'),
-        t('usuariosModule.stateError.message')
-      );
-    } finally {
-      setTogglingId(null);
+  // Verificar autenticación
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.push('/auth/login');
     }
-  }, [toggleUsuarioEstado, showSuccess, showError, t]);
+  }, [isAuthenticated, isLoading, router]);
 
-  const handleCreateClick = useCallback(() => {
-    setUsuarioSeleccionado(null);
-    setModalMode('create');
-    setShowModal(true);
-  }, []);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
 
-  const handleEditClick = useCallback((usuario: Usuario) => {
-    setUsuarioSeleccionado(usuario);
-    setModalMode('edit');
-    setShowModal(true);
-  }, []);
+    // Validar password policy de Cognito
+    if (formData.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres');
+      setLoading(false);
+      return;
+    }
+    if (!/[a-z]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos una letra minúscula');
+      setLoading(false);
+      return;
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos una letra mayúscula');
+      setLoading(false);
+      return;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setError('La contraseña debe contener al menos un número');
+      setLoading(false);
+      return;
+    }
 
-  const handleModalClose = useCallback(() => {
-    setShowModal(false);
-    setUsuarioSeleccionado(null);
-  }, []);
-
-  const handleModalSubmit = useCallback(async (payload: Partial<Usuario> & { password?: string }) => {
     try {
-      if (modalMode === 'create') {
-        const nuevoUsuario: Omit<Usuario, 'id'> & { password?: string } = {
-          nombre: payload.nombre ?? '',
-          email: payload.email ?? '',
-          departamento: payload.departamento ?? '',
-          rol: payload.rol ?? 'usuario',
-          activo: payload.activo ?? true,
-        };
+      const usuarioData = {
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        email: formData.email,
+        password: formData.password,
+        departamento: formData.departamento,
+        telefono: formData.telefono,
+        rol: formData.rol as 'admin' | 'responsable' | 'usuario',
+        activo: true,
+      };
 
-        if (payload.apellido) nuevoUsuario.apellido = payload.apellido;
-        if (payload.telefono) nuevoUsuario.telefono = payload.telefono;
-        if (payload.password) nuevoUsuario.password = payload.password;
+      console.log('📤 Enviando datos de usuario:', usuarioData);
+      const response = await apiClient.createUsuario(usuarioData);
+      console.log('📥 Respuesta recibida:', response);
 
-        await createUsuario(nuevoUsuario);
-        showSuccess(
-          t('usuariosModule.created.title'),
-          t('usuariosModule.created.message', { name: nuevoUsuario.nombre })
-        );
-      } else if (usuarioSeleccionado) {
-        await updateUsuario(usuarioSeleccionado.id, payload);
-        const nombreReferencia = payload.nombre ?? usuarioSeleccionado.nombre;
-        showSuccess(
-          t('usuariosModule.updated.title'),
-          t('usuariosModule.updated.message', { name: nombreReferencia })
-        );
+      if (!response.ok) {
+        throw new Error(response.error || response.message || 'Error al crear usuario');
       }
 
-      await refetch();
-    } catch (err) {
-      console.error('Error guardando usuario', err);
-      showError(
-        t('usuariosModule.saveError.title'),
-        t('usuariosModule.saveError.message')
-      );
-      throw err;
-    }
-  }, [modalMode, usuarioSeleccionado, createUsuario, updateUsuario, refetch, showSuccess, showError, t]);
-
-  const getRolColor = (rol: string) => {
-    switch (rol) {
-      case 'admin':
-        return 'urgente';
-      case 'responsable':
-        return 'reservado';
-      case 'usuario':
-        return 'disponible';
-      default:
-        return 'mantenimiento';
+      setSuccess('¡Usuario creado exitosamente!');
+      setFormData({
+        nombre: '',
+        apellido: '',
+        email: '',
+        password: '',
+        departamento: '',
+        telefono: '',
+        rol: 'usuario',
+      });
+      setShowForm(false);
+    } catch (err: any) {
+      console.error('❌ Error completo:', err);
+      const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Error al crear usuario';
+      setError(`Error: ${errorMsg}`);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) {
+  // Mostrar loading mientras verifica autenticación
+  if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-600 mb-4">{error}</p>
-        <Button onClick={refetch} variant="secondary">
-          Reintentar
-        </Button>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
-          <p className="text-gray-600 mt-1">
-            Administra los usuarios del sistema y sus permisos
-          </p>
-        </div>
-        <Button variant="primary" onClick={handleCreateClick}>
-          <UserPlus className="w-4 h-4 mr-2" />
-          Crear Usuario
-        </Button>
-      </div>
-
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <MetricCard
-          title="Total Usuarios"
-          value={total.toString()}
-          icon={Users}
-          className="border-l-4 border-l-blue-500"
-        />
-        
-        <MetricCard
-          title="Usuarios Activos"
-          value={estadisticas.activos.toString()}
-          icon={UserCheck}
-          trend={{ direction: "up", percentage: 5 }}
-          className="border-l-4 border-l-green-500"
-        />
-        
-        <MetricCard
-          title="Administradores"
-          value={estadisticas.admins.toString()}
-          icon={Shield}
-          className="border-l-4 border-l-red-500"
-        />
-        
-        <MetricCard
-          title="Usuarios Inactivos"
-          value={estadisticas.inactivos.toString()}
-          icon={UserX}
-          trend={{ direction: "down", percentage: 3 }}
-          className="border-l-4 border-l-orange-500"
-        />
-      </div>
-
-      {/* Filtros y búsqueda */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <Filter className="w-5 h-5 mr-2" />
-          Filtros y Búsqueda
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre, email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="rol-filter" className="block text-sm font-medium text-gray-700 mb-1">
-              Filtrar por rol
-            </label>
-            <select
-              id="rol-filter"
-              value={filtroRol}
-              onChange={(e) => setFiltroRol(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Todos los roles</option>
-              <option value="admin">Administrador</option>
-              <option value="responsable">Responsable</option>
-              <option value="usuario">Usuario</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="estado-filter" className="block text-sm font-medium text-gray-700 mb-1">
-              Filtrar por estado
-            </label>
-            <select
-              id="estado-filter"
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Todos los estados</option>
-              <option value="activo">Activos</option>
-              <option value="inactivo">Inactivos</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="dept-filter" className="block text-sm font-medium text-gray-700 mb-1">
-              Filtrar por departamento
-            </label>
-            <select
-              id="dept-filter"
-              value={filtroDepartamento}
-              onChange={(e) => setFiltroDepartamento(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Todos los departamentos</option>
-              {departamentos.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <AppHeader 
+        title={t.usersManagement.management}
+        breadcrumbs={[
+          { label: t.usersManagement.title, href: '/usuarios' }
+        ]}
+      />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Description */}
+        <div className="mb-6">
+          <p className="text-gray-600">Administra los usuarios del sistema</p>
         </div>
 
-        {(searchTerm || filtroRol || filtroEstado || filtroDepartamento) && (
-          <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Mostrando {usuariosFiltrados.length} de {total} usuarios
-            </p>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setSearchTerm('');
-                setFiltroRol('');
-                setFiltroEstado('');
-                setFiltroDepartamento('');
-              }}
-            >
-              Limpiar filtros
-            </Button>
+        {/* Success Message */}
+        {success && (
+          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <p className="text-green-800">{success}</p>
           </div>
         )}
-      </Card>
 
-      {/* Lista de usuarios */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {usuariosFiltrados.map((usuario) => (
-          <UsuarioCard 
-            key={usuario.id}
-            usuario={usuario}
-            onToggleEstado={handleToggleEstado}
-            processing={togglingId === usuario.id}
-            onEdit={handleEditClick}
-            rolColor={getRolColor(usuario.rol)}
-          />
-        ))}
-      </div>
-
-      {usuariosFiltrados.length === 0 && (
-        <Card className="p-8 text-center">
-          <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No se encontraron usuarios
-          </h3>
-          <p className="text-gray-600">
-            {searchTerm || filtroRol || filtroEstado || filtroDepartamento
-              ? 'Intenta ajustar los filtros de búsqueda'
-              : 'Comienza creando tu primer usuario'
-            }
-          </p>
-        </Card>
-      )}
-      </div>
-      <UsuarioModal
-        isOpen={showModal}
-        mode={modalMode}
-        usuario={usuarioSeleccionado ?? undefined}
-        departamentos={departamentos}
-        onClose={handleModalClose}
-        onSubmit={handleModalSubmit}
-      />
-    </>
-  );
-}
-
-// Componente para cada tarjeta de usuario
-function UsuarioCard({ 
-  usuario, 
-  rolColor,
-  onToggleEstado,
-  processing,
-  onEdit,
-}: { 
-  usuario: Usuario;
-  rolColor: 'disponible' | 'ocupado' | 'mantenimiento' | 'reservado' | 'urgente';
-  onToggleEstado: (usuario: Usuario) => Promise<void> | void;
-  processing: boolean;
-  onEdit: (usuario: Usuario) => void;
-}) {
-  const getRolIcon = (rol: string) => {
-    switch (rol) {
-      case 'admin':
-        return Shield;
-      case 'responsable':
-        return UserCheck;
-      case 'usuario':
-        return User2;
-      default:
-        return User2;
-    }
-  };
-
-  const RolIcon = getRolIcon(usuario.rol);
-
-  return (
-    <Card className={`p-6 transition-all duration-200 hover:shadow-lg ${
-      !usuario.activo ? 'opacity-75 bg-gray-50' : ''
-    }`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className={`p-2 rounded-lg ${
-            usuario.activo ? 'bg-blue-100' : 'bg-gray-100'
-          }`}>
-            <RolIcon className={`w-5 h-5 ${
-              usuario.activo ? 'text-blue-600' : 'text-gray-400'
-            }`} />
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-800">{error}</p>
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 text-lg">
-              {usuario.nombre}
+        )}
+
+        {/* Create Button */}
+        {!showForm ? (
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div className="p-4 bg-green-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+              <Users className="h-10 w-10 text-green-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              {t.usersManagement.createFirst}
             </h3>
-            <p className="text-sm text-gray-600">{usuario.email}</p>
+            <p className="text-gray-600 mb-8">
+              {t.usersManagement.createFirstDesc}
+            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              {t.usersManagement.createUser}
+            </button>
           </div>
-        </div>
-        
-        <Button
-          variant={usuario.activo ? "danger" : "success"}
-          onClick={() => onToggleEstado(usuario)}
-          disabled={processing}
-        >
-          {processing ? 'Actualizando...' : usuario.activo ? 'Desactivar' : 'Activar'}
-        </Button>
+        ) : (
+          <div className="bg-white rounded-xl shadow-sm p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">{t.usersManagement.newUser}</h2>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Nombre y Apellido */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.usersManagement.name} *
+                  </label>
+                  <input
+                    type="text"
+                    id="nombre"
+                    required
+                    value={formData.nombre}
+                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                    placeholder={t.usersManagement.namePlaceholder}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="apellido" className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.usersManagement.lastName} *
+                  </label>
+                  <input
+                    type="text"
+                    id="apellido"
+                    required
+                    value={formData.apellido}
+                    onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                    placeholder={t.usersManagement.lastNamePlaceholder}
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  {t.usersManagement.email} *
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                  placeholder={t.usersManagement.emailPlaceholder}
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Contraseña *
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  required
+                  minLength={8}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                  placeholder="Mínimo 8 caracteres"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Debe contener: mayúsculas, minúsculas y números
+                </p>
+              </div>
+
+              {/* Departamento y Teléfono */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="departamento" className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.usersManagement.department} *
+                  </label>
+                  <input
+                    type="text"
+                    id="departamento"
+                    required
+                    value={formData.departamento}
+                    onChange={(e) => setFormData({ ...formData, departamento: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                    placeholder={t.usersManagement.departmentPlaceholder}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-2">
+                    {t.usersManagement.phone}
+                  </label>
+                  <input
+                    type="tel"
+                    id="telefono"
+                    value={formData.telefono}
+                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                    placeholder={t.usersManagement.phonePlaceholder}
+                  />
+                </div>
+              </div>
+
+              {/* Rol */}
+              <div>
+                <label htmlFor="rol" className="block text-sm font-medium text-gray-700 mb-2">
+                  {t.usersManagement.role} *
+                </label>
+                <select
+                  id="rol"
+                  required
+                  value={formData.rol}
+                  onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                >
+                  <option value="usuario">{t.usersManagement.user}</option>
+                  <option value="responsable">Responsable</option>
+                  <option value="admin">{t.usersManagement.admin}</option>
+                </select>
+                <p className="text-sm text-gray-500 mt-1">
+                  {formData.rol === 'admin' && 'Acceso completo al sistema'}
+                  {formData.rol === 'responsable' && 'Puede gestionar espacios y reservas'}
+                  {formData.rol === 'usuario' && 'Puede hacer reservas'}
+                </p>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-end space-x-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  disabled={loading}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  {t.usersManagement.cancel}
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? t.usersManagement.creating : t.usersManagement.createUser}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
-      
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Rol:</span>
-          <Badge variant={rolColor}>
-            {usuario.rol.charAt(0).toUpperCase() + usuario.rol.slice(1)}
-          </Badge>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Departamento:</span>
-          <span className="text-sm font-medium text-gray-900">
-            {usuario.departamento}
-          </span>
-        </div>
-        
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-gray-600">Estado:</span>
-          <Badge variant={usuario.activo ? "disponible" : "mantenimiento"}>
-            {usuario.activo ? 'Activo' : 'Inactivo'}
-          </Badge>
-        </div>
-      </div>
-      
-      <div className="pt-4 border-t border-gray-100 mt-4">
-        <Button
-          variant="secondary"
-          className="w-full"
-          onClick={() => onEdit(usuario)}
-        >
-          Editar Usuario
-        </Button>
-      </div>
-    </Card>
+    </div>
   );
 }

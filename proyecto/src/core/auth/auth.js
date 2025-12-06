@@ -7,21 +7,78 @@ const getClaimsFromRequestContext = (event) => {
     return jwtCtx && (jwtCtx.claims || jwtCtx.scopes) ? jwtCtx.claims || {} : null;
 };
 
-const claimsToUser = (claims) => {
+const getUserGroupsFromCognito = async (username) => {
+    const { CognitoIdentityProviderClient, AdminListGroupsForUserCommand } = require('@aws-sdk/client-cognito-identity-provider');
+    const client = new CognitoIdentityProviderClient({});
+    
+    try {
+        const response = await client.send(new AdminListGroupsForUserCommand({
+            UserPoolId: process.env.USER_POOL_ID,
+            Username: username
+        }));
+        
+        return response.Groups?.map(g => g.GroupName) || [];
+    } catch (error) {
+        console.warn('[AUTH] Failed to get user groups:', error.message);
+        return [];
+    }
+};
+
+const claimsToUser = async (claims) => {
     if (!claims) return null;
 
-    const role = claims['custom:role'] || (Array.isArray(claims['cognito:groups']) ? claims['cognito:groups'][0] : claims['cognito:groups']);
+    console.log('[AUTH] Claims cognito:groups:', claims['cognito:groups'], 'type:', typeof claims['cognito:groups']);
+    console.log('[AUTH] Claims custom:role:', claims['custom:role']);
+
+    // Try to get role from token first
+    let role = claims['custom:role'];
+    
+    // Try to get from cognito:groups
+    if (!role && claims['cognito:groups']) {
+        let groups = claims['cognito:groups'];
+        
+        // If it's a string that looks like an array (e.g., "[admin]"), extract the content
+        if (typeof groups === 'string' && groups.startsWith('[') && groups.endsWith(']')) {
+            // Remove brackets and split by comma
+            const content = groups.substring(1, groups.length - 1).trim();
+            if (content) {
+                groups = content.split(',').map(s => s.trim());
+            }
+        }
+        
+        // Extract first group
+        role = Array.isArray(groups) ? groups[0] : groups;
+    }
+    
+    // If no role in token, fetch from Cognito groups
+    if (!role) {
+        const username = claims['cognito:username'] || claims.sub;
+        const groups = await getUserGroupsFromCognito(username);
+        console.log('[AUTH] Fetched groups from Cognito:', groups);
+        role = groups[0]; // Use first group as role
+    }
+    
+    console.log('[AUTH] Final role:', role, 'type:', typeof role);
+    
+    // MULTITENANCY: Obtener empresa_id desde custom attribute o usar default
+    const empresaId = claims['custom:empresa_id'] || process.env.DEFAULT_EMPRESA_ID || 'empresa-default';
+    
+    // DEBUG: Log para verificar custom:empresa_id
+    console.log('[AUTH] custom:empresa_id from claims:', claims['custom:empresa_id']);
+    console.log('[AUTH] Final empresa_id:', empresaId);
+    
     return {
         id: claims.sub,
         email: claims.email,
         nombre: claims.name || claims.given_name,
         apellido: claims.family_name,
         rol: role || 'usuario',
+        empresa_id: empresaId,
         claims
     };
 };
 
-const authenticateFromClaims = (event) => {
+const authenticateFromClaims = async (event) => {
     const claims = getClaimsFromRequestContext(event);
     if (!claims) {
         throw new Error('JWT Authorizer claims required - ensure API Gateway JWT authorizer is properly configured');
@@ -35,7 +92,7 @@ const authenticateFromClaims = (event) => {
         throw new Error('Invalid JWT claims: invalid issuer');
     }
     
-    return claimsToUser(claims);
+    return await claimsToUser(claims);
 };
 
 const authenticateToken = async (event) => {

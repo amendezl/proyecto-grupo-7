@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { apiClient, Usuario } from '@/lib/api-client';
 import usePersonalizationSocket from '../hooks/usePersonalizationSocket';
+import { API_CONFIG } from '@/lib/config';
 
 // Interfaces de autenticación
 export interface User {
@@ -13,6 +14,7 @@ export interface User {
   apellido: string;
   rol: 'admin' | 'responsable' | 'usuario';
   activo: boolean;
+  empresa_id?: string;
   departamento?: string;
   telefono?: string;
   created_at?: string;
@@ -20,6 +22,7 @@ export interface User {
 
 export interface AuthTokens {
   accessToken: string;
+  idToken: string;
   refreshToken: string;
   expiresAt: number;
 }
@@ -33,7 +36,7 @@ export interface AuthState {
 
 export interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: (onLogoutComplete?: () => void) => Promise<void>;
   register: (userData: RegisterData) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (userData: Partial<User>) => Promise<{ success: boolean; error?: string }>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
@@ -45,6 +48,8 @@ export interface RegisterData {
   password: string;
   nombre: string;
   apellido: string;
+  empresa_id: string;
+  empresa_nombre: string;
   departamento?: string;
   telefono?: string;
 }
@@ -184,7 +189,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storedUserRaw = localStorage.getItem('auth_user');
         const storedTokens = apiClient.getTokens();
 
-        if (storedTokens && storedTokens.expiresAt && storedTokens.expiresAt > Date.now()) {
+        // Si no hay tokens en absoluto, directamente marca como no autenticado
+        if (!storedTokens) {
+          setAuthState(prev => ({ ...prev, isLoading: false }));
+          return;
+        }
+
+        if (storedTokens.expiresAt && storedTokens.expiresAt > Date.now()) {
           let user: User | null = null;
           if (storedUserRaw) {
             user = JSON.parse(storedUserRaw) as User;
@@ -198,13 +209,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         }
 
-        if (storedTokens) {
+        // Solo intentar refresh si hay refreshToken
+        if (storedTokens.refreshToken) {
           const refreshed = await refreshAuth();
           if (!refreshed) {
             clearAuthStorage();
           }
         } else {
-          setAuthState(prev => ({ ...prev, isLoading: false }));
+          clearAuthStorage();
         }
       } catch (error) {
         console.error('Error cargando autenticación:', error);
@@ -256,6 +268,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: 'No se pudo obtener la información del usuario' };
       }
 
+      // Limpiar idioma temporal de sessionStorage (usado en páginas públicas)
+      sessionStorage.removeItem('temp_language');
+
       persistAuthState(userProfile, tokens);
       return { success: true };
     } catch (error) {
@@ -266,13 +281,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [loadUserProfile, persistAuthState]);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (onLogoutComplete?: () => void) => {
     try {
       await apiClient.logout();
     } catch (error) {
       console.error('Error en logout del servidor:', error);
     } finally {
+      // Limpiar TODO el localStorage y sessionStorage para invalidar tokens
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
       clearAuthStorage();
+      
+      // Limpiar múltiples entradas del historial
+      if (typeof window !== 'undefined') {
+        // Reemplazar varias veces para asegurar que no se pueda volver
+        for (let i = 0; i < 10; i++) {
+          window.history.replaceState(null, '', '/auth/login');
+        }
+        
+        // Forzar recarga completa de la página
+        window.location.replace('/auth/login');
+      }
+      
+      // Call callback after clearing storage to allow components to handle navigation
+      if (onLogoutComplete) {
+        onLogoutComplete();
+      }
     }
   }, [clearAuthStorage]);
 
@@ -280,7 +317,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAuthState(prev => ({ ...prev, isLoading: true }));
 
     try {
+      // Debug: log base URL used by the API client to reproduce "Network Error" in browser
+      // eslint-disable-next-line no-console
+      console.log('[AuthContext] register - API baseURL:', API_CONFIG?.baseURL);
+
       const response = await apiClient.register(userData);
+
+      // Debug: log the full response object to capture network/cors errors
+      // eslint-disable-next-line no-console
+      console.log('[AuthContext] register response:', response);
+
       setAuthState(prev => ({ ...prev, isLoading: false }));
 
       if (response.ok) {
@@ -289,7 +335,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       return { success: false, error: response.error || response.message || 'Error en el registro' };
     } catch (error) {
-      console.error('Error en registro:', error);
+      // eslint-disable-next-line no-console
+      console.error('[AuthContext] Error en registro (caught):', error);
       setAuthState(prev => ({ ...prev, isLoading: false }));
       return { success: false, error: 'Error de conexión' };
     }
