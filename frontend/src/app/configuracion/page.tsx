@@ -220,6 +220,9 @@ export default function ConfiguracionPage() {
     }
   ];
 
+  // Verificar si el usuario es admin
+  const isAdmin = user?.rol?.toLowerCase() === 'admin' || user?.rol?.toLowerCase() === 'administrador';
+
   // Temas disponibles
   const themes = [
     { value: 'light', label: t.settings.themeLight, icon: Sun },
@@ -524,6 +527,29 @@ export default function ConfiguracionPage() {
                     {t.settings.selectLanguage}
                   </p>
                 </div>
+
+                {/* Botón Admin - Página Personalizada */}
+                {isAdmin && (
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-6 shadow-sm border-2 border-purple-200 dark:border-purple-700">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                          <Settings className="inline h-5 w-5 mr-2 text-purple-600 dark:text-purple-400" />
+                          Panel de Administración
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Accede a funciones avanzadas y configuración del sistema
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => router.push('/admin-custom')}
+                        className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium rounded-lg shadow-lg transition-all transform hover:scale-105"
+                      >
+                        Ir al Panel
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Tamaño de fuente */}
                 <div className="bg-white dark:bg-[#242938] rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
