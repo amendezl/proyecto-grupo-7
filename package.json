@@ -16,11 +16,6 @@
 
     "deploy:terraform": "cd devops/infra && terraform apply -auto-approve",
     "deploy:frontend": "cd frontend && npm ci && npm run build && npm run export",
-    "deploy:full": "npm run deploy:terraform && npm run deploy:frontend && npm run deploy",
-
-    "remove": "cd proyecto && serverless remove",
-    "remove:terraform": "cd devops/infra && terraform destroy -auto-approve",
-    "remove:full": "npm run remove && npm run remove:terraform",
 
     "info": "cd proyecto && serverless info --verbose",
     "logs:worker": "cd proyecto && serverless logs -f queueWorker -t"

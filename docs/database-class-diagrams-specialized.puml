@@ -1,0 +1,426 @@
+@startuml Diagrama de Clases - Tablas Especializadas DynamoDB
+' Sistema de Gestión de Espacios - Arquitectura de Tablas Especializadas DynamoDB
+' Generado: 2025-12-08
+' Nota: MainDynamoDBTable excluida (ver diagrama completo para tabla principal)
+
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FEFEFE
+skinparam class {
+    BackgroundColor<<table>> LightBlue
+    BackgroundColor<<lambda>> LightGreen
+    BorderColor Black
+    ArrowColor Black
+}
+
+'==============================================================================
+' 1. TABLA DE IDEMPOTENCIA (IdempotencyTable)
+'==============================================================================
+package "IdempotencyTable" <<table>> {
+    class IdempotencyTable {
+        **Primary Key**
+        + idempotencyKey: String (HASH)
+        --
+        **Attributes**
+        + operationId: String
+        + status: String (SUCCESS|FAILED|IN_PROGRESS)
+        + statusCode: Number
+        + result: Object
+        + errorMessage: String
+        + metadata: Object
+        + createdAt: Number (timestamp)
+        + ttl: Number (Unix timestamp)
+        --
+        **Configuración TTL**
+        + TTL Attribute: ttl
+        + TTL Enabled: true
+        + TTL por defecto: 24 horas (86400s)
+        --
+        **Propósito**
+        Previene la ejecución duplicada
+        de operaciones críticas
+    }
+
+    class "Lambda: TODAS" <<lambda>> {
+        **Vía IdempotencyManager**
+        + generateIdempotencyKey(event, params)
+        + checkIdempotency(key)
+        + recordOperation(key, data)
+        + updateOperationStatus(key, status, result)
+        + cleanupExpiredRecords()
+        --
+        **Usado por Operaciones:**
+        - Procesamiento de pagos
+        - Creación de reservas
+        - Registro de usuarios
+        - Cambios de estado críticos
+        --
+        **Ruta del Módulo:**
+        src/shared/utils/idempotencyManager.js
+    }
+
+    IdempotencyTable <-- "Lambda: TODAS" : Verificar/Registrar Operaciones
+}
+
+'==============================================================================
+' 2. TABLA DE TEMAS DEL SITIO WEB (WebsiteThemesTable)
+'==============================================================================
+package "WebsiteThemesTable" <<table>> {
+    class WebsiteThemesTable {
+        **Primary Key**
+        + themeId: String (HASH)
+        --
+        **GSI: CreatedByIndex**
+        + createdBy: String (HASH)
+        + createdAt: Number (RANGE)
+        --
+        **GSI: ActiveThemesIndex**
+        + isActive: String (HASH)
+        + createdAt: Number (RANGE)
+        --
+        **Attributes**
+        + name: String
+        + description: String
+        + config: Object (JSON)
+        + version: String
+        + updatedAt: Number
+        --
+        **Streams**
+        + StreamViewType: NEW_AND_OLD_IMAGES
+        + PointInTimeRecovery: Enabled
+        --
+        **Propósito**
+        Almacenar configuraciones de temas
+        personalizados para multi-tenant
+    }
+
+    class "Lambda: adminThemeManager" <<lambda>> {
+        **Handler:** src/lambda-admin-custom.handler
+        --
+        **Operaciones**
+        + createTheme(themeData, userId)
+        + getTheme(themeId)
+        + listThemesByCreator(userId)
+        + listActiveThemes()
+        + updateTheme(themeId, updates, userId)
+        + deleteTheme(themeId, userId)
+        --
+        **API Endpoints**
+        POST /api/admin/themes
+        GET /api/admin/themes
+        --
+        **Autorización**
+        Cognito JWT (rol admin requerido)
+        --
+        **Variables de Entorno**
+        THEMES_TABLE: Referencia a WebsiteThemesTable
+        SERVICE_NAME: sistema-gestion-espacios
+    }
+
+    WebsiteThemesTable <-- "Lambda: adminThemeManager" : Operaciones CRUD Completas
+}
+
+'==============================================================================
+' 3. TABLA DE ESTADO DE CIRCUITO (CircuitStateTable)
+'==============================================================================
+package "CircuitStateTable" <<table>> {
+    class CircuitStateTable {
+        **Primary Key**
+        + serviceName: String (HASH)
+        --
+        **Attributes**
+        + state: String (CLOSED|OPEN|HALF_OPEN)
+        + lastUpdated: Number (timestamp)
+        + failureCount: Number
+        + successCount: Number
+        + lastFailureTime: Number
+        + nextAttemptTime: Number
+        --
+        **Propósito**
+        Persistir estado del circuit breaker
+        entre invocaciones Lambda
+        para tolerancia a fallos
+    }
+
+    class "Patrón: CircuitBreaker" <<lambda>> {
+        **Módulo:** shared/patterns/circuitBreakerPattern.js
+        --
+        **Estados del Circuito**
+        + CLOSED: Operación normal
+        + OPEN: Servicio fallando, bloquear peticiones
+        + HALF_OPEN: Probando recuperación
+        --
+        **Operaciones Principales**
+        + openCircuit()
+        + closeCircuit()
+        + shouldAttemptReset()
+        + recordSuccess()
+        + recordFailure()
+        --
+        **Configuraciones de Servicio**
+        - HIGH_PRIORITY
+          * failureThreshold: 3
+          * recoveryTimeout: 5000ms
+          * successThreshold: 2
+        - DATABASE
+          * failureThreshold: 5
+          * recoveryTimeout: 10000ms
+          * successThreshold: 3
+        - AUTH
+          * failureThreshold: 4
+          * recoveryTimeout: 15000ms
+          * successThreshold: 2
+        - EXTERNAL_API
+          * failureThreshold: 3
+          * recoveryTimeout: 30000ms
+          * successThreshold: 3
+        - MESSAGING
+          * failureThreshold: 7
+          * recoveryTimeout: 20000ms
+          * successThreshold: 3
+        --
+        **Usado Por**
+        Todas las funciones Lambda vía:
+        - resilienceManager.executeDatabase()
+        - resilienceManager.executeMessaging()
+        - resilienceManager.executeAuth()
+    }
+
+    CircuitStateTable <-- "Patrón: CircuitBreaker" : Persistencia de Estado
+}
+
+'==============================================================================
+' 4. TABLA DE CONEXIONES WEBSOCKET (WebSocketConnectionsTable)
+'==============================================================================
+package "WebSocketConnectionsTable" <<table>> {
+    class WebSocketConnectionsTable {
+        **Primary Key**
+        + connectionId: String (HASH)
+        --
+        **GSI: ClientIdIndex**
+        + clientId: String (HASH)
+        --
+        **GSI: StatusIndex**
+        + status: String (HASH)
+        --
+        **Attributes**
+        + userId: String
+        + userEmail: String
+        + userRole: String
+        + domain: String
+        + stage: String
+        + createdAt: String (ISO)
+        + tokenIssuer: String
+        + tokenAudience: String
+        + ttl: Number (Unix timestamp)
+        --
+        **Configuración TTL**
+        + TTL Attribute: ttl
+        + TTL Enabled: true
+        --
+        **Propósito**
+        Gestionar conexiones WebSocket activas
+        para notificaciones en tiempo real
+    }
+
+    class "Lambda: websocketConnect" <<lambda>> {
+        **Handler:** websocket.connect.connect
+        --
+        **Operaciones**
+        + connect(event)
+        + extractJWTClaims(event)
+        + storeConnection(connectionData)
+        --
+        **Event:** Ruta $connect
+        **Auth:** Autorizador JWT
+        --
+        **Datos Almacenados**
+        - connectionId (de API Gateway)
+        - userId (de JWT sub)
+        - clientId (de atributo custom JWT)
+        - userEmail (de JWT email)
+        - userRole (de JWT groups)
+        - domain & stage (del contexto)
+    }
+
+    class "Lambda: websocketDisconnect" <<lambda>> {
+        **Handler:** websocket.disconnect.disconnect
+        --
+        **Operaciones**
+        + disconnect(event)
+        + deleteConnection(connectionId)
+        --
+        **Event:** Ruta $disconnect
+        --
+        **Limpieza**
+        Elimina el registro de conexión
+        cuando el cliente se desconecta
+    }
+
+    class "Lambda: websocketDefault" <<lambda>> {
+        **Handler:** websocket.default.default
+        --
+        **Operaciones**
+        + handleMessage(event)
+        + routeMessage(action, data)
+        --
+        **Event:** Ruta $default
+        --
+        **Propósito**
+        Manejar mensajes WebSocket
+        personalizados de clientes
+    }
+
+    class "Lambda: websocket" <<lambda>> {
+        **Handler:** websocket.js (varias exportaciones)
+        --
+        **Operaciones de Conexión**
+        + connect(connectionId, userData)
+        + disconnect(connectionId)
+        + message(connectionId, payload)
+        --
+        **Operaciones de Difusión**
+        + broadcastMessage(message)
+        + sendMessageToConnection(connectionId, msg)
+        + sendStats()
+        --
+        **Operaciones de Notificación**
+        + notifyReserva(streamEvent)
+        + notifyEspacioEstado(streamEvent)
+        --
+        **Operaciones de Consulta**
+        - Consulta por clientId (ClientIdIndex)
+        - Consulta por status='active' (StatusIndex)
+        - Limpieza de conexiones obsoletas (errores 410)
+        --
+        **Disparado Por**
+        - DynamoDB Streams (MainTable)
+        - Peticiones HTTP API
+        - Eventos programados
+    }
+
+    class "Lambda: personalizationForwarder" <<lambda>> {
+        **Handler:** personalizationForwarder.handler
+        --
+        **Operaciones**
+        + handler(snsEvent)
+        + forwardToConnections(clientId, message)
+        + cleanupStaleConnections()
+        --
+        **Disparador:** SNS Topic
+        SpaceNotificationsTopic
+        SystemAlertsTopic
+        --
+        **Propósito**
+        Enviar actualizaciones de personalización
+        a clientes WebSocket conectados
+        en tiempo real
+        --
+        **Flujo**
+        1. Recibir mensaje SNS
+        2. Extraer clientId del mensaje
+        3. Consultar conexiones por clientId
+        4. Enviar a cada conexión
+        5. Limpiar conexiones obsoletas (410)
+    }
+
+    class "Lambda: devops" <<lambda>> {
+        **Handler:** devops.js
+        --
+        **Operaciones**
+        + getBroadcastStatus()
+        + sendBroadcastNotification(message)
+        --
+        **Propósito**
+        Automatización DevOps
+        notificaciones en tiempo real
+        para estado de despliegues,
+        alertas de sistema, etc.
+    }
+
+    WebSocketConnectionsTable <-- "Lambda: websocketConnect" : Crear Conexión
+    WebSocketConnectionsTable <-- "Lambda: websocketDisconnect" : Eliminar Conexión
+    WebSocketConnectionsTable <-- "Lambda: websocketDefault" : Actualizar Conexión
+    WebSocketConnectionsTable <-- "Lambda: websocket" : CRUD + Difusión
+    WebSocketConnectionsTable <-- "Lambda: personalizationForwarder" : Consulta + Limpieza
+    WebSocketConnectionsTable <-- "Lambda: devops" : Consulta para Difusión
+}
+
+'==============================================================================
+' RELACIONES ENTRE TABLAS Y NOTAS
+'==============================================================================
+note top of IdempotencyTable
+    **Limpieza TTL:**
+    Elimina automáticamente registros después de 24 horas
+    para prevenir crecimiento excesivo de la tabla mientras
+    mantiene idempotencia para ventanas de tiempo críticas
+    
+    **Estrategia de Generación de Claves:**
+    1. Header x-idempotency-key (proporcionado por cliente)
+    2. Generado: userId-operation-bodyHash
+    3. Asegura deduplicación de peticiones
+end note
+
+note top of WebsiteThemesTable
+    **Multi-tenancy:**
+    Cada organización puede tener múltiples temas
+    Solo un tema puede estar activo (isActive='true')
+    CreatedByIndex habilita consultas específicas por usuario
+    
+    **Configuración de Tema:**
+    - Colores (primario, secundario, acento, fondo, texto)
+    - Fuentes (encabezado, cuerpo)
+    - URLs de Logo y Favicon
+    - Radio de botones y espaciado
+end note
+
+note top of CircuitStateTable
+    **Estado Compartido:**
+    El estado del circuit breaker persiste entre
+    todas las instancias Lambda, habilitando tolerancia
+    a fallos coordinada para servicios distribuidos
+    
+    **Recuperación Automática:**
+    - Abre circuito después de N fallos
+    - Intenta reseteo después del timeout
+    - Cierra después de M llamadas exitosas
+    
+    **Alertas SNS:**
+    Envía notificaciones cuando el circuito se abre
+    a SystemAlertsTopic para monitoreo
+end note
+
+note top of WebSocketConnectionsTable
+    **Arquitectura en Tiempo Real:**
+    Soporta comunicación bi-direccional
+    para notificaciones instantáneas, actualizaciones en vivo
+    y características colaborativas
+    
+    **Limpieza de Conexiones Obsoletas:**
+    - TTL para expiración automática
+    - Detección de errores 410 para conexiones cerradas
+    - Limpieza manual durante difusiones
+    
+    **Patrones de Consulta:**
+    1. Por connectionId (acceso directo)
+    2. Por clientId (todas las conexiones del usuario)
+    3. Por status (conexiones activas para difusión)
+end note
+
+'==============================================================================
+' LEYENDA
+'==============================================================================
+legend right
+    **Tipos de Tablas:**
+    - IdempotencyTable: Seguridad transaccional
+    - WebsiteThemesTable: Personalización UI
+    - CircuitStateTable: Tolerancia a fallos
+    - WebSocketConnectionsTable: Comunicación en tiempo real
+    
+    **Patrones Comunes:**
+    - GSI para consultas flexibles
+    - TTL para limpieza automática
+    - Streams para procesamiento basado en eventos
+    - Point-in-time recovery para backups
+endlegend
+
+@enduml

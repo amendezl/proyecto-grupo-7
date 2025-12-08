@@ -944,3 +944,23 @@ dashboardStats:
 #     - sns:
 #         arn: { Ref: SystemAlertsTopic }
 #         topicName: ${self:service}-${self:provider.stage}-system-alerts
+
+# === ADMIN THEME MANAGEMENT ===
+adminThemeManager:
+  handler: src/lambda-admin-custom.handler
+  timeout: 30
+  memorySize: 512
+  environment:
+    THEMES_TABLE: { Ref: WebsiteThemesTable }
+    SERVICE_NAME: ${self:service}
+  events:
+    - httpApi:
+        path: /api/admin/themes
+        method: post
+        authorizer:
+          name: cognitoJwt
+    - httpApi:
+        path: /api/admin/themes
+        method: get
+        authorizer:
+          name: cognitoJwt

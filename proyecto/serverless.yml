@@ -4,18 +4,20 @@ frameworkVersion: '4'
 
 custom:
   configValidationMode: warn
+  randAlphaNum: ${ssm:/terraform/random_string/result,  "123456abcde"}
   
   # === FRONTEND DEPLOYMENT CONFIGURATION ===
   client:
-    bucketName: ${self:service}-frontend-${self:provider.stage}
+    bucketName: ${ssm:/s3/frontend/name, ''}
     distributionFolder: ${env:FRONTEND_DIST_FOLDER, '../frontend/out'}
     indexDocument: ${env:INDEX_DOCUMENT, 'index.html'}
     errorDocument: ${env:ERROR_DOCUMENT, '404.html'}
     region: ${self:provider.region}
     acl: ${env:S3_ACL, 'public-read'}
     createDistribution: ${env:CREATE_CLOUDFRONT_DISTRIBUTION, 'true'} # CAMBIAR A "false" SI NO TIENE PERMISO PARA CREAR CLOUDFRONT
-    manageResources: ${env:MANAGE_S3_RESOURCES, 'true'}
+    manageResources: ${env:MANAGE_S3_RESOURCES, 'false'} # Bucket managed by Terraform, threfore resources managed by it (DELETION)
     uploadConcurrency: ${env:UPLOAD_CONCURRENCY, '5'}
+    deleteRemoved: true # Remove files from S3 that are no longer in distribution folder
   
   # === SPLIT STACKS FOR LARGE DEPLOYMENTS ===
   splitStacks:
@@ -46,34 +48,40 @@ custom:
       nodeEnv: ${env:NODE_ENV_PROD, 'production'}
   
   # === AUTOMATION HOOKS ===
-  # scriptable:
-  #   hooks:
-  #     # PRE-DEPLOYMENT: Cross-platform infrastructure setup
-  #     before:aws:deploy:deploy:createStack:
-  #       - echo "==> Running pre-deployment script..."
-  #       # Cross-platform Node.js runner (recommended)
-  #       - node scripts/run-pre-deploy.js ${self:provider.stage} ${self:provider.region}
-  #       # Fallback: Platform-specific scripts
-  #       # - powershell -ExecutionPolicy Bypass -File scripts/pre-deploy.ps1 -Stage ${self:provider.stage} -Region ${self:provider.region} || echo "PowerShell script failed or not available"
-  #       # - chmod +x scripts/pre-deploy.sh && scripts/pre-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
-  #     
-  #     # POST-DEPLOYMENT: Cross-platform script execution
-  #     # Use PowerShell script on Windows, Bash script on Linux/macOS
-  #     after:deploy:deploy:
-  #       - echo "==> Running post-deployment script..."
-  #       # Windows PowerShell
-  #       - powershell -ExecutionPolicy Bypass -File scripts/post-deploy.ps1 -Stage ${self:provider.stage} -Region ${self:provider.region} || echo "PowerShell script failed or not available"
-  #       # Linux/macOS Bash (fallback)
-  #       - chmod +x scripts/post-deploy.sh && scripts/post-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
-  #     
-  #     # CLEANUP
-  #     before:remove:remove:
-  #       - echo "==> Removing frontend assets..."
-  #       - npx serverless client remove
+  scriptable:
+    hooks:
+      # PRE-DEPLOYMENT: Cross-platform infrastructure setup
+      before:aws:deploy:deploy:createStack:
+        - echo "==> Running pre-deployment script..."
+        # Cross-platform Node.js runner (recommended)
+        - node scripts/run-pre-deploy.js ${self:provider.stage} ${self:provider.region}
+        # Fallback: Platform-specific scripts
+        # - powershell -ExecutionPolicy Bypass -File scripts/pre-deploy.ps1 -Stage ${self:provider.stage} -Region ${self:provider.region} || echo "PowerShell script failed or not available"
+        # - chmod +x scripts/pre-deploy.sh && scripts/pre-deploy.sh ${self:provider.stage} ${self:provider.region} || echo "Bash script failed or not available"
+      
+      # POST-DEPLOYMENT: Cross-platform script execution
+      after:deploy:deploy:
+        - echo "==> Running post-deployment script..."
+        - node scripts/run-post-deploy.js ${self:provider.stage} ${self:provider.region}
+      
+      # CLEANUP
+      before:remove:remove:
+       
+        - echo "==> Emptying S3 bucket to allow Terraform deletion..."
+        - node scripts/empty-s3-bucket.js ${ssm:/s3/frontend/name, ''} ${self:provider.region}
+        - echo "==> Removing  S3 Frontend bucket..."
+        - npx serverless client remove
+        - echo "==> Emptying S3 bucket to allow Terraform deletion..."
+       
+        - echo "==> Cleaning up and deleting any stray logs..."
+        - node scripts/cleanup-logs.js  ${self:provider.region}
+
+      after:remove:remove:
+        - echo "==> Cleanup completed. S3 bucket will be deleted by Terraform."
 
 plugins:
   - serverless-finch
-  # - serverless-plugin-split-stacks  # Temporarily disabled to resolve dependency issues
+  - serverless-plugin-split-stacks  # ENABLED: Splits CloudFormation into nested stacks to avoid 500 resource limit
   - serverless-scriptable-plugin
 
 provider:
@@ -84,11 +92,10 @@ provider:
   # Use existing IAM role to avoid permission issues in voclabs
   #iam:
   #  role: arn:aws:iam::${env:AWS_ACCOUNT_ID, '975050051149'}:role/${env:IAM_ROLE_NAME, 'LabRole'}
-  deploymentBucket:
-    # Use environment override when available; default to the artifacts bucket
-    # created by Terraform during the previous step so Serverless can find it.
-    name: ${env:DEPLOYMENT_BUCKET_NAME, 'sistema-gestion-espacios-artifacts-gztdd03r'}
-    serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
+  #deploymentBucket:
+  #  name: ${self:service}-${self:provider.stage}-deployment-${self:custom.randAlphaNum} #CAMBIAR A CREARSE EN TERRAFORM
+  #  serverSideEncryption: ${env:DEPLOYMENT_BUCKET_ENCRYPTION, 'AES256'}
+
   # X-Ray tracing configuration (enabled for staging and prod)
   tracing:
     lambda: ${self:custom.stages.${self:provider.stage}.tracing}
@@ -181,10 +188,10 @@ provider:
     APP_CONFIG_APPLICATION_ID: ${env:APP_CONFIG_APPLICATION_ID, ''}
     APP_CONFIG_ENVIRONMENT_ID: ${env:APP_CONFIG_ENVIRONMENT_ID, ''}
     APP_CONFIG_PROFILE_ID: ${env:APP_CONFIG_PROFILE_ID, ''}
-    # Secretos administrados vía AWS Systems Manager Parameter Store (comentados para evitar errores de SSM)
-    SENTRY_DSN: ${env:SENTRY_DSN, ''}
-    SENTRY_TRACES_SAMPLE_RATE: ${env:SENTRY_TRACES_SAMPLE_RATE, '0'}
-    SENTRY_RELEASE: ${env:SENTRY_RELEASE, ''}
+    # Secretos administrados vía AWS Systems Manager Parameter Store
+    SENTRY_DSN: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-dsn, ''}
+    SENTRY_TRACES_SAMPLE_RATE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-traces-sample-rate, env:SENTRY_TRACES_SAMPLE_RATE, '0'}
+    SENTRY_RELEASE: ${ssm:/sistema-gestion/${self:provider.stage}/sentry-release, env:SENTRY_RELEASE, ''}
 
 # === PACKAGE CONFIGURATION ===
 package:

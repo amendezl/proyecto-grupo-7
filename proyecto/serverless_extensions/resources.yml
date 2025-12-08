@@ -636,6 +636,51 @@ Resources:
         - Key: TTL
           Value: 24 hours default
 
+  # Website Themes Table for storing custom theme configurations
+  WebsiteThemesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${self:provider.stage}-themes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: themeId
+          AttributeType: S
+        - AttributeName: createdBy
+          AttributeType: S
+        - AttributeName: isActive
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: N
+      KeySchema:
+        - AttributeName: themeId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: CreatedByIndex
+          KeySchema:
+            - AttributeName: createdBy
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: ActiveThemesIndex
+          KeySchema:
+            - AttributeName: isActive
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Purpose
+          Value: Website theme configurations and customizations
+        - Key: DataType
+          Value: JSON theme settings
+
   # === MESSAGING INFRASTRUCTURE ===
   # Main Processing Queue
   MainQueue:
@@ -931,3 +976,9 @@ Outputs:
     Value: { Ref: IdempotencyTable }
     Export:
       Name: ${self:service}-${self:provider.stage}-idempotency-table-name
+
+  WebsiteThemesTableName:
+    Description: Website Themes DynamoDB Table Name
+    Value: { Ref: WebsiteThemesTable }
+    Export:
+      Name: ${self:service}-${self:provider.stage}-themes-table-name

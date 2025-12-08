@@ -1,0 +1,748 @@
+@startuml DynamoDB MainTable Class Diagram
+' Sistema de Gestión de Espacios - MainDynamoDBTable Architecture
+' Generated: 2025-12-08
+' Note: Specialized tables (Idempotency, Themes, CircuitState, WebSocket) excluded
+
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FEFEFE
+skinparam class {
+    BackgroundColor<<table>> LightBlue
+    BackgroundColor<<lambda>> LightGreen
+    BorderColor Black
+    ArrowColor Black
+}
+
+'==============================================================================
+' MAIN DYNAMODB TABLE (MainDynamoDBTable)
+'==============================================================================
+package "MainDynamoDBTable - Single Table Design" <<table>> {
+    class MainDynamoDBTable {
+        **Primary Key**
+        + PK: String (HASH)
+        + SK: String (RANGE)
+        --
+        **GSI1: Global Secondary Index 1**
+        + GSI1PK: String (HASH)
+        + GSI1SK: String (RANGE)
+        --
+        **Common Attributes**
+        + empresa_id: String (Tenant isolation)
+        + createdAt: String (ISO)
+        + updatedAt: String (ISO)
+        + status: String
+        --
+        **Entity-Specific Attributes**
+        + email: String (Usuario)
+        + nombre: String (Usuario, Espacio, Zona)
+        + role: String (Usuario)
+        + fecha_inicio: String (Reserva)
+        + fecha_fin: String (Reserva)
+        + capacidad: Number (Espacio, Zona)
+        + ubicacion: String (Espacio, Zona)
+        + tipo: String (Espacio, Zona)
+        + horario: Object (Espacio, Zona)
+        + metadata: Object (generic JSON)
+        --
+        **Streams**
+        + StreamViewType: NEW_AND_OLD_IMAGES
+        + PointInTimeRecovery: Enabled
+        --
+        **Access Patterns (via PK/SK)**
+        1. Usuario: PK=USER#<email> SK=PROFILE
+        2. Espacio: PK=EMPRESA#<id> SK=ESPACIO#<id>
+        3. Reserva: PK=ESPACIO#<id> SK=RESERVA#<id>
+        4. Zona: PK=ESPACIO#<id> SK=ZONA#<id>
+        5. Responsable: PK=EMPRESA#<id> SK=RESPONSABLE#<id>
+        6. Organization: PK=ORG#<id> SK=CONFIG
+        7. Personalization: PK=CLIENT#<id> SK=SETTINGS
+        --
+        **GSI1 Access Patterns**
+        1. Query all espacios by empresa
+        2. Query all reservas by usuario
+        3. Query all zonas by tipo
+        4. Query organizations by status
+    }
+
+    '==========================================================================
+    ' AUTHENTICATION LAMBDAS
+    '==========================================================================
+    class "Lambda: register" <<lambda>> {
+        **Handler:** auth.register
+        **Route:** POST /auth/register
+        --
+        **Operations**
+        + Create: USER#<email> / PROFILE
+        + Attributes: email, nombre, role, empresa_id
+        --
+        **Cognito Integration**
+        - Create Cognito user
+        - Set custom attributes
+        - Confirm user account
+        --
+        **Idempotency:** x-idempotency-key
+    }
+
+    class "Lambda: login" <<lambda>> {
+        **Handler:** auth.login
+        **Route:** POST /auth/login
+        --
+        **Operations**
+        + Read: USER#<email> / PROFILE
+        + Update: lastLogin timestamp
+        --
+        **Cognito Integration**
+        - Authenticate user
+        - Return JWT tokens
+        - Track login metadata
+    }
+
+    class "Lambda: verify" <<lambda>> {
+        **Handler:** auth.verify
+        **Route:** GET /auth/verify
+        --
+        **Operations**
+        + Read: USER#<email> / PROFILE
+        + Verify JWT token
+        + Return user metadata
+    }
+
+    class "Lambda: updateProfile" <<lambda>> {
+        **Handler:** auth.updateProfile
+        **Route:** PUT /auth/profile
+        --
+        **Operations**
+        + Update: USER#<email> / PROFILE
+        + Attributes: nombre, metadata
+        --
+        **Authorization:** JWT required
+    }
+
+    class "Lambda: requestPasswordReset" <<lambda>> {
+        **Handler:** auth.requestPasswordReset
+        **Route:** POST /auth/password/reset-request
+        --
+        **Operations**
+        + Read: USER#<email> / PROFILE
+        + Send reset code via email
+        --
+        **Cognito Integration**
+        - ForgotPassword API
+        - SES email delivery
+    }
+
+    class "Lambda: confirmPasswordReset" <<lambda>> {
+        **Handler:** auth.confirmPasswordReset
+        **Route:** POST /auth/password/reset-confirm
+        --
+        **Operations**
+        + Update: USER#<email> / PROFILE password
+        --
+        **Cognito Integration**
+        - ConfirmForgotPassword API
+        - Validate reset code
+    }
+
+    class "Lambda: cognitoPostConfirmation" <<lambda>> {
+        **Handler:** cognitoAuth.postConfirmation
+        **Trigger:** Cognito Post-Confirmation
+        --
+        **Operations**
+        + Create: USER#<email> / PROFILE
+        + Attributes from Cognito event
+        --
+        **Purpose**
+        Sync Cognito user to DynamoDB
+        after successful confirmation
+    }
+
+    '==========================================================================
+    ' USUARIO LAMBDAS
+    '==========================================================================
+    class "Lambda: createUsuario" <<lambda>> {
+        **Handler:** usuarios.createUsuario
+        **Route:** POST /usuarios
+        --
+        **Operations**
+        + Create: USER#<email> / PROFILE
+        + Attributes: nombre, email, role, empresa_id
+        --
+        **Multi-tenancy:** empresa_id isolation
+        **Authorization:** Admin role required
+    }
+
+    class "Lambda: getUsuario" <<lambda>> {
+        **Handler:** usuarios.getUsuario
+        **Route:** GET /usuarios/{email}
+        --
+        **Operations**
+        + Read: USER#<email> / PROFILE
+        --
+        **Authorization:** JWT required
+        **Filters:** empresa_id match
+    }
+
+    class "Lambda: listUsuarios" <<lambda>> {
+        **Handler:** usuarios.listUsuarios
+        **Route:** GET /usuarios
+        --
+        **Operations**
+        + Scan: Filter by empresa_id
+        + OR Query: GSI1PK=EMPRESA#<id> GSI1SK begins_with USER#
+        --
+        **Pagination:** LastEvaluatedKey
+        **Authorization:** Admin role
+    }
+
+    class "Lambda: updateUsuario" <<lambda>> {
+        **Handler:** usuarios.updateUsuario
+        **Route:** PUT /usuarios/{email}
+        --
+        **Operations**
+        + Update: USER#<email> / PROFILE
+        + Attributes: nombre, role, metadata
+        --
+        **Authorization:** Admin or self
+        **Validation:** empresa_id match
+    }
+
+    class "Lambda: deleteUsuario" <<lambda>> {
+        **Handler:** usuarios.deleteUsuario
+        **Route:** DELETE /usuarios/{email}
+        --
+        **Operations**
+        + Delete: USER#<email> / PROFILE
+        + Cascade: Update related reservas
+        --
+        **Authorization:** Admin role
+        **Soft Delete:** status=INACTIVE
+    }
+
+    '==========================================================================
+    ' ESPACIO LAMBDAS
+    '==========================================================================
+    class "Lambda: createEspacio" <<lambda>> {
+        **Handler:** espacios.createEspacio
+        **Route:** POST /espacios
+        --
+        **Operations**
+        + Create: EMPRESA#<id> / ESPACIO#<uuid>
+        + Attributes: nombre, tipo, capacidad, ubicacion, horario
+        --
+        **Multi-tenancy:** empresa_id required
+        **Authorization:** Admin role
+        **UUID Generation:** uuid v4
+    }
+
+    class "Lambda: getEspacio" <<lambda>> {
+        **Handler:** espacios.getEspacio
+        **Route:** GET /espacios/{id}
+        --
+        **Operations**
+        + Read: EMPRESA#<empresa_id> / ESPACIO#<id>
+        --
+        **Authorization:** JWT required
+        **Validation:** empresa_id match
+    }
+
+    class "Lambda: listEspacios" <<lambda>> {
+        **Handler:** espacios.listEspacios
+        **Route:** GET /espacios
+        --
+        **Operations**
+        + Query: PK=EMPRESA#<id> SK begins_with ESPACIO#
+        --
+        **Filters:** tipo, capacidad_min, status
+        **Authorization:** JWT required
+    }
+
+    class "Lambda: updateEspacio" <<lambda>> {
+        **Handler:** espacios.updateEspacio
+        **Route:** PUT /espacios/{id}
+        --
+        **Operations**
+        + Update: EMPRESA#<empresa_id> / ESPACIO#<id>
+        + Attributes: nombre, capacidad, horario, status
+        --
+        **Authorization:** Admin role
+        **Validation:** empresa_id match
+        **DynamoDB Streams:** Triggers notifications
+    }
+
+    class "Lambda: deleteEspacio" <<lambda>> {
+        **Handler:** espacios.deleteEspacio
+        **Route:** DELETE /espacios/{id}
+        --
+        **Operations**
+        + Delete: EMPRESA#<empresa_id> / ESPACIO#<id>
+        + Cascade: Cancel future reservas
+        --
+        **Authorization:** Admin role
+        **Soft Delete:** status=DELETED
+    }
+
+    class "Lambda: getEspacioEstado" <<lambda>> {
+        **Handler:** espacios.getEspacioEstado
+        **Route:** GET /espacios/{id}/estado
+        --
+        **Operations**
+        + Read: EMPRESA#<empresa_id> / ESPACIO#<id>
+        + Query: Active reservas for espacio
+        --
+        **Returns:** DISPONIBLE | OCUPADO | MANTENIMIENTO
+        **Real-time:** WebSocket notification
+    }
+
+    '==========================================================================
+    ' RESERVA LAMBDAS
+    '==========================================================================
+    class "Lambda: createReserva" <<lambda>> {
+        **Handler:** reservas.createReserva
+        **Route:** POST /reservas
+        --
+        **Operations**
+        + Create: ESPACIO#<id> / RESERVA#<uuid>
+        + Attributes: usuario_email, fecha_inicio, fecha_fin, empresa_id
+        --
+        **Validations**
+        - Espacio availability
+        - Time slot conflicts
+        - User permissions
+        --
+        **Multi-tenancy:** empresa_id isolation
+        **Idempotency:** Required
+        **DynamoDB Streams:** Triggers notifications
+    }
+
+    class "Lambda: getReserva" <<lambda>> {
+        **Handler:** reservas.getReserva
+        **Route:** GET /reservas/{id}
+        --
+        **Operations**
+        + Read: ESPACIO#<espacio_id> / RESERVA#<id>
+        --
+        **Authorization:** Usuario owner or admin
+        **Validation:** empresa_id match
+    }
+
+    class "Lambda: listReservas" <<lambda>> {
+        **Handler:** reservas.listReservas
+        **Route:** GET /reservas
+        --
+        **Operations**
+        + Query: PK=ESPACIO#<id> SK begins_with RESERVA#
+        + OR Query: GSI1PK=USER#<email> GSI1SK begins_with RESERVA#
+        --
+        **Filters:** fecha_inicio, fecha_fin, status
+        **Authorization:** JWT required
+    }
+
+    class "Lambda: updateReserva" <<lambda>> {
+        **Handler:** reservas.updateReserva
+        **Route:** PUT /reservas/{id}
+        --
+        **Operations**
+        + Update: ESPACIO#<espacio_id> / RESERVA#<id>
+        + Attributes: fecha_inicio, fecha_fin, status
+        --
+        **Validations**
+        - New time slot availability
+        - User permissions
+        --
+        **Authorization:** Usuario owner or admin
+        **DynamoDB Streams:** Triggers notifications
+    }
+
+    class "Lambda: deleteReserva" <<lambda>> {
+        **Handler:** reservas.deleteReserva
+        **Route:** DELETE /reservas/{id}
+        --
+        **Operations**
+        + Update: ESPACIO#<espacio_id> / RESERVA#<id> status=CANCELLED
+        --
+        **Authorization:** Usuario owner or admin
+        **Soft Delete:** status=CANCELLED
+        **Notifications:** Email + WebSocket
+    }
+
+    class "Lambda: listReservasByUsuario" <<lambda>> {
+        **Handler:** reservas.listReservasByUsuario
+        **Route:** GET /usuarios/{email}/reservas
+        --
+        **Operations**
+        + Query: GSI1PK=USER#<email> GSI1SK begins_with RESERVA#
+        --
+        **Filters:** fecha, status, empresa_id
+        **Authorization:** Self or admin
+    }
+
+    class "Lambda: listReservasByEspacio" <<lambda>> {
+        **Handler:** reservas.listReservasByEspacio
+        **Route:** GET /espacios/{id}/reservas
+        --
+        **Operations**
+        + Query: PK=ESPACIO#<id> SK begins_with RESERVA#
+        --
+        **Filters:** fecha_range, status
+        **Authorization:** JWT required
+    }
+
+    '==========================================================================
+    ' ZONA LAMBDAS
+    '==========================================================================
+    class "Lambda: createZona" <<lambda>> {
+        **Handler:** zonas.createZona
+        **Route:** POST /zonas
+        --
+        **Operations**
+        + Create: ESPACIO#<id> / ZONA#<uuid>
+        + Attributes: nombre, tipo, capacidad, ubicacion
+        --
+        **Parent:** ESPACIO#<id>
+        **Multi-tenancy:** empresa_id from parent
+        **Authorization:** Admin role
+    }
+
+    class "Lambda: getZona" <<lambda>> {
+        **Handler:** zonas.getZona
+        **Route:** GET /zonas/{id}
+        --
+        **Operations**
+        + Read: ESPACIO#<espacio_id> / ZONA#<id>
+        --
+        **Authorization:** JWT required
+        **Validation:** empresa_id match
+    }
+
+    class "Lambda: listZonas" <<lambda>> {
+        **Handler:** zonas.listZonas
+        **Route:** GET /zonas
+        --
+        **Operations**
+        + Query: PK=ESPACIO#<id> SK begins_with ZONA#
+        --
+        **Filters:** tipo, capacidad_min, status
+        **Authorization:** JWT required
+    }
+
+    class "Lambda: updateZona" <<lambda>> {
+        **Handler:** zonas.updateZona
+        **Route:** PUT /zonas/{id}
+        --
+        **Operations**
+        + Update: ESPACIO#<espacio_id> / ZONA#<id>
+        + Attributes: nombre, capacidad, tipo, status
+        --
+        **Authorization:** Admin role
+        **Validation:** empresa_id match
+    }
+
+    class "Lambda: deleteZona" <<lambda>> {
+        **Handler:** zonas.deleteZona
+        **Route:** DELETE /zonas/{id}
+        --
+        **Operations**
+        + Delete: ESPACIO#<espacio_id> / ZONA#<id>
+        --
+        **Authorization:** Admin role
+        **Soft Delete:** status=INACTIVE
+    }
+
+    '==========================================================================
+    ' RESPONSABLE LAMBDAS
+    '==========================================================================
+    class "Lambda: createResponsable" <<lambda>> {
+        **Handler:** responsables.createResponsable
+        **Route:** POST /responsables
+        --
+        **Operations**
+        + Create: EMPRESA#<id> / RESPONSABLE#<uuid>
+        + Attributes: nombre, email, telefono, cargo
+        --
+        **Multi-tenancy:** empresa_id required
+        **Authorization:** Admin role
+    }
+
+    class "Lambda: getResponsable" <<lambda>> {
+        **Handler:** responsables.getResponsable
+        **Route:** GET /responsables/{id}
+        --
+        **Operations**
+        + Read: EMPRESA#<empresa_id> / RESPONSABLE#<id>
+        --
+        **Authorization:** JWT required
+        **Validation:** empresa_id match
+    }
+
+    class "Lambda: listResponsables" <<lambda>> {
+        **Handler:** responsables.listResponsables
+        **Route:** GET /responsables
+        --
+        **Operations**
+        + Query: PK=EMPRESA#<id> SK begins_with RESPONSABLE#
+        --
+        **Filters:** cargo, status
+        **Authorization:** JWT required
+    }
+
+    class "Lambda: updateResponsable" <<lambda>> {
+        **Handler:** responsables.updateResponsable
+        **Route:** PUT /responsables/{id}
+        --
+        **Operations**
+        + Update: EMPRESA#<empresa_id> / RESPONSABLE#<id>
+        + Attributes: nombre, email, telefono, cargo
+        --
+        **Authorization:** Admin role
+        **Validation:** empresa_id match
+    }
+
+    class "Lambda: deleteResponsable" <<lambda>> {
+        **Handler:** responsables.deleteResponsable
+        **Route:** DELETE /responsables/{id}
+        --
+        **Operations**
+        + Delete: EMPRESA#<empresa_id> / RESPONSABLE#<id>
+        --
+        **Authorization:** Admin role
+        **Soft Delete:** status=INACTIVE
+    }
+
+    '==========================================================================
+    ' ORGANIZATION LAMBDAS
+    '==========================================================================
+    class "Lambda: createOrganization" <<lambda>> {
+        **Handler:** organizations.createOrganization
+        **Route:** POST /organizations
+        --
+        **Operations**
+        + Create: ORG#<uuid> / CONFIG
+        + Attributes: name, settings, features
+        --
+        **Authorization:** Super admin
+        **UUID Generation:** uuid v4
+    }
+
+    class "Lambda: getOrganization" <<lambda>> {
+        **Handler:** organizations.getOrganization
+        **Route:** GET /organizations/{id}
+        --
+        **Operations**
+        + Read: ORG#<id> / CONFIG
+        --
+        **Authorization:** Org member
+    }
+
+    class "Lambda: updateOrganization" <<lambda>> {
+        **Handler:** organizations.updateOrganization
+        **Route:** PUT /organizations/{id}
+        --
+        **Operations**
+        + Update: ORG#<id> / CONFIG
+        + Attributes: settings, features, status
+        --
+        **Authorization:** Org admin
+    }
+
+    class "Lambda: listOrganizations" <<lambda>> {
+        **Handler:** organizations.listOrganizations
+        **Route:** GET /organizations
+        --
+        **Operations**
+        + Query: GSI1PK=ORG_LIST GSI1SK begins_with ORG#
+        + OR Scan: Filter by status
+        --
+        **Authorization:** Super admin
+    }
+
+    '==========================================================================
+    ' PERSONALIZATION LAMBDAS
+    '==========================================================================
+    class "Lambda: getPersonalization" <<lambda>> {
+        **Handler:** personalization.getPersonalization
+        **Route:** GET /personalization/{clientId}
+        --
+        **Operations**
+        + Read: CLIENT#<id> / SETTINGS
+        --
+        **Returns:** UI preferences, theme, locale
+        **Authorization:** Client owner
+    }
+
+    class "Lambda: updatePersonalization" <<lambda>> {
+        **Handler:** personalization.updatePersonalization
+        **Route:** PUT /personalization/{clientId}
+        --
+        **Operations**
+        + Update: CLIENT#<id> / SETTINGS
+        + Attributes: theme, locale, preferences
+        --
+        **Authorization:** Client owner
+        **SNS Notification:** Triggers WebSocket push
+    }
+
+    '==========================================================================
+    ' DASHBOARD & METRICS LAMBDAS
+    '==========================================================================
+    class "Lambda: getDashboard" <<lambda>> {
+        **Handler:** dashboard.getDashboard
+        **Route:** GET /dashboard
+        --
+        **Operations**
+        + Aggregate queries across entities
+        + Count espacios, reservas, usuarios
+        + Calculate utilization metrics
+        --
+        **Multi-tenancy:** empresa_id filter
+        **Authorization:** Admin role
+        **Caching:** ElastiCache (optional)
+    }
+
+    class "Lambda: getMetrics" <<lambda>> {
+        **Handler:** dashboard.getMetrics
+        **Route:** GET /dashboard/metrics
+        --
+        **Operations**
+        + Time-series queries
+        + Reservation trends
+        + Space utilization
+        --
+        **Authorization:** Admin role
+        **CloudWatch Integration:** Custom metrics
+    }
+
+    '==========================================================================
+    ' TABLE RELATIONSHIPS
+    '==========================================================================
+    MainDynamoDBTable <-- "Lambda: register" : Create USER
+    MainDynamoDBTable <-- "Lambda: login" : Read/Update USER
+    MainDynamoDBTable <-- "Lambda: verify" : Read USER
+    MainDynamoDBTable <-- "Lambda: updateProfile" : Update USER
+    MainDynamoDBTable <-- "Lambda: requestPasswordReset" : Read USER
+    MainDynamoDBTable <-- "Lambda: confirmPasswordReset" : Update USER
+    MainDynamoDBTable <-- "Lambda: cognitoPostConfirmation" : Create USER
+
+    MainDynamoDBTable <-- "Lambda: createUsuario" : Create USER
+    MainDynamoDBTable <-- "Lambda: getUsuario" : Read USER
+    MainDynamoDBTable <-- "Lambda: listUsuarios" : Scan/Query USER
+    MainDynamoDBTable <-- "Lambda: updateUsuario" : Update USER
+    MainDynamoDBTable <-- "Lambda: deleteUsuario" : Delete USER
+
+    MainDynamoDBTable <-- "Lambda: createEspacio" : Create ESPACIO
+    MainDynamoDBTable <-- "Lambda: getEspacio" : Read ESPACIO
+    MainDynamoDBTable <-- "Lambda: listEspacios" : Query ESPACIO
+    MainDynamoDBTable <-- "Lambda: updateEspacio" : Update ESPACIO
+    MainDynamoDBTable <-- "Lambda: deleteEspacio" : Delete ESPACIO
+    MainDynamoDBTable <-- "Lambda: getEspacioEstado" : Read ESPACIO + RESERVAS
+
+    MainDynamoDBTable <-- "Lambda: createReserva" : Create RESERVA
+    MainDynamoDBTable <-- "Lambda: getReserva" : Read RESERVA
+    MainDynamoDBTable <-- "Lambda: listReservas" : Query RESERVA
+    MainDynamoDBTable <-- "Lambda: updateReserva" : Update RESERVA
+    MainDynamoDBTable <-- "Lambda: deleteReserva" : Update RESERVA
+    MainDynamoDBTable <-- "Lambda: listReservasByUsuario" : Query RESERVA (GSI1)
+    MainDynamoDBTable <-- "Lambda: listReservasByEspacio" : Query RESERVA
+
+    MainDynamoDBTable <-- "Lambda: createZona" : Create ZONA
+    MainDynamoDBTable <-- "Lambda: getZona" : Read ZONA
+    MainDynamoDBTable <-- "Lambda: listZonas" : Query ZONA
+    MainDynamoDBTable <-- "Lambda: updateZona" : Update ZONA
+    MainDynamoDBTable <-- "Lambda: deleteZona" : Delete ZONA
+
+    MainDynamoDBTable <-- "Lambda: createResponsable" : Create RESPONSABLE
+    MainDynamoDBTable <-- "Lambda: getResponsable" : Read RESPONSABLE
+    MainDynamoDBTable <-- "Lambda: listResponsables" : Query RESPONSABLE
+    MainDynamoDBTable <-- "Lambda: updateResponsable" : Update RESPONSABLE
+    MainDynamoDBTable <-- "Lambda: deleteResponsable" : Delete RESPONSABLE
+
+    MainDynamoDBTable <-- "Lambda: createOrganization" : Create ORG
+    MainDynamoDBTable <-- "Lambda: getOrganization" : Read ORG
+    MainDynamoDBTable <-- "Lambda: updateOrganization" : Update ORG
+    MainDynamoDBTable <-- "Lambda: listOrganizations" : Query/Scan ORG
+
+    MainDynamoDBTable <-- "Lambda: getPersonalization" : Read CLIENT
+    MainDynamoDBTable <-- "Lambda: updatePersonalization" : Update CLIENT
+
+    MainDynamoDBTable <-- "Lambda: getDashboard" : Aggregate Queries
+    MainDynamoDBTable <-- "Lambda: getMetrics" : Time-series Queries
+}
+
+'==============================================================================
+' ARCHITECTURE NOTES
+'==============================================================================
+note top of MainDynamoDBTable
+    **Single Table Design Pattern**
+    All entities stored in one table using PK/SK patterns
+    
+    **Multi-tenancy Strategy**
+    Every record includes empresa_id for tenant isolation
+    Row-level security via IAM and application filters
+    
+    **Key Design Patterns**
+    - PK: Entity identifier or parent entity
+    - SK: Entity type + specific ID
+    - GSI1: Inverted index for alternate queries
+    - empresa_id: Mandatory for all tenant data
+    
+    **Soft Deletes**
+    Records marked as INACTIVE/DELETED instead of deletion
+    Preserves audit trail and referential integrity
+    
+    **DynamoDB Streams**
+    Triggers WebSocket notifications for real-time updates
+    Stream event processing for audit logs
+end note
+
+note bottom of MainDynamoDBTable
+    **Access Pattern Examples**
+    
+    1. Get User Profile:
+       PK=USER#user@example.com SK=PROFILE
+    
+    2. List Espacios for Empresa:
+       PK=EMPRESA#abc-123 SK begins_with ESPACIO#
+    
+    3. List Reservas for Espacio:
+       PK=ESPACIO#xyz-789 SK begins_with RESERVA#
+    
+    4. List User's Reservas (via GSI1):
+       GSI1PK=USER#user@example.com GSI1SK begins_with RESERVA#
+    
+    5. List Zonas in Espacio:
+       PK=ESPACIO#xyz-789 SK begins_with ZONA#
+    
+    6. Get Organization Config:
+       PK=ORG#org-456 SK=CONFIG
+    
+    **Performance Optimizations**
+    - Composite keys avoid hot partitions
+    - GSI1 enables efficient reverse lookups
+    - Batch operations for related entities
+    - Conditional writes prevent race conditions
+end note
+
+'==============================================================================
+' LEGEND
+'==============================================================================
+legend right
+    **Lambda Categories:**
+    - Auth (7): User authentication & profile
+    - Usuarios (5): User management CRUD
+    - Espacios (6): Space management + estado
+    - Reservas (7): Reservation lifecycle
+    - Zonas (5): Zone management within spaces
+    - Responsables (5): Contact person management
+    - Organizations (4): Org config management
+    - Personalization (2): User preferences
+    - Dashboard (2): Metrics & analytics
+    
+    **Total Lambdas:** 43 functions
+    
+    **Common Patterns:**
+    - JWT Authorization on all endpoints
+    - Multi-tenancy via empresa_id
+    - Idempotency for critical operations
+    - Soft deletes for audit trail
+    - DynamoDB Streams for notifications
+endlegend
+
+@enduml

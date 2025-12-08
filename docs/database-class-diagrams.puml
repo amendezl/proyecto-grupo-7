@@ -1,0 +1,459 @@
+@startuml DynamoDB Tables Class Diagram
+' Sistema de Gestión de Espacios - DynamoDB Tables Architecture
+' Generated: 2025-12-08
+
+skinparam classAttributeIconSize 0
+skinparam backgroundColor #FEFEFE
+skinparam class {
+    BackgroundColor<<table>> LightBlue
+    BackgroundColor<<lambda>> LightGreen
+    BorderColor Black
+    ArrowColor Black
+}
+
+'==============================================================================
+' 1. MAIN DYNAMODB TABLE (MainDynamoDBTable)
+'==============================================================================
+package "MainDynamoDBTable" <<table>> {
+    class MainDynamoDBTable {
+        **Primary Key**
+        + PK: String (HASH)
+        + SK: String (RANGE)
+        --
+        **GSI1 (Global Secondary Index)**
+        + GSI1PK: String (HASH)
+        + GSI1SK: String (RANGE)
+        --
+        **Common Attributes**
+        + entityType: String
+        + id: String
+        + createdAt: String (ISO)
+        + updatedAt: String (ISO)
+        + empresa_id: String
+        --
+        **Entity Types Stored**
+        - ESPACIO#{uuid} / METADATA
+        - RESERVA#{uuid} / METADATA
+        - USUARIO#{uuid} / METADATA
+        - ZONA#{uuid} / METADATA
+        - ORG#{uuid} / METADATA
+        --
+        **Streams**
+        + StreamViewType: NEW_AND_OLD_IMAGES
+        + PointInTimeRecovery: Enabled
+    }
+
+    class "Lambda: usuarios" <<lambda>> {
+        + getUsuarios()
+        + getUsuario(id)
+        + createUsuario(data)
+        + updateUsuario(id, data)
+        + deleteUsuario(id)
+        + toggleEstado(id)
+        + getPerfilActual()
+        + actualizarPerfil(data)
+        + cambioPassword(passwords)
+        + getSettings()
+        + actualizarSettings(settings)
+    }
+
+    class "Lambda: espacios" <<lambda>> {
+        + getEspacios(filters)
+        + getEspacio(id)
+        + createEspacio(data)
+        + updateEspacio(id, data)
+        + deleteEspacio(id)
+        + getEstadisticas()
+    }
+
+    class "Lambda: reservas" <<lambda>> {
+        + getReservas(filters)
+        + getReserva(id)
+        + createReserva(data)
+        + updateReserva(id, data)
+        + cancelarReserva(id)
+        + deleteReserva(id)
+        + getEstadisticas()
+    }
+
+    class "Lambda: zonas" <<lambda>> {
+        + getZonas(filters)
+        + getZona(id)
+        + createZona(data)
+        + updateZona(id, data)
+        + deleteZona(id)
+        + toggleEstado(id)
+        + getZonasPorPiso(piso)
+        + getZonasEspacios(id)
+        + getPisosDisponibles()
+        + getEdificiosDisponibles()
+        + getEstadisticas()
+    }
+
+    class "Lambda: responsables" <<lambda>> {
+        + getResponsables()
+        + getResponsable(id)
+        + createResponsable(data)
+        + updateResponsable(id, data)
+        + deleteResponsable(id)
+        + toggleEstado(id)
+        + getResponsablesPorArea(area)
+        + getEspaciosAsignados(id)
+        + asignarEspacios(id, espacios)
+        + getEstadisticas()
+    }
+
+    class "Lambda: auth" <<lambda>> {
+        + register(userData)
+        + verifyEmpresa(empresaId)
+        + createEmpresaOwner(empresaId, userId)
+    }
+
+    class "Lambda: organizations" <<lambda>> {
+        + getMyConfig()
+        + getMyTerminology()
+        + updateMyConfig(config)
+        + updateMyTerminology(terms)
+        + getMyStats()
+        + listOrganizations()
+        + getIndustries()
+    }
+
+    class "Lambda: dashboard" <<lambda>> {
+        + getMetrics()
+        + getStats()
+    }
+
+    class "Lambda: websocket" <<lambda>> {
+        + getRealtimeStats()
+    }
+
+    class "Lambda: dynamoStreamProcessor" <<lambda>> {
+        + handler(streamEvent)
+        + processInsert(record)
+        + processModify(record)
+        + processRemove(record)
+    }
+
+    MainDynamoDBTable <-- "Lambda: usuarios" : CRUD Operations
+    MainDynamoDBTable <-- "Lambda: espacios" : CRUD Operations
+    MainDynamoDBTable <-- "Lambda: reservas" : CRUD Operations
+    MainDynamoDBTable <-- "Lambda: zonas" : CRUD Operations
+    MainDynamoDBTable <-- "Lambda: responsables" : CRUD Operations
+    MainDynamoDBTable <-- "Lambda: auth" : Write Operations
+    MainDynamoDBTable <-- "Lambda: organizations" : CRUD Operations
+    MainDynamoDBTable <-- "Lambda: dashboard" : Read Operations
+    MainDynamoDBTable <-- "Lambda: websocket" : Read Operations
+    MainDynamoDBTable --> "Lambda: dynamoStreamProcessor" : DynamoDB Streams
+}
+
+'==============================================================================
+' 2. IDEMPOTENCY TABLE (IdempotencyTable)
+'==============================================================================
+package "IdempotencyTable" <<table>> {
+    class IdempotencyTable {
+        **Primary Key**
+        + idempotencyKey: String (HASH)
+        --
+        **Attributes**
+        + operationId: String
+        + status: String (SUCCESS|FAILED|IN_PROGRESS)
+        + statusCode: Number
+        + result: Object
+        + errorMessage: String
+        + metadata: Object
+        + createdAt: Number (timestamp)
+        + ttl: Number (Unix timestamp)
+        --
+        **TTL Configuration**
+        + TTL Attribute: ttl
+        + TTL Enabled: true
+        + Default TTL: 24 hours (86400s)
+        --
+        **Purpose**
+        Prevents duplicate execution
+        of critical operations
+    }
+
+    class "Lambda: ALL" <<lambda>> {
+        **Via IdempotencyManager**
+        + generateIdempotencyKey(event, params)
+        + checkIdempotency(key)
+        + recordOperation(key, data)
+        + updateOperationStatus(key, status, result)
+        + cleanupExpiredRecords()
+        --
+        **Used By Operations:**
+        - Payment processing
+        - Reservation creation
+        - User registration
+        - Critical state changes
+    }
+
+    IdempotencyTable <-- "Lambda: ALL" : Check/Record Operations
+}
+
+'==============================================================================
+' 3. WEBSITE THEMES TABLE (WebsiteThemesTable)
+'==============================================================================
+package "WebsiteThemesTable" <<table>> {
+    class WebsiteThemesTable {
+        **Primary Key**
+        + themeId: String (HASH)
+        --
+        **GSI: CreatedByIndex**
+        + createdBy: String (HASH)
+        + createdAt: Number (RANGE)
+        --
+        **GSI: ActiveThemesIndex**
+        + isActive: String (HASH)
+        + createdAt: Number (RANGE)
+        --
+        **Attributes**
+        + name: String
+        + description: String
+        + config: Object (JSON)
+        + version: String
+        + updatedAt: Number
+        --
+        **Streams**
+        + StreamViewType: NEW_AND_OLD_IMAGES
+        + PointInTimeRecovery: Enabled
+        --
+        **Purpose**
+        Store custom theme configurations
+        for multi-tenant customization
+    }
+
+    class "Lambda: adminThemeManager" <<lambda>> {
+        **Handler:** src/lambda-admin-custom.handler
+        --
+        **Operations**
+        + createTheme(themeData, userId)
+        + getTheme(themeId)
+        + listThemesByCreator(userId)
+        + listActiveThemes()
+        + updateTheme(themeId, updates, userId)
+        + deleteTheme(themeId, userId)
+        --
+        **API Endpoints**
+        POST /api/admin/themes
+        GET /api/admin/themes
+        --
+        **Authorization**
+        Cognito JWT (admin role required)
+    }
+
+    WebsiteThemesTable <-- "Lambda: adminThemeManager" : Full CRUD Operations
+}
+
+'==============================================================================
+' 4. CIRCUIT STATE TABLE (CircuitStateTable)
+'==============================================================================
+package "CircuitStateTable" <<table>> {
+    class CircuitStateTable {
+        **Primary Key**
+        + serviceName: String (HASH)
+        --
+        **Attributes**
+        + state: String (CLOSED|OPEN|HALF_OPEN)
+        + lastUpdated: Number (timestamp)
+        + failureCount: Number
+        + successCount: Number
+        + lastFailureTime: Number
+        + nextAttemptTime: Number
+        --
+        **Purpose**
+        Persist circuit breaker state
+        across Lambda invocations
+        for fault tolerance
+    }
+
+    class "Pattern: CircuitBreaker" <<lambda>> {
+        **Module:** shared/patterns/circuitBreakerPattern.js
+        --
+        **States**
+        + CLOSED: Normal operation
+        + OPEN: Service failing, block requests
+        + HALF_OPEN: Testing recovery
+        --
+        **Operations**
+        + openCircuit()
+        + closeCircuit()
+        + shouldAttemptReset()
+        + recordSuccess()
+        + recordFailure()
+        --
+        **Configurations**
+        - HIGH_PRIORITY (threshold: 3)
+        - DATABASE (threshold: 5)
+        - AUTH (threshold: 4)
+        - EXTERNAL_API (threshold: 3)
+        - MESSAGING (threshold: 7)
+        --
+        **Used By**
+        All Lambda functions via
+        resilienceManager.executeDatabase()
+        resilienceManager.executeMessaging()
+    }
+
+    CircuitStateTable <-- "Pattern: CircuitBreaker" : State Persistence
+}
+
+'==============================================================================
+' 5. WEBSOCKET CONNECTIONS TABLE (WebSocketConnectionsTable)
+'==============================================================================
+package "WebSocketConnectionsTable" <<table>> {
+    class WebSocketConnectionsTable {
+        **Primary Key**
+        + connectionId: String (HASH)
+        --
+        **GSI: ClientIdIndex**
+        + clientId: String (HASH)
+        --
+        **GSI: StatusIndex**
+        + status: String (HASH)
+        --
+        **Attributes**
+        + userId: String
+        + userEmail: String
+        + userRole: String
+        + domain: String
+        + stage: String
+        + createdAt: String (ISO)
+        + tokenIssuer: String
+        + tokenAudience: String
+        + ttl: Number (Unix timestamp)
+        --
+        **TTL Configuration**
+        + TTL Attribute: ttl
+        + TTL Enabled: true
+        --
+        **Purpose**
+        Manage active WebSocket connections
+        for real-time notifications
+    }
+
+    class "Lambda: websocketConnect" <<lambda>> {
+        **Handler:** websocket.connect.connect
+        --
+        **Operations**
+        + connect(event)
+        + extractJWTClaims(event)
+        + storeConnection(connectionData)
+        --
+        **Event:** $connect route
+        **Auth:** JWT authorizer
+    }
+
+    class "Lambda: websocketDisconnect" <<lambda>> {
+        **Handler:** websocket.disconnect.disconnect
+        --
+        **Operations**
+        + disconnect(event)
+        + deleteConnection(connectionId)
+        --
+        **Event:** $disconnect route
+    }
+
+    class "Lambda: websocketDefault" <<lambda>> {
+        **Handler:** websocket.default.default
+        --
+        **Operations**
+        + handleMessage(event)
+        + routeMessage(action, data)
+        --
+        **Event:** $default route
+    }
+
+    class "Lambda: websocket" <<lambda>> {
+        **Handler:** websocket.js (various exports)
+        --
+        **Operations**
+        + connect(connectionId, userData)
+        + disconnect(connectionId)
+        + message(connectionId, payload)
+        + broadcastMessage(message)
+        + sendMessageToConnection(connectionId, msg)
+        + notifyReserva(streamEvent)
+        + notifyEspacioEstado(streamEvent)
+        + sendStats()
+        --
+        **Query Operations**
+        - Query by clientId (ClientIdIndex)
+        - Query by status (StatusIndex)
+        - Cleanup stale connections (410 errors)
+    }
+
+    class "Lambda: personalizationForwarder" <<lambda>> {
+        **Handler:** personalizationForwarder.handler
+        --
+        **Operations**
+        + handler(snsEvent)
+        + forwardToConnections(clientId, message)
+        + cleanupStaleConnections()
+        --
+        **Trigger:** SNS Topic
+        **Purpose:** Push personalization updates
+        to connected WebSocket clients
+    }
+
+    class "Lambda: devops" <<lambda>> {
+        **Handler:** devops.js
+        --
+        **Operations**
+        + getBroadcastStatus()
+        + sendBroadcastNotification(message)
+        --
+        **Purpose:** DevOps automation
+        real-time notifications
+    }
+
+    WebSocketConnectionsTable <-- "Lambda: websocketConnect" : Create Connection
+    WebSocketConnectionsTable <-- "Lambda: websocketDisconnect" : Delete Connection
+    WebSocketConnectionsTable <-- "Lambda: websocketDefault" : Update Connection
+    WebSocketConnectionsTable <-- "Lambda: websocket" : CRUD + Broadcast
+    WebSocketConnectionsTable <-- "Lambda: personalizationForwarder" : Query + Cleanup
+    WebSocketConnectionsTable <-- "Lambda: devops" : Query for Broadcast
+}
+
+'==============================================================================
+' CROSS-TABLE RELATIONSHIPS
+'==============================================================================
+note bottom of MainDynamoDBTable
+    **Access Patterns:**
+    1. Get entity by PK+SK (direct access)
+    2. Query entities by type (GSI1PK)
+    3. Query by empresa_id (multi-tenancy)
+    4. Stream processing for real-time updates
+end note
+
+note bottom of IdempotencyTable
+    **TTL Cleanup:**
+    Automatically removes records after 24 hours
+    to prevent table bloat while maintaining
+    idempotency for critical time windows
+end note
+
+note bottom of WebsiteThemesTable
+    **Multi-tenancy:**
+    Each organization can have multiple themes
+    Only one theme can be active (isActive='true')
+    CreatedByIndex enables user-specific queries
+end note
+
+note bottom of CircuitStateTable
+    **Shared State:**
+    Circuit breaker state persists across
+    all Lambda instances, enabling coordinated
+    fault tolerance for distributed services
+end note
+
+note bottom of WebSocketConnectionsTable
+    **Real-time Architecture:**
+    Supports bi-directional communication
+    for instant notifications, live updates,
+    and collaborative features
+end note
+
+@enduml

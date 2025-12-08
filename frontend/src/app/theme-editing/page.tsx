@@ -20,7 +20,7 @@ interface ThemeConfig {
   logoUrl: string;
   faviconUrl: string;
   buttonRadius: string;
-  spacing: string;
+  spacing: string; 
 }
 
 export default function ThemeEditingPage() {
