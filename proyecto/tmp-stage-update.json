@@ -1,8 +1,0 @@
-{
-  "ApiId": "ldnmxiqymd",
-  "StageName": "$default",
-  "AccessLogSettings": {
-    "DestinationArn": "arn:aws:logs:us-east-1:447182645931:log-group:/aws/http-api/ldnmxiymd-access",
-    "Format": "{ \"requestId\": \"$context.requestId\", \"routeKey\": \"$context.routeKey\", \"status\": \"$context.status\", \"integrationStatus\": \"$context.integrationStatus\", \"time\": \"$context.requestTime\" }"
-  }
-}
