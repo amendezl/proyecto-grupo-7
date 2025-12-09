@@ -2,18 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Plus, Package, ArrowLeft } from 'lucide-react';
+import { Users, Plus, Package, ArrowLeft, Trash2, Edit } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import AppHeader from '@/components/AppHeader';
 import Link from 'next/link';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, Usuario } from '@/lib/api-client';
 
 export default function UsuariosPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
   const { t } = useLanguage();
   const [showForm, setShowForm] = useState(false);
+
+  const handleBack = () => {
+    router.push('/recursos');
+  };
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
@@ -33,6 +39,27 @@ export default function UsuariosPage() {
       router.push('/auth/login');
     }
   }, [isAuthenticated, isLoading, router]);
+
+  // Cargar lista de usuarios
+  const fetchUsuarios = async () => {
+    try {
+      setLoadingList(true);
+      const response = await apiClient.getUsuarios();
+      if (response.ok && response.data) {
+        setUsuarios(response.data.usuarios || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err);
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUsuarios();
+    }
+  }, [isAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +120,9 @@ export default function UsuariosPage() {
         rol: 'usuario',
       });
       setShowForm(false);
+      
+      // Recargar la lista de usuarios
+      await fetchUsuarios();
     } catch (err: any) {
       console.error('❌ Error completo:', err);
       const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Error al crear usuario';
@@ -124,6 +154,15 @@ export default function UsuariosPage() {
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Botón de volver */}
+        <button
+          onClick={handleBack}
+          className="mb-6 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>{t.common.back}</span>
+        </button>
+
         {/* Page Description */}
         <div className="mb-6">
           <p className="text-gray-600">Administra los usuarios del sistema</p>
@@ -143,34 +182,122 @@ export default function UsuariosPage() {
           </div>
         )}
 
-        {/* Create Button */}
+        {/* Lista de usuarios o formulario */}
         {!showForm ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <div className="p-4 bg-green-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-              <Users className="h-10 w-10 text-green-600" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
-              {t.usersManagement.createFirst}
-            </h3>
-            <p className="text-gray-600 mb-8">
-              {t.usersManagement.createFirstDesc}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link
-                href="/dashboard"
-                className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                <ArrowLeft className="h-5 w-5 mr-2" />
-                {t.nav.dashboard}
-              </Link>
+          <div className="space-y-6">
+            {/* Header con botón */}
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Lista de Usuarios</h2>
+                <p className="text-gray-600 mt-1">
+                  {loadingList ? 'Cargando...' : `${usuarios.length} usuario(s) registrado(s)`}
+                </p>
+              </div>
               <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center justify-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                onClick={() => {
+                  setShowForm(true);
+                  setError('');
+                  setSuccess('');
+                }}
+                className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 {t.usersManagement.createUser}
               </button>
             </div>
+
+            {/* Tabla de usuarios */}
+            {loadingList ? (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Cargando usuarios...</p>
+              </div>
+            ) : usuarios.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                <div className="p-4 bg-green-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                  <Users className="h-10 w-10 text-green-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  {t.usersManagement.createFirst}
+                </h3>
+                <p className="text-gray-600 mb-8">
+                  {t.usersManagement.createFirstDesc}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Usuario
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Email
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Rol
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Departamento
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Estado
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {usuarios.map((usuario) => (
+                        <tr key={usuario.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                <span className="text-green-700 font-medium">
+                                  {usuario.nombre?.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {usuario.nombre} {usuario.apellido}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {usuario.telefono || 'Sin teléfono'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{usuario.email}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              usuario.rol === 'admin' ? 'bg-purple-100 text-purple-800' :
+                              usuario.rol === 'responsable' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {usuario.rol === 'admin' ? 'Administrador' : 
+                               usuario.rol === 'responsable' ? 'Responsable' : 
+                               'Usuario'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {usuario.departamento || 'Sin departamento'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              usuario.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {usuario.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm p-8">

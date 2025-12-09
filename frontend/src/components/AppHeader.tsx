@@ -71,7 +71,9 @@ export default function AppHeader({ title, breadcrumbs = [] }: AppHeaderProps) {
               <span>{user?.nombre} {user?.apellido}</span>
               {user?.rol && (
                 <span className="bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-300 px-2 py-1 rounded-full text-xs border border-green-200 dark:border-green-500/30">
-                  {t.common.admin}
+                  {user.rol === 'admin' && t.common.admin}
+                  {user.rol === 'responsable' && t.common.responsable}
+                  {user.rol === 'usuario' && t.common.user}
                 </span>
               )}
             </div>

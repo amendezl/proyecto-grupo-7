@@ -20,6 +20,8 @@ export interface Translations {
     yes: string;
     no: string;
     admin: string;
+    responsable: string;
+    user: string;
   };
   
   // Auth
@@ -481,6 +483,8 @@ export const translations: Record<Language, Translations> = {
       yes: 'Sí',
       no: 'No',
       admin: 'Admin',
+      responsable: 'Responsable',
+      user: 'Usuario',
     },
     auth: {
       login: 'Iniciar Sesión',
@@ -908,6 +912,8 @@ export const translations: Record<Language, Translations> = {
       yes: 'Yes',
       no: 'No',
       admin: 'Admin',
+      responsable: 'Manager',
+      user: 'User',
     },
     auth: {
       login: 'Sign In',
@@ -1335,6 +1341,8 @@ export const translations: Record<Language, Translations> = {
       yes: '예',
       no: '아니오',
       admin: '관리자',
+      responsable: '책임자',
+      user: '사용자',
     },
     auth: {
       login: '로그인',
@@ -1762,6 +1770,8 @@ export const translations: Record<Language, Translations> = {
       yes: 'はい',
       no: 'いいえ',
       admin: '管理者',
+      responsable: '責任者',
+      user: 'ユーザー',
     },
     auth: {
       login: 'ログイン',
@@ -2189,6 +2199,8 @@ export const translations: Record<Language, Translations> = {
       yes: 'Oui',
       no: 'Non',
       admin: 'Admin',
+      responsable: 'Responsable',
+      user: 'Utilisateur',
     },
     auth: {
       login: 'Se connecter',
@@ -2618,6 +2630,8 @@ export const translations: Record<Language, Translations> = {
       yes: 'Ja',
       no: 'Nein',
       admin: 'Admin',
+      responsable: 'Manager',
+      user: 'Benutzer',
     },
     auth: {
       login: 'Anmelden',
@@ -3047,6 +3061,8 @@ export const translations: Record<Language, Translations> = {
       yes: 'Sì',
       no: 'No',
       admin: 'Admin',
+      responsable: 'Responsabile',
+      user: 'Utente',
     },
     auth: {
       login: 'Accedi',
@@ -3476,6 +3492,8 @@ export const translations: Record<Language, Translations> = {
       yes: '是',
       no: '否',
       admin: '管理员',
+      responsable: '负责人',
+      user: '用户',
     },
     auth: {
       login: '登录',
@@ -3905,6 +3923,8 @@ export const translations: Record<Language, Translations> = {
       yes: 'हाँ',
       no: 'नहीं',
       admin: 'प्रशासक',
+      responsable: 'प्रबंधक',
+      user: 'उपयोगकर्ता',
     },
     auth: {
       login: 'लॉगिन',
@@ -4334,6 +4354,8 @@ export const translations: Record<Language, Translations> = {
       yes: 'Sim',
       no: 'Não',
       admin: 'Admin',
+      responsable: 'Responsável',
+      user: 'Usuário',
     },
     auth: {
       login: 'Entrar',

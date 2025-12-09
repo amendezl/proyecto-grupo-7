@@ -17,7 +17,8 @@ import {
   CheckCircle,
   List,
   Grid3x3,
-  CalendarDays
+  CalendarDays,
+  Save
 } from 'lucide-react';
 import { 
   Button, 
@@ -52,6 +53,18 @@ export default function ReservasPage() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedReserva, setSelectedReserva] = useState<any>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    espacioId: '',
+    fechaReserva: '',
+    horaInicio: '',
+    horaFin: '',
+    proposito: '',
+    numeroAsistentes: 1,
+    notasAdicionales: ''
+  });
 
   const { reservas, loading, error: reservasError, refetch } = useReservas({
     estado: selectedEstado || undefined,
@@ -77,6 +90,24 @@ export default function ReservasPage() {
       }))
     });
   }, [reservas]);
+
+  // Cargar datos en el formulario de edición cuando se selecciona una reserva
+  useEffect(() => {
+    if (showEditModal && selectedReserva) {
+      const fechaInicio = new Date(selectedReserva.fechaInicio);
+      const fechaFin = new Date(selectedReserva.fechaFin);
+      
+      setEditFormData({
+        espacioId: selectedReserva.espacioId,
+        fechaReserva: fechaInicio.toISOString().split('T')[0],
+        horaInicio: fechaInicio.toTimeString().slice(0, 5),
+        horaFin: fechaFin.toTimeString().slice(0, 5),
+        proposito: selectedReserva.proposito || '',
+        numeroAsistentes: selectedReserva.participantes || 1,
+        notasAdicionales: selectedReserva.notasAdicionales || ''
+      });
+    }
+  }, [showEditModal, selectedReserva]);
 
   // Filtrar reservas por término de búsqueda
   const filteredReservas = reservas.filter(reserva => {
@@ -286,6 +317,8 @@ export default function ReservasPage() {
 
       console.log('✅ Reserva creada exitosamente', response.data);
 
+      // Limpiar cualquier error previo y mostrar mensaje de éxito
+      setError('');
       setSuccess(t.reservations.reservationCreated);
       setShowCreateModal(false);
       setFormData({
@@ -325,6 +358,60 @@ export default function ReservasPage() {
     }
   };
 
+  const handleEditReserva = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!selectedReserva) {
+      setError('Error: No hay reserva seleccionada');
+      return;
+    }
+
+    if (!editFormData.fechaReserva || !editFormData.horaInicio || !editFormData.horaFin) {
+      setError('Por favor completa fecha y horarios');
+      return;
+    }
+
+    try {
+      const fechaInicioDate = new Date(`${editFormData.fechaReserva}T${editFormData.horaInicio}:00`);
+      const fechaFinDate = new Date(`${editFormData.fechaReserva}T${editFormData.horaFin}:00`);
+      
+      const updateData: any = {
+        espacioId: editFormData.espacioId,
+        fechaInicio: fechaInicioDate.toISOString(),
+        fechaFin: fechaFinDate.toISOString(),
+        proposito: editFormData.proposito,
+        participantes: editFormData.numeroAsistentes,
+        notasAdicionales: editFormData.notasAdicionales
+      };
+
+      console.log('📝 Actualizando reserva:', { id: selectedReserva.id, ...updateData });
+      const response = await apiClient.updateReserva(selectedReserva.id, updateData);
+
+      if (!response.ok) {
+        const errorMsg = response.error || '';
+        if (errorMsg.includes('ya está reservado') || errorMsg.includes('already reserved')) {
+          setError(t.reservations.errorSpaceReserved);
+        } else {
+          setError(response.error || 'Error al actualizar reserva');
+        }
+        return;
+      }
+
+      console.log('✅ Reserva actualizada exitosamente');
+      setError('');
+      setSuccess('Reserva actualizada exitosamente');
+      setShowEditModal(false);
+      setSelectedReserva(null);
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => refetch(), 500);
+    } catch (err: any) {
+      setError(err.message || 'Error al actualizar la reserva');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <AppHeader 
@@ -350,10 +437,13 @@ export default function ReservasPage() {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t.reservations.newReservation}
-            </Button>
+            {/* Solo admin y responsable pueden crear reservas */}
+            {(user?.rol === 'admin' || user?.rol === 'responsable') && (
+              <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                {t.reservations.newReservation}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -753,14 +843,30 @@ export default function ReservasPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
-                          <Button variant="secondary" size="sm">
+                          <Button 
+                            variant="secondary" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedReserva(reserva);
+                              setShowViewModal(true);
+                            }}
+                          >
                             <Eye className="h-3 w-3 mr-1" />
                             {t.reservations.view}
                           </Button>
-                          <Button variant="secondary" size="sm">
-                            <Edit className="h-3 w-3 mr-1" />
-                            {t.reservations.edit}
-                          </Button>
+                          {(user?.rol === 'admin' || user?.rol === 'responsable') && (
+                            <Button 
+                              variant="secondary" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedReserva(reserva);
+                                setShowEditModal(true);
+                              }}
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                              {t.reservations.edit}
+                            </Button>
+                          )}
                           {(reserva.estado === 'pendiente' || reserva.estado === 'confirmada') && (
                             <CancelReservaButton
                               reservaId={reserva.id}
@@ -916,6 +1022,229 @@ export default function ReservasPage() {
                   <Button type="submit" variant="primary">
                     <CalendarIcon className="h-4 w-4 mr-2" />
                     {t.reservations.createButton}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de ver detalles de reserva */}
+      {showViewModal && selectedReserva && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Detalles de la Reserva</h2>
+                <button
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedReserva(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Espacio</label>
+                    <p className="text-gray-900">{espacios.find(e => e.id === selectedReserva.espacioId)?.nombre || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                    <Badge variant={getEstadoVariant(selectedReserva.estado)}>
+                      {selectedReserva.estado.charAt(0).toUpperCase() + selectedReserva.estado.slice(1)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
+                    <p className="text-gray-900">{new Date(selectedReserva.fechaInicio).toLocaleString('es-ES')}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Fin</label>
+                    <p className="text-gray-900">{new Date(selectedReserva.fechaFin).toLocaleString('es-ES')}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Propósito</label>
+                    <p className="text-gray-900">{selectedReserva.proposito || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Participantes</label>
+                    <p className="text-gray-900">{selectedReserva.participantes || 'N/A'}</p>
+                  </div>
+                  {selectedReserva.notasAdicionales && (
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales</label>
+                      <p className="text-gray-900">{selectedReserva.notasAdicionales}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-6">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowViewModal(false);
+                    setSelectedReserva(null);
+                  }}
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de editar reserva */}
+      {showEditModal && selectedReserva && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Editar Reserva</h2>
+                <button
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setSelectedReserva(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleEditReserva} className="space-y-4">
+                {/* Espacio */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.reservations.space} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={editFormData.espacioId}
+                    onChange={(e) => setEditFormData({ ...editFormData, espacioId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  >
+                    <option value="">{t.reservations.selectSpace}</option>
+                    {espacios
+                      .filter(e => e.estado === 'disponible')
+                      .map(espacio => (
+                        <option key={espacio.id} value={espacio.id}>
+                          {espacio.nombre} - {espacio.capacidad} personas
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                {/* Fecha */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.reservations.date} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editFormData.fechaReserva}
+                    onChange={(e) => setEditFormData({ ...editFormData, fechaReserva: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+
+                {/* Horarios */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t.reservations.startTime} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={editFormData.horaInicio}
+                      onChange={(e) => setEditFormData({ ...editFormData, horaInicio: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {t.reservations.endTime} <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="time"
+                      required
+                      value={editFormData.horaFin}
+                      onChange={(e) => setEditFormData({ ...editFormData, horaFin: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Propósito */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.reservations.purpose} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    minLength={5}
+                    placeholder={t.reservations.purposePlaceholder}
+                    value={editFormData.proposito}
+                    onChange={(e) => setEditFormData({ ...editFormData, proposito: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* Número de asistentes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.reservations.attendees} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={editFormData.numeroAsistentes}
+                    onChange={(e) => setEditFormData({ ...editFormData, numeroAsistentes: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+
+                {/* Notas adicionales */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {t.reservations.additionalNotes}
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder={t.reservations.notesPlaceholder}
+                    value={editFormData.notasAdicionales}
+                    onChange={(e) => setEditFormData({ ...editFormData, notasAdicionales: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* Botones */}
+                <div className="flex justify-end space-x-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowEditModal(false);
+                      setSelectedReserva(null);
+                    }}
+                  >
+                    {t.common.cancel}
+                  </Button>
+                  <Button type="submit" variant="primary">
+                    <Save className="h-4 w-4 mr-2" />
+                    Guardar Cambios
                   </Button>
                 </div>
               </form>

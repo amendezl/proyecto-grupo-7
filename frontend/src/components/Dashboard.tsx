@@ -30,6 +30,8 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reservas, setReservas] = useState<any[]>([]);
+  const [espacios, setEspacios] = useState<any[]>([]);
 
   useEffect(() => {
     loadDashboardStats();
@@ -40,24 +42,34 @@ export default function Dashboard() {
       setLoading(true);
       setError(null);
       
-      // Cargar datos desde los diferentes endpoints
+      // Control de permisos por rol
+      const isAdmin = user?.rol === 'admin';
+      const isResponsable = user?.rol === 'responsable';
+      const isUsuario = user?.rol === 'usuario';
+      
+      // Cargar datos según permisos del rol
+      // Admin: todo | Responsable: solo reservas | Usuario: solo sus reservas
       const [espaciosRes, zonasRes, reservasRes, usuariosRes, responsablesRes] = await Promise.all([
-        import('@/lib/api-client').then(m => m.apiClient.getEspacios()),
-        import('@/lib/api-client').then(m => m.apiClient.getZonas()),
-        import('@/lib/api-client').then(m => m.apiClient.getReservas()),
-        import('@/lib/api-client').then(m => m.apiClient.getUsuarios()),
-        import('@/lib/api-client').then(m => m.apiClient.getResponsables())
+        isAdmin ? import('@/lib/api-client').then(m => m.apiClient.getEspacios()) : Promise.resolve({ ok: true, data: { espacios: [] } }),
+        isAdmin ? import('@/lib/api-client').then(m => m.apiClient.getZonas()) : Promise.resolve({ ok: true, data: { zonas: [] } }),
+        (isAdmin || isResponsable || isUsuario) ? import('@/lib/api-client').then(m => m.apiClient.getReservas()) : Promise.resolve({ ok: true, data: { reservas: [] } }),
+        isAdmin ? import('@/lib/api-client').then(m => m.apiClient.getUsuarios()) : Promise.resolve({ ok: true, data: { usuarios: [] } }),
+        isAdmin ? import('@/lib/api-client').then(m => m.apiClient.getResponsables()) : Promise.resolve({ ok: true, data: { responsables: [] } })
       ]);
 
-      const espacios = espaciosRes.ok && espaciosRes.data ? espaciosRes.data.espacios || [] : [];
+      const espaciosData = espaciosRes.ok && espaciosRes.data ? espaciosRes.data.espacios || [] : [];
       const zonas = zonasRes.ok && zonasRes.data ? zonasRes.data.zonas || [] : [];
-      const reservas = reservasRes.ok && reservasRes.data ? reservasRes.data.reservas || [] : [];
+      const reservasData = reservasRes.ok && reservasRes.data ? reservasRes.data.reservas || [] : [];
       const usuarios = usuariosRes.ok && usuariosRes.data ? usuariosRes.data.usuarios || [] : [];
       const responsables = responsablesRes.ok && responsablesRes.data ? responsablesRes.data.responsables || [] : [];
 
+      // Guardar en estado para uso en el componente
+      setReservas(reservasData);
+      setEspacios(espaciosData);
+
       // Filtrar reservas activas (no canceladas y que no hayan terminado)
       const now = new Date();
-      const reservasActivas = reservas.filter((r: any) => {
+      const reservasActivas = reservasData.filter((r: any) => {
         if (r.estado === 'cancelada') return false;
         const fechaFin = new Date(r.fechaFin);
         return fechaFin >= now;
@@ -65,7 +77,7 @@ export default function Dashboard() {
 
       // Calcular espacios ocupados AHORA MISMO (reservas en curso)
       const espaciosOcupadosIds = new Set<string>();
-      reservas.forEach((r: any) => {
+      reservasData.forEach((r: any) => {
         if (r.estado === 'cancelada') return;
         const inicio = new Date(r.fechaInicio);
         const fin = new Date(r.fechaFin);
@@ -75,13 +87,13 @@ export default function Dashboard() {
       });
 
       const espaciosOcupados = espaciosOcupadosIds.size;
-      const espaciosDisponibles = espacios.filter((e: any) => 
+      const espaciosDisponibles = espaciosData.filter((e: any) => 
         e.estado === 'disponible' && !espaciosOcupadosIds.has(e.id)
       ).length;
 
       setStats({
-        totalEspacios: espacios.length,
-        totalReservas: reservas.length,
+        totalEspacios: espaciosData.length,
+        totalReservas: reservasData.length,
         totalUsuarios: usuarios.length,
         totalResponsables: responsables.length,
         totalZonas: zonas.length,
@@ -130,73 +142,154 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {/* Espacios */}
-          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.spaces}</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalEspacios}</p>
-                <p className="text-xs text-red-600 mt-1 flex items-center">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  {stats.espaciosActivos} {t.dashboard.occupiedNow}
-                </p>
+        {/* Stats Grid - Solo para Admin */}
+        {user?.rol === 'admin' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            {/* Espacios */}
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.spaces}</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.totalEspacios}</p>
+                  <p className="text-xs text-red-600 mt-1 flex items-center">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    {stats.espaciosActivos} {t.dashboard.occupiedNow}
+                  </p>
+                </div>
+                <div className="p-4 bg-blue-50 rounded-full">
+                  <MapPin className="h-8 w-8 text-blue-600" />
+                </div>
               </div>
-              <div className="p-4 bg-blue-50 rounded-full">
-                <MapPin className="h-8 w-8 text-blue-600" />
+            </div>
+
+            {/* Reservas */}
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.reservations}</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.totalReservas}</p>
+                  <p className="text-xs text-green-600 mt-1 flex items-center">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    {stats.reservasActivas} {t.dashboard.active}
+                  </p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-full">
+                  <Calendar className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Usuarios */}
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.users}</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.totalUsuarios}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t.dashboard.registeredUsers}</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-full">
+                  <Users className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+            </div>
+
+            {/* Zonas */}
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.zones}</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.totalZonas}</p>
+                  <p className="text-xs text-gray-500 mt-1">{t.dashboard.organizedAreas}</p>
+                </div>
+                <div className="p-4 bg-orange-50 rounded-full">
+                  <Building2 className="h-8 w-8 text-orange-600" />
+                </div>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Reservas */}
-          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.reservations}</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalReservas}</p>
-                <p className="text-xs text-green-600 mt-1 flex items-center">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  {stats.reservasActivas} {t.dashboard.active}
-                </p>
-              </div>
-              <div className="p-4 bg-purple-50 rounded-full">
-                <Calendar className="h-8 w-8 text-purple-600" />
+        {/* Vista para Responsable - Puede ver y gestionar reservas */}
+        {user?.rol === 'responsable' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.reservations}</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.totalReservas}</p>
+                  <p className="text-xs text-green-600 mt-1 flex items-center">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    {stats.reservasActivas} {t.dashboard.active}
+                  </p>
+                </div>
+                <div className="p-4 bg-purple-50 rounded-full">
+                  <Calendar className="h-8 w-8 text-purple-600" />
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Usuarios */}
-          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.users}</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalUsuarios}</p>
-                <p className="text-xs text-gray-500 mt-1">{t.dashboard.registeredUsers}</p>
-              </div>
-              <div className="p-4 bg-green-50 rounded-full">
-                <Users className="h-8 w-8 text-green-600" />
-              </div>
+            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
+              <button
+                onClick={() => window.location.href = '/reservas'}
+                className="w-full flex items-center p-3 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer border-2 border-transparent hover:border-purple-200"
+              >
+                <Calendar className="h-5 w-5 text-purple-600 mr-3" />
+                <span className="text-purple-900 font-medium">Gestionar Reservas</span>
+              </button>
             </div>
           </div>
+        )}
 
-          {/* Zonas */}
-          <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-6 border border-gray-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 mb-1">{t.nav.zones}</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalZonas}</p>
-                <p className="text-xs text-gray-500 mt-1">{t.dashboard.organizedAreas}</p>
+        {/* Vista simplificada para Usuario - Solo visualización */}
+        {user?.rol === 'usuario' && (
+          <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 mb-12">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <Calendar className="h-8 w-8 text-purple-600 mr-3" />
+              Próximas Reservas
+            </h3>
+            {stats.totalReservas === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600 mb-4">No tienes reservas programadas</p>
               </div>
-              <div className="p-4 bg-orange-50 rounded-full">
-                <Building2 className="h-8 w-8 text-orange-600" />
+            ) : (
+              <div className="space-y-3">
+                {reservas.slice(0, 5).map((reserva: any) => {
+                  const espacio = espacios.find((e: any) => e.id === reserva.espacioId);
+                  const fechaInicio = new Date(reserva.fechaInicio);
+                  const fechaFin = new Date(reserva.fechaFin);
+                  return (
+                    <div key={reserva.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">{espacio?.nombre || 'Espacio'}</p>
+                        <p className="text-sm text-gray-600">{reserva.proposito}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {fechaInicio.toLocaleDateString()} {fechaInicio.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {fechaFin.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        reserva.estado === 'confirmada' ? 'bg-green-100 text-green-800' :
+                        reserva.estado === 'pendiente' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {reserva.estado}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            )}
+            <button
+              onClick={() => window.location.href = '/reservas'}
+              className="w-full mt-6 inline-flex items-center justify-center px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors"
+            >
+              <Calendar className="h-5 w-5 mr-2" />
+              Ver todas mis reservas
+            </button>
           </div>
-        </div>
+        )}
 
-        {/* Empty state o Quick actions */}
-        {stats.totalEspacios === 0 && stats.totalZonas === 0 ? (
+        {/* Empty state o Quick actions - Solo para Admin */}
+        {user?.rol === 'admin' && (stats.totalEspacios === 0 && stats.totalZonas === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
             <div className="max-w-md mx-auto">
               <div className="p-4 bg-blue-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
@@ -266,7 +359,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Quick actions */}
+            {/* Quick actions - Solo Admin tiene acceso a reportes y recursos */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t.dashboard.quickActions}</h3>
               <div className="space-y-3">
@@ -294,7 +387,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

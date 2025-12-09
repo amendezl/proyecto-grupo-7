@@ -220,9 +220,19 @@ const withErrorHandling = (handler) => {
                 error: 'Error interno del servidor'
             };
             
+            // CORS headers for error responses
+            const corsHeaders = {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'OPTIONS, GET, POST, PUT, DELETE, PATCH',
+                'Access-Control-Allow-Headers': 'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Api-Version',
+                'Access-Control-Max-Age': '3600'
+            };
+            
             if (error.message.includes('autenticación') || error.message.includes('Token')) {
                 return {
                     statusCode: 401,
+                    headers: corsHeaders,
                     body: JSON.stringify({
                         ...errorResponse,
                         error: error.message,
@@ -234,6 +244,7 @@ const withErrorHandling = (handler) => {
             if (error.message.includes('Permisos')) {
                 return {
                     statusCode: 403,
+                    headers: corsHeaders,
                     body: JSON.stringify({
                         ...errorResponse,
                         error: error.message,
@@ -249,6 +260,7 @@ const withErrorHandling = (handler) => {
             
             const response = {
                 statusCode: 500,
+                headers: corsHeaders,
                 body: JSON.stringify({
                     ...errorResponse,
                     type: 'INTERNAL_ERROR'

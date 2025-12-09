@@ -64,7 +64,17 @@ const created = (data) => {
 };
 
 const noContent = () => {
-    return createResponse(204, null);
+    return {
+        statusCode: 204,
+        headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'OPTIONS, GET, POST, PUT, DELETE, PATCH',
+            'Access-Control-Allow-Headers': 'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Api-Version',
+            'Access-Control-Max-Age': '3600'
+        },
+        body: ''
+    };
 };
 
 module.exports = {

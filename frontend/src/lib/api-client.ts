@@ -854,7 +854,7 @@ class ApiClient {
   }
 
   async asignarEspacios(responsableId: string, espaciosIds: string[]): Promise<ApiResponse<{ message: string }>> {
-    const endpoint = this.getOptimizedEndpoint(`/responsables/${responsableId}/asignar-espacios`);
+    const endpoint = this.getOptimizedEndpoint(`/api/responsables/${responsableId}/asignar-espacios`);
     return this.post(endpoint, { espaciosIds });
   }
 
@@ -869,7 +869,7 @@ class ApiClient {
     if (filters?.activo !== undefined) params.append('activo', filters.activo.toString());
     if (filters?.departamento) params.append('departamento', filters.departamento);
     
-    const endpoint = this.getOptimizedEndpoint('/usuarios');
+    const endpoint = this.getOptimizedEndpoint('/api/usuarios');
     const queryString = params.toString();
     const response = await this.get(`${endpoint}${queryString ? `?${queryString}` : ''}`);
     return transformResponse(response, (payload: any) => {
@@ -882,26 +882,26 @@ class ApiClient {
   }
 
   async createUsuario(data: Omit<Usuario, 'id'> & { password?: string }): Promise<ApiResponse<Usuario>> {
-    const endpoint = this.getOptimizedEndpoint('/usuarios');
+    const endpoint = this.getOptimizedEndpoint('/api/usuarios');
     const payload = serializeUsuarioInput(data);
     const response = await this.post(endpoint, Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapUsuarioFromApi);
   }
 
   async updateUsuario(id: string, data: Partial<Usuario> & { password?: string }): Promise<ApiResponse<Usuario>> {
-    const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}`);
+    const endpoint = this.getOptimizedEndpoint(`/api/usuarios/${id}`);
     const payload = serializeUsuarioInput(data);
     const response = await this.put(endpoint, Object.keys(payload).length ? payload : data);
     return transformResponse(response, mapUsuarioFromApi);
   }
 
   async deleteUsuario(id: string): Promise<ApiResponse<{ message: string }>> {
-    const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}`);
+    const endpoint = this.getOptimizedEndpoint(`/api/usuarios/${id}`);
     return this.delete(endpoint);
   }
 
   async toggleUsuarioEstado(id: string, activo: boolean): Promise<ApiResponse<Usuario>> {
-    const endpoint = this.getOptimizedEndpoint(`/usuarios/${id}/toggle-estado`);
+    const endpoint = this.getOptimizedEndpoint(`/api/usuarios/${id}/toggle-estado`);
     const response = await this.patch(endpoint, { activo });
     return transformResponse(response, mapUsuarioFromApi);
   }
@@ -1003,7 +1003,7 @@ class ApiClient {
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
-    return this.post('/usuarios/cambiar-password', { passwordActual: currentPassword, passwordNuevo: newPassword });
+    return this.post('/api/usuarios/cambiar-password', { passwordActual: currentPassword, passwordNuevo: newPassword });
   }
 
   async getSettings(): Promise<ApiResponse<{
