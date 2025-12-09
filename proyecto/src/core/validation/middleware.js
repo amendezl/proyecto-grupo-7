@@ -8,6 +8,15 @@ const { logger } = require('../../infrastructure/monitoring/logger');
  */
 function validateRequestBody(entityType, options = {}) {
   return async (event, context, next) => {
+    // CORS headers for all responses
+    const corsHeaders = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'OPTIONS, GET, POST, PUT, DELETE, PATCH',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token, X-Api-Version',
+      'Access-Control-Max-Age': '3600'
+    };
+    
     try {
 
       let requestData;
@@ -23,6 +32,7 @@ function validateRequestBody(entityType, options = {}) {
         
         return {
           statusCode: 400,
+          headers: corsHeaders,
           body: JSON.stringify({
             status: 'FAILED',
             error: 'Invalid JSON format in request body',
@@ -44,6 +54,7 @@ function validateRequestBody(entityType, options = {}) {
           
           return {
             statusCode: 400,
+            headers: corsHeaders,
             body: JSON.stringify({
               status: 'FAILED',
               error: 'Business rules validation failed',
@@ -75,6 +86,7 @@ function validateRequestBody(entityType, options = {}) {
         
         return {
           statusCode: 400,
+          headers: corsHeaders,
           body: JSON.stringify({
             status: 'FAILED',
             error: 'Data validation failed',
@@ -94,6 +106,7 @@ function validateRequestBody(entityType, options = {}) {
       
       return {
         statusCode: 500,
+        headers: corsHeaders,
         body: JSON.stringify({
           status: 'FAILED',
           error: 'Internal validation error',

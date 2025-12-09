@@ -63,11 +63,11 @@ export default function CancelReservaButton({
             </div>
 
             <div className="mb-6">
-              <p className="text-gray-700">
+              <p className="text-gray-700 break-words">
                 ¿Estás seguro de que deseas cancelar la reserva:{' '}
-                <span className="font-medium">{reservaNombre}</span>?
+                <span className="font-medium break-all">{reservaNombre}</span>?
               </p>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-gray-500 mt-2 break-words">
                 La reserva quedará marcada como cancelada y el espacio estará disponible para otras reservas.
               </p>
             </div>

@@ -193,6 +193,7 @@ class DynamoDBManager {
             proposito: validatedData.proposito,
             estado: validatedData.estado || 'pendiente',
             notas: validatedData.notas,
+            empresa_id: validatedData.empresa_id, // MULTITENANCY: Guardar empresa del usuario
             createdAt: validatedData.fecha_creacion || new Date().toISOString(),
             updatedAt: validatedData.fecha_actualizacion
         };
@@ -292,18 +293,25 @@ class DynamoDBManager {
     }
 
     async getUsuarios(filters = {}) {
+        // MULTITENANCY: Buscar usuarios por empresa_id usando GSI1
+        if (!filters.empresa_id) {
+            throw new Error('empresa_id is required to fetch usuarios');
+        }
+
         const command = new QueryCommand({
             TableName: this.tableName,
             IndexName: 'GSI1',
-            KeyConditionExpression: 'GSI1PK = :pk',
+            KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
             ExpressionAttributeValues: {
-                ':pk': 'USUARIO'
+                ':pk': `EMPRESA#${filters.empresa_id}`,
+                ':sk': 'USER#'
             }
         });
 
         const result = await this.docClient.send(command);
         let items = result.Items || [];
 
+        // Filtros adicionales
         if (filters.rol) {
             items = items.filter(item => item.rol === filters.rol);
         }

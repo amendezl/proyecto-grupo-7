@@ -66,6 +66,11 @@ const userSchema = {
       type: 'string',
       maxLength: 100
     },
+    password: {
+      type: 'string',
+      minLength: 8,
+      maxLength: 128
+    },
     fecha_creacion: { 
       type: 'string', 
       format: 'date-time' 

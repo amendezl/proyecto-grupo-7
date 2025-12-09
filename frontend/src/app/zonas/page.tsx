@@ -14,6 +14,10 @@ export default function ZonasPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const { t } = useLanguage();
   const [zonas, setZonas] = useState<Zona[]>([]);
+
+  const handleBack = () => {
+    router.push('/recursos');
+  };
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -193,6 +197,15 @@ export default function ZonasPage() {
       />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Botón de volver */}
+        <button
+          onClick={handleBack}
+          className="mb-6 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>{t.common.back}</span>
+        </button>
+
         {/* Page Description */}
         <div className="mb-6">
           <p className="text-gray-600">Organiza los espacios de tu empresa por zonas</p>
@@ -225,13 +238,22 @@ export default function ZonasPage() {
             <p className="text-gray-600 mb-8">
               {t.zones.createFirstDesc}
             </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              {t.zones.createZone}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <ArrowLeft className="h-5 w-5 mr-2" />
+                {t.nav.dashboard}
+              </Link>
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                {t.zones.createZone}
+              </button>
+            </div>
           </div>
         ) : !showForm ? (
           <>

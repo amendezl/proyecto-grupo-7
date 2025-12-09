@@ -78,11 +78,16 @@ export function useReservas(filters?: {
     setError(null);
     
     try {
+      console.log('🔍 Fetching reservas con filtros:', filters);
       const response = await apiClient.getReservas(filters);
+      console.log('📡 Respuesta del API getReservas:', response);
+      
       if (response.ok && response.data) {
+        console.log('✅ Reservas recibidas del backend:', response.data.reservas);
         setReservas(response.data.reservas);
         setTotal(response.data.total);
       } else {
+        console.error('❌ Error en respuesta:', response.error);
         setError(response.error || 'Error al cargar reservas');
         setReservas([]);
         setTotal(0);

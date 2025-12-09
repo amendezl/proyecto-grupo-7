@@ -8,6 +8,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Palette, Save, Eye, AlertCircle, CheckCircle, ArrowLeft, Upload, RotateCcw, Type, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import AppHeader from '@/components/AppHeader';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ThemeConfig {
   primaryColor: string;
@@ -20,12 +22,13 @@ interface ThemeConfig {
   logoUrl: string;
   faviconUrl: string;
   buttonRadius: string;
-  spacing: string;
+  spacing: string; 
 }
 
 export default function ThemeEditingPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { t } = useLanguage();
   
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>({
     primaryColor: '#3b82f6',
@@ -51,6 +54,15 @@ export default function ThemeEditingPage() {
     'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 
     'Poppins', 'Raleway', 'Ubuntu', 'Nunito', 'Playfair Display'
   ];
+
+  // Debug: Log translations
+  useEffect(() => {
+    console.log('🌐 Theme Editor Translations:', {
+      t: t,
+      themeEditor: t?.themeEditor,
+      warningTitle: t?.themeEditor?.warningTitle
+    });
+  }, [t]);
 
   // Verificar si el usuario es admin
   useEffect(() => {
@@ -84,13 +96,13 @@ export default function ThemeEditingPage() {
 
     // Validar tipo de archivo
     if (!file.type.startsWith('image/')) {
-      setError('Por favor, selecciona un archivo de imagen válido');
+      setError(t?.themeEditor?.errorSelectImage || 'Por favor, selecciona un archivo de imagen válido');
       return;
     }
 
     // Validar tamaño (máximo 2MB)
     if (file.size > 2 * 1024 * 1024) {
-      setError('El archivo debe ser menor a 2MB');
+      setError(t?.themeEditor?.errorFileSize || 'El archivo debe ser menor a 2MB');
       return;
     }
 
@@ -114,7 +126,7 @@ export default function ThemeEditingPage() {
       // Aplicar el tema al documento
       applyThemeToDocument();
       
-      setSuccess('Tema guardado exitosamente. Los cambios se aplicarán en toda la plataforma.');
+      setSuccess(t?.themeEditor?.successSaved || 'Tema guardado exitosamente');
       
       // Aquí iría la llamada a la API para guardar en la base de datos
       // await fetch('/api/theme', {
@@ -123,7 +135,7 @@ export default function ThemeEditingPage() {
       //   body: JSON.stringify(themeConfig)
       // });
     } catch (err) {
-      setError('Error al guardar el tema. Intenta nuevamente.');
+      setError(t?.themeEditor?.errorUpload || 'Error al guardar el tema');
     } finally {
       setIsLoading(false);
     }
@@ -143,7 +155,7 @@ export default function ThemeEditingPage() {
   };
 
   const resetToDefault = () => {
-    if (confirm('¿Estás seguro de que quieres restablecer el tema a los valores predeterminados?')) {
+    if (confirm(t?.themeEditor?.resetDefaults || '¿Restablecer valores predeterminados?')) {
       setThemeConfig({
         primaryColor: '#3b82f6',
         secondaryColor: '#8b5cf6',
@@ -157,33 +169,37 @@ export default function ThemeEditingPage() {
         buttonRadius: '0.5rem',
         spacing: '1rem'
       });
-      setSuccess('Tema restablecido a valores predeterminados');
+      setSuccess(t?.themeEditor?.successReset || 'Tema restablecido a valores predeterminados');
     }
   };
 
-  if (!user || user.rol !== 'admin') {
+  if (!user || user.rol?.toLowerCase() !== 'admin') {
     return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <AppHeader title={t?.themeEditor?.title || 'Editor de Tema'} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-6">
-          <button 
-            onClick={() => router.back()} 
-            className="mb-4 text-gray-600 hover:text-gray-800 flex items-center transition-colors"
-          >
-            <ArrowLeft className="mr-2" size={20} />
-            Volver
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <Palette className="mr-3" size={32} />
-            Editor de Tema
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Personaliza la apariencia completa de la plataforma
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button 
+              onClick={() => router.push('/configuracion')} 
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#242938] border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {t?.common?.back || 'Volver'}
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {t?.themeEditor?.title || 'Editor de Tema'}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {t?.themeEditor?.colorsDesc || 'Personaliza la apariencia completa de la plataforma'}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Warning Banner */}
@@ -193,23 +209,22 @@ export default function ThemeEditingPage() {
               <AlertCircle className="text-yellow-400 mr-3 flex-shrink-0" size={24} />
               <div className="flex-1">
                 <h3 className="text-yellow-800 font-semibold mb-2">
-                  Advertencia: Cambios Críticos de Usabilidad
+                  {t?.themeEditor?.warningTitle || '⚠️ Advertencia de Usabilidad'}
                 </h3>
                 <p className="text-yellow-700 text-sm mb-2">
-                  Los cambios en el tema pueden afectar significativamente la experiencia del usuario. 
-                  Asegúrate de:
+                  {t?.themeEditor?.warningMessage || 'Los cambios en el tema pueden afectar significativamente la experiencia del usuario.'}
                 </p>
                 <ul className="text-yellow-700 text-sm list-disc ml-5 space-y-1">
-                  <li>Mantener un contraste adecuado entre texto y fondo (mínimo 4.5:1)</li>
-                  <li>Probar la legibilidad de las fuentes en diferentes tamaños</li>
-                  <li>Verificar que los colores sean accesibles para usuarios con daltonismo</li>
-                  <li>Realizar pruebas de usabilidad después de aplicar cambios importantes</li>
+                  <li>{t?.themeEditor?.warningBullet1 || 'Mantener un contraste adecuado entre texto y fondo (mínimo 4.5:1)'}</li>
+                  <li>{t?.themeEditor?.warningBullet2 || 'Probar la legibilidad de las fuentes en diferentes tamaños'}</li>
+                  <li>{t?.themeEditor?.warningBullet3 || 'Verificar que los colores sean accesibles para usuarios con daltonismo'}</li>
+                  <li>{t?.themeEditor?.warningBullet4 || 'Realizar pruebas de usabilidad después de aplicar cambios importantes'}</li>
                 </ul>
                 <button
                   onClick={() => setShowWarning(false)}
                   className="mt-3 text-yellow-800 text-sm font-medium hover:text-yellow-900"
                 >
-                  Entendido, continuar
+                  {t?.common?.confirm || 'Entendido, continuar'}
                 </button>
               </div>
             </div>
@@ -225,9 +240,9 @@ export default function ThemeEditingPage() {
         )}
 
         {success && (
-          <div className="mb-6 bg-green-50 border-l-4 border-green-400 p-4 flex items-center">
-            <CheckCircle className="text-green-400 mr-3" size={20} />
-            <p className="text-green-700">{success}</p>
+          <div className="mb-6 bg-green-50 dark:bg-green-900/20 border-l-4 border-green-400 dark:border-green-600 p-4 flex items-center">
+            <CheckCircle className="text-green-400 dark:text-green-500 mr-3" size={20} />
+            <p className="text-green-700 dark:text-green-300">{success}</p>
           </div>
         )}
 
@@ -235,109 +250,109 @@ export default function ThemeEditingPage() {
           {/* Configuration Panel */}
           <div className="space-y-6">
             {/* Colors Section */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <div className="bg-white dark:bg-[#242938] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-gray-100">
                 <Palette className="mr-2" size={20} />
-                Colores
+                {t?.themeEditor?.colorsTitle || 'Colores'}
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color Primario
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.primaryColor || 'Color Primario'}
                   </label>
                   <div className="flex items-center space-x-3">
                     <input
                       type="color"
                       value={themeConfig.primaryColor}
                       onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                      className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                      className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
                       type="text"
                       value={themeConfig.primaryColor}
                       onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                       placeholder="#3b82f6"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color Secundario
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.secondaryColor || 'Color Secundario'}
                   </label>
                   <div className="flex items-center space-x-3">
                     <input
                       type="color"
                       value={themeConfig.secondaryColor}
                       onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
-                      className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                      className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
                       type="text"
                       value={themeConfig.secondaryColor}
                       onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color de Acento
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.accentColor || 'Color de Acento'}
                   </label>
                   <div className="flex items-center space-x-3">
                     <input
                       type="color"
                       value={themeConfig.accentColor}
                       onChange={(e) => handleInputChange('accentColor', e.target.value)}
-                      className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                      className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
                       type="text"
                       value={themeConfig.accentColor}
                       onChange={(e) => handleInputChange('accentColor', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color de Fondo
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.backgroundColor || 'Color de Fondo'}
                   </label>
                   <div className="flex items-center space-x-3">
                     <input
                       type="color"
                       value={themeConfig.backgroundColor}
                       onChange={(e) => handleInputChange('backgroundColor', e.target.value)}
-                      className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                      className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
                       type="text"
                       value={themeConfig.backgroundColor}
                       onChange={(e) => handleInputChange('backgroundColor', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Color de Texto
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.textColor || 'Color de Texto'}
                   </label>
                   <div className="flex items-center space-x-3">
                     <input
                       type="color"
                       value={themeConfig.textColor}
                       onChange={(e) => handleInputChange('textColor', e.target.value)}
-                      className="h-10 w-20 rounded border border-gray-300 cursor-pointer"
+                      className="h-10 w-20 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                     />
                     <input
                       type="text"
                       value={themeConfig.textColor}
                       onChange={(e) => handleInputChange('textColor', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                     />
                   </div>
                 </div>
@@ -345,20 +360,20 @@ export default function ThemeEditingPage() {
             </div>
 
             {/* Typography Section */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <div className="bg-white dark:bg-[#242938] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-gray-100">
                 <Type className="mr-2" size={20} />
-                Tipografía
+                {t?.themeEditor?.typographyTitle || 'Tipografía'}
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fuente para Títulos
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.headingFont || 'Fuente para Títulos'}
                   </label>
                   <select
                     value={themeConfig.headingFont}
                     onChange={(e) => handleInputChange('headingFont', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                   >
                     {fontOptions.map(font => (
                       <option key={font} value={font}>{font}</option>
@@ -367,13 +382,13 @@ export default function ThemeEditingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Fuente para Cuerpo
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.bodyFont || 'Fuente para Cuerpo'}
                   </label>
                   <select
                     value={themeConfig.bodyFont}
                     onChange={(e) => handleInputChange('bodyFont', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                   >
                     {fontOptions.map(font => (
                       <option key={font} value={font}>{font}</option>
@@ -384,15 +399,15 @@ export default function ThemeEditingPage() {
             </div>
 
             {/* Branding Section */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 flex items-center">
+            <div className="bg-white dark:bg-[#242938] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center text-gray-900 dark:text-gray-100">
                 <ImageIcon className="mr-2" size={20} />
-                Marca
+                {t?.themeEditor?.brandingTitle || 'Marca'}
               </h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Logo Principal
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.logoLabel || 'Logo Principal'}
                   </label>
                   <div className="flex items-center space-x-3">
                     <input
@@ -404,10 +419,10 @@ export default function ThemeEditingPage() {
                     />
                     <label
                       htmlFor="logo-upload"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer flex items-center"
+                      className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-800 cursor-pointer flex items-center transition-colors"
                     >
                       <Upload className="mr-2" size={16} />
-                      Subir Logo
+                      {t?.themeEditor?.uploadLogo || 'Subir Logo'}
                     </label>
                     {themeConfig.logoUrl && (
                       <img src={themeConfig.logoUrl} alt="Logo" className="h-10 object-contain" />
@@ -416,8 +431,8 @@ export default function ThemeEditingPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Favicon
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.faviconLabel || 'Favicon'}
                   </label>
                   <div className="flex items-center space-x-3">
                     <input
@@ -429,10 +444,10 @@ export default function ThemeEditingPage() {
                     />
                     <label
                       htmlFor="favicon-upload"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer flex items-center"
+                      className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-800 cursor-pointer flex items-center transition-colors"
                     >
                       <Upload className="mr-2" size={16} />
-                      Subir Favicon
+                      {t?.themeEditor?.uploadFavicon || 'Subir Favicon'}
                     </label>
                     {themeConfig.faviconUrl && (
                       <img src={themeConfig.faviconUrl} alt="Favicon" className="h-8 object-contain" />
@@ -443,31 +458,31 @@ export default function ThemeEditingPage() {
             </div>
 
             {/* Advanced Styling */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Estilos Avanzados</h2>
+            <div className="bg-white dark:bg-[#242938] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">{t?.themeEditor?.advancedTitle || 'Estilos Avanzados'}</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Radio de Botones
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.buttonRadius || 'Radio de Botones'}
                   </label>
                   <input
                     type="text"
                     value={themeConfig.buttonRadius}
                     onChange={(e) => handleInputChange('buttonRadius', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                     placeholder="0.5rem"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Espaciado Base
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t?.themeEditor?.spacing || 'Espaciado Base'}
                   </label>
                   <input
                     type="text"
                     value={themeConfig.spacing}
                     onChange={(e) => handleInputChange('spacing', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100"
                     placeholder="1rem"
                   />
                 </div>
@@ -477,17 +492,17 @@ export default function ThemeEditingPage() {
 
           {/* Preview Panel */}
           <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-6">
+            <div className="bg-white dark:bg-[#242938] rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold flex items-center">
+                <h2 className="text-xl font-semibold flex items-center text-gray-900 dark:text-gray-100">
                   <Eye className="mr-2" size={20} />
-                  Vista Previa
+                  {t?.themeEditor?.previewTitle || 'Vista Previa'}
                 </h2>
                 <button
                   onClick={() => setPreviewMode(!previewMode)}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                 >
-                  {previewMode ? 'Modo Edición' : 'Modo Vista Previa'}
+                  {previewMode ? (t?.themeEditor?.previewModeEdit || 'Modo Edición') : (t?.themeEditor?.previewModePreview || 'Modo Vista Previa')}
                 </button>
               </div>
 
@@ -510,11 +525,11 @@ export default function ThemeEditingPage() {
                   }}
                   className="text-2xl font-bold"
                 >
-                  Título de Ejemplo
+                  {t?.themeEditor?.previewHeading || 'Título de Ejemplo'}
                 </h1>
                 
                 <p className="text-sm">
-                  Este es un ejemplo de cómo se verá el texto en la plataforma con la configuración actual.
+                  {t?.themeEditor?.previewCardDesc || 'Este es un ejemplo de cómo se verá el texto en la plataforma con la configuración actual.'}
                 </p>
 
                 <div className="flex space-x-3">
@@ -525,7 +540,7 @@ export default function ThemeEditingPage() {
                     }}
                     className="px-4 py-2 text-white font-medium"
                   >
-                    Botón Primario
+                    {t?.themeEditor?.previewButtonPrimary || 'Botón Primario'}
                   </button>
                   
                   <button
@@ -535,7 +550,7 @@ export default function ThemeEditingPage() {
                     }}
                     className="px-4 py-2 text-white font-medium"
                   >
-                    Botón Secundario
+                    {t?.themeEditor?.previewButtonSecondary || 'Botón Secundario'}
                   </button>
                 </div>
 
@@ -544,7 +559,7 @@ export default function ThemeEditingPage() {
                   style={{ backgroundColor: themeConfig.accentColor + '20' }}
                 >
                   <p style={{ color: themeConfig.accentColor }} className="font-medium">
-                    Mensaje de éxito o notificación
+                    {t?.themeEditor?.previewNotification || 'Mensaje de éxito o notificación'}
                   </p>
                 </div>
               </div>
@@ -554,34 +569,34 @@ export default function ThemeEditingPage() {
                 <button
                   onClick={handleSaveTheme}
                   disabled={isLoading}
-                  className="w-full bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center font-medium transition-colors"
+                  className="w-full bg-blue-600 dark:bg-blue-700 text-white py-3 rounded-lg hover:bg-blue-700 dark:hover:bg-blue-800 disabled:bg-gray-400 dark:disabled:bg-gray-600 flex items-center justify-center font-medium transition-colors shadow-sm"
                 >
                   <Save className="mr-2" size={18} />
-                  {isLoading ? 'Guardando...' : 'Guardar Tema'}
+                  {isLoading ? (t?.themeEditor?.saving || 'Guardando...') : (t?.themeEditor?.saveTheme || 'Guardar Tema')}
                 </button>
 
                 <button
                   onClick={resetToDefault}
-                  className="w-full bg-gray-100 text-gray-700 py-3 rounded-md hover:bg-gray-200 flex items-center justify-center font-medium transition-colors"
+                  className="w-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center font-medium transition-colors border border-gray-300 dark:border-gray-600"
                 >
                   <RotateCcw className="mr-2" size={18} />
-                  Restablecer Predeterminados
+                  {t?.themeEditor?.resetDefaults || 'Restablecer Predeterminados'}
                 </button>
               </div>
 
               {/* Accessibility Check */}
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Verificación de Accesibilidad
+              <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  {t?.themeEditor?.accessibilityTitle || 'Verificación de Accesibilidad'}
                 </h3>
-                <p className="text-xs text-gray-600 mb-2">
-                  Contraste texto-fondo: 
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                  {t?.themeEditor?.contrastRatio || 'Contraste texto-fondo:'}
                   <span className="ml-2 font-medium">
                     {calculateContrast(themeConfig.textColor, themeConfig.backgroundColor)}
                   </span>
                 </p>
-                <p className="text-xs text-gray-500">
-                  Se recomienda un ratio mínimo de 4.5:1 para texto normal
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t?.themeEditor?.minContrastRecommendation || 'Se recomienda un ratio mínimo de 4.5:1 para texto normal'}
                 </p>
               </div>
             </div>

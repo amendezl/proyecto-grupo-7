@@ -1,3 +1,6 @@
+const { CognitoIdentityProviderClient, AdminCreateUserCommand, AdminSetUserPasswordCommand, AdminAddUserToGroupCommand } = require('@aws-sdk/client-cognito-identity-provider');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const DynamoDBManager = require('../../infrastructure/database/DynamoDBManager');
 const { resilienceManager } = require('../../shared/utils/resilienceManager');
 const { withPermissions, extractQueryParams, extractPathParams, parseBody, hashPassword } = require('../../core/auth/auth');
@@ -8,6 +11,9 @@ const { withValidation } = require('../../core/validation/middleware');
 const { logger } = require('../../infrastructure/monitoring/logger');
 
 const db = new DynamoDBManager();
+const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const dynamoClient = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 const getUsuarios = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
@@ -120,54 +126,140 @@ const createUsuario = withPermissions(async (event) => {
         const userData = parseBody(event);
         const user = event.user;
         
-        // El nuevo usuario hereda el empresa_id del admin que lo crea
-        const dataWithEmpresa = {
-            ...userData,
-            empresa_id: user.empresa_id || 'empresa-default'
-        };
+        const { email, password, nombre, apellido, rol, departamento, telefono, activo } = userData;
         
-        const validatedData = validateForDynamoDB('user', dataWithEmpresa);
-        
-        const businessRulesResult = validateBusinessRules('user', validatedData);
-        if (!businessRulesResult.valid) {
-            logger.warn('User creation business rules failed', {
-                errors: businessRulesResult.errors,
-                requestId: event.requestContext?.requestId
-            });
-            return badRequest('Business rules validation failed', businessRulesResult.errors);
+        // Validaciones básicas
+        if (!email || !password || !nombre || !apellido || !rol) {
+            return badRequest('Email, password, nombre, apellido y rol son requeridos');
         }
         
-        const existingUser = await db.getUsuarioByEmail(validatedData.email);
+        // El nuevo usuario hereda el empresa_id del admin que lo crea
+        const empresa_id = user.empresa_id || 'empresa-default';
+        
+        // Verificar si ya existe un usuario con ese email
+        const existingUser = await db.getUsuarioByEmail(email);
         if (existingUser) {
             return badRequest('Ya existe un usuario con ese email');
         }
         
-        const hashedPassword = await hashPassword(userData.password);
+        // Crear usuario en Cognito primero
+        const userPoolId = process.env.COGNITO_USER_POOL_ID;
         
-        const nuevoUsuario = await db.createUsuario({
-            ...validatedData,
-            password: hashedPassword
-        });
+        try {
+            // Construir atributos del usuario para Cognito
+            const userAttributes = [
+                { Name: 'email', Value: email },
+                { Name: 'email_verified', Value: 'true' },
+                { Name: 'name', Value: nombre },
+                { Name: 'family_name', Value: apellido },
+                { Name: 'custom:empresa_id', Value: empresa_id }
+            ];
+
+            // Crear usuario en Cognito
+            const createUserCommand = new AdminCreateUserCommand({
+                UserPoolId: userPoolId,
+                Username: email,
+                UserAttributes: userAttributes,
+                MessageAction: 'SUPPRESS' // No enviar email de bienvenida
+            });
+
+            const createResult = await cognitoClient.send(createUserCommand);
+            const userId = createResult.User.Username;
+
+            // Establecer password permanente
+            const setPasswordCommand = new AdminSetUserPasswordCommand({
+                UserPoolId: userPoolId,
+                Username: email,
+                Password: password,
+                Permanent: true
+            });
+
+            await cognitoClient.send(setPasswordCommand);
+
+            // Agregar a grupo según el rol
+            const groupName = rol; // admin, responsable, o usuario
+            const addToGroupCommand = new AdminAddUserToGroupCommand({
+                UserPoolId: userPoolId,
+                Username: email,
+                GroupName: groupName
+            });
+
+            await cognitoClient.send(addToGroupCommand);
+
+            logger.info('User created in Cognito successfully', {
+                userId,
+                email,
+                grupo: groupName,
+                empresa_id
+            });
+
+            // Guardar registro del usuario en DynamoDB (sin validación estricta)
+            const putUsuarioCommand = new PutCommand({
+                TableName: process.env.DYNAMODB_TABLE,
+                Item: {
+                    PK: `USER#${userId}`,
+                    SK: `USER#${userId}`,
+                    GSI1PK: `EMPRESA#${empresa_id}`,
+                    GSI1SK: `USER#${userId}`,
+                    id: userId,
+                    email,
+                    nombre,
+                    apellido,
+                    departamento: departamento || '',
+                    telefono: telefono || '',
+                    empresa_id,
+                    rol,
+                    activo: activo !== false,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    entity_type: 'usuario'
+                }
+            });
+
+            await docClient.send(putUsuarioCommand);
+
+            logger.info('User created successfully in DynamoDB', {
+                userId,
+                email,
+                rol,
+                empresa_id
+            });
+
+            return created({
+                message: 'Usuario creado exitosamente',
+                id: userId,
+                email,
+                nombre,
+                apellido,
+                departamento: departamento || '',
+                telefono: telefono || '',
+                rol,
+                activo: activo !== false,
+                empresa_id
+            });
+
+        } catch (cognitoError) {
+            logger.error('Error creating user in Cognito', {
+                error: cognitoError.message,
+                errorName: cognitoError.name,
+                email
+            });
+
+            if (cognitoError.name === 'UsernameExistsException') {
+                return badRequest('Ya existe un usuario en Cognito con este email');
+            }
+
+            return badRequest(`Error al crear usuario en Cognito: ${cognitoError.message}`);
+        }
         
-        const { password: _, ...usuarioSinPassword } = nuevoUsuario;
-        
-        logger.info('User created successfully', {
-            userId: nuevoUsuario.id,
-            userRole: validatedData.rol,
+    } catch (error) {
+        logger.error('Error creating user', {
+            error: error.message,
+            stack: error.stack,
             requestId: event.requestContext?.requestId
         });
         
-        return created(usuarioSinPassword);
-        
-    } catch (validationError) {
-        if (validationError.code === 'VALIDATION_ERROR') {
-            logger.warn('User creation validation failed', {
-                errors: validationError.validationErrors,
-                requestId: event.requestContext?.requestId
-            });
-            return badRequest('Datos de usuario inválidos', validationError.validationErrors);
-        }
-        throw validationError;
+        return badRequest(`Error al crear usuario: ${error.message}`);
     }
 }, [PERMISSIONS.USUARIOS_CREATE]);
 

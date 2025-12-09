@@ -13,9 +13,12 @@ const getReservas = withPermissions(async (event) => {
     const queryParams = extractQueryParams(event);
     const user = event.user;
     
-    const filters = {
-        empresa_id: user.empresa_id // MULTITENANCY: Filtrar por empresa
-    };
+    const filters = {};
+    
+    // MULTITENANCY: Solo filtrar por empresa si el usuario tiene una asignada
+    if (user.empresa_id) {
+        filters.empresa_id = user.empresa_id;
+    }
     
     if (user.rol === 'usuario') {
         filters.usuario_id = user.id;
@@ -105,10 +108,12 @@ const createReserva = withPermissions(async (event) => {
                         }
                         
                         if (esCritica) {
-                            const reservasActivas = await db.getReservas({ 
-                                espacio_id, 
-                                estado: 'confirmada' 
-                            });
+                            // MULTITENANCY: Filtrar por empresa al buscar conflictos críticos (si existe)
+                            const filters = { espacio_id, estado: 'confirmada' };
+                            if (user.empresa_id) {
+                                filters.empresa_id = user.empresa_id;
+                            }
+                            const reservasActivas = await db.getReservas(filters);
                             
                             const hayConflictoCritico = reservasActivas.some(reserva => {
                                 const reservaInicio = new Date(reserva.fecha_inicio);
@@ -120,7 +125,12 @@ const createReserva = withPermissions(async (event) => {
                                 throw new Error('CRITICAL_CONFLICT: Espacio ocupado en horario crítico');
                             }
                         } else {
-                            const reservasExistentes = await db.getReservas({ espacio_id });
+                            // MULTITENANCY: Filtrar por empresa al buscar conflictos (si existe)
+                            const filters = { espacio_id };
+                            if (user.empresa_id) {
+                                filters.empresa_id = user.empresa_id;
+                            }
+                            const reservasExistentes = await db.getReservas(filters);
                             const hayConflicto = reservasExistentes.some(reserva => {
                                 if (reserva.estado === 'cancelada') return false;
                                 
@@ -145,9 +155,13 @@ const createReserva = withPermissions(async (event) => {
                             proposito,
                             notas,
                             prioridad: esCritica ? 'emergencia' : (prioridad || 'normal'),
-                            estado: esCritica ? 'confirmada' : 'pendiente',
-                            empresa_id: user.empresa_id // MULTITENANCY: Asignar empresa del usuario
+                            estado: esCritica ? 'confirmada' : 'pendiente'
                         };
+                        
+                        // MULTITENANCY: Solo asignar empresa si el usuario tiene una
+                        if (user.empresa_id) {
+                            reservaToCreate.empresa_id = user.empresa_id;
+                        }
                         
                         const validatedReserva = validateForDynamoDB('reserva', reservaToCreate);
                         
