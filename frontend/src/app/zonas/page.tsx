@@ -225,13 +225,22 @@ export default function ZonasPage() {
             <p className="text-gray-600 mb-8">
               {t.zones.createFirstDesc}
             </p>
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              {t.zones.createZone}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <ArrowLeft className="h-5 w-5 mr-2" />
+                {t.nav.dashboard}
+              </Link>
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center justify-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                {t.zones.createZone}
+              </button>
+            </div>
           </div>
         ) : !showForm ? (
           <>

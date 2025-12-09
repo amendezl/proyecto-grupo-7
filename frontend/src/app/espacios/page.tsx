@@ -276,13 +276,22 @@ export default function EspaciosPage() {
               <p className="text-gray-600 mb-8">
                 {t.spaces.createFirstDesc}
               </p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                {t.spaces.createSpace}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Link
+                  href="/dashboard"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <ArrowLeft className="h-5 w-5 mr-2" />
+                  {t.nav.dashboard}
+                </Link>
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  {t.spaces.createSpace}
+                </button>
+              </div>
             </div>
           ) : (
             <div>

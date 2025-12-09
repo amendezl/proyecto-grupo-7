@@ -71,7 +71,7 @@ export default function ConfiguracionPage() {
   // NO sincronizar automáticamente - solo en la carga inicial del componente
   // La sincronización después de guardar se maneja manualmente
 
-  // Cargar datos del usuario
+  // Cargar datos del usuario y settings existentes de la BD
   useEffect(() => {
     const loadUserData = async () => {
       if (user) {
@@ -83,6 +83,20 @@ export default function ConfiguracionPage() {
           departamento: user.departamento || ''
         };
         setProfileData(userData);
+
+        // Cargar settings de la BD
+        try {
+          const response = await apiClient.getSettings();
+          if (response.ok && response.data) {
+            const dbSettings = response.data;
+            // Actualizar estado local con settings de BD
+            setAppearance(dbSettings);
+            setSavedAppearance(dbSettings);
+            // NO actualizar globalSettings aquí para evitar aplicar cambios sin intención
+          }
+        } catch (error) {
+          console.log('No se pudieron cargar settings de BD, usando defaults');
+        }
       }
     };
 
@@ -273,7 +287,7 @@ export default function ConfiguracionPage() {
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push('/dashboard')}
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#242938] border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -534,18 +548,18 @@ export default function ConfiguracionPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                          <Settings className="inline h-5 w-5 mr-2 text-purple-600 dark:text-purple-400" />
-                          Panel de Administración
+                          <Palette className="inline h-5 w-5 mr-2 text-purple-600 dark:text-purple-400" />
+                          {t.settings.themeEditorButton}
                         </h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Accede a funciones avanzadas y configuración del sistema
+                          {t.settings.themeEditorDesc}
                         </p>
                       </div>
                       <button
-                        onClick={() => router.push('/admin-custom')}
+                        onClick={() => router.push('/theme-editing')}
                         className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-medium rounded-lg shadow-lg transition-all transform hover:scale-105"
                       >
-                        Ir al Panel
+                        {t.settings.goToPanel}
                       </button>
                     </div>
                   </div>

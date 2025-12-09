@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { 
   Plus, 
@@ -30,9 +30,11 @@ import CancelReservaButton from '@/components/CancelReservaButton';
 import { apiClient } from '@/lib/api-client';
 import AppHeader from '@/components/AppHeader';
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ReservasPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEstado, setSelectedEstado] = useState<string>('');
   const [selectedEspacio, setSelectedEspacio] = useState<string>('');
@@ -58,15 +60,39 @@ export default function ReservasPage() {
 
   const { espacios } = useEspacios();
 
+  // Log para depuración
+  useEffect(() => {
+    console.log('📊 Reservas cargadas:', {
+      total: reservas.length,
+      estados: reservas.reduce((acc, r) => {
+        acc[r.estado] = (acc[r.estado] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      reservas: reservas.map(r => ({
+        id: r.id,
+        espacioId: r.espacioId,
+        estado: r.estado,
+        fechaInicio: r.fechaInicio,
+        fechaFin: r.fechaFin
+      }))
+    });
+  }, [reservas]);
+
   // Filtrar reservas por término de búsqueda
   const filteredReservas = reservas.filter(reserva => {
+    // Si no hay término de búsqueda, mostrar todas
+    if (!searchTerm || searchTerm.trim() === '') {
+      return true;
+    }
+    
     const espacio = espacios.find(e => e.id === reserva.espacioId);
     const espacioNombre = espacio?.nombre || '';
+    const searchLower = searchTerm.toLowerCase();
     
     return (
-      espacioNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reserva.proposito?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      reserva.usuarioId?.toLowerCase().includes(searchTerm.toLowerCase())
+      espacioNombre.toLowerCase().includes(searchLower) ||
+      reserva.proposito?.toLowerCase().includes(searchLower) ||
+      reserva.usuarioId?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -181,23 +207,84 @@ export default function ReservasPage() {
     setError('');
     setSuccess('');
 
+    // Validación
+    if (!formData.espacioId) {
+      setError('Por favor selecciona un espacio');
+      return;
+    }
+    if (!formData.proposito || formData.proposito.length < 5) {
+      setError('El propósito debe tener al menos 5 caracteres');
+      return;
+    }
+    if (!formData.fechaReserva || !formData.horaInicio || !formData.horaFin) {
+      setError('Por favor completa fecha y horarios');
+      return;
+    }
+
     try {
-      // Construir timestamps y convertir a ISO 8601 usando Date.toISOString()
+      console.log('👤 Usuario actual:', user);
+      
+      // Validar que tengamos usuario
+      if (!user?.id) {
+        setError('Error: No se pudo obtener el usuario actual. Por favor recarga la página.');
+        return;
+      }
+
+      // Construir timestamps en zona horaria local (sin conversión a UTC)
+      // El backend espera fechas en el mismo formato que se muestran al usuario
       const fechaInicioDate = new Date(`${formData.fechaReserva}T${formData.horaInicio}:00`);
       const fechaFinDate = new Date(`${formData.fechaReserva}T${formData.horaFin}:00`);
       
-      const response = await apiClient.createReserva({
-        espacio_id: formData.espacioId,
-        fecha_inicio: fechaInicioDate.toISOString(),
-        fecha_fin: fechaFinDate.toISOString(),
+      // Validar que la fecha no sea en el pasado (comparar con fecha/hora actual)
+      const ahora = new Date();
+      if (fechaInicioDate < ahora) {
+        setError(t.reservations.errorPastDate || 'Cannot create reservations in the past');
+        return;
+      }
+      
+      const reservaData: any = {
+        espacioId: formData.espacioId,
+        usuarioId: user.id,
+        fechaInicio: fechaInicioDate.toISOString(),
+        fechaFin: fechaFinDate.toISOString(),
         proposito: formData.proposito,
-        notas: formData.notasAdicionales || '',
-        prioridad: 'normal'
-      } as any);
+        estado: 'pendiente' as const,
+        participantes: formData.numeroAsistentes
+      };
+
+      // Agregar empresa_id si existe
+      if (user.empresa_id) {
+        reservaData.empresaId = user.empresa_id;
+      }
+
+      console.log('📅 Creando reserva:', reservaData);
+      const response = await apiClient.createReserva(reservaData);
+
+      console.log('📡 Response completo:', response);
 
       if (!response.ok) {
-        throw new Error(response.error || 'Error al crear reserva');
+        console.error('❌ Error al crear reserva:', {
+          error: response.error,
+          status: response.status,
+          data: response.data
+        });
+        
+        // Detectar errores específicos y mostrar mensaje traducido
+        const errorMsg = response.error || '';
+        if (errorMsg.includes('ya está reservado') || errorMsg.includes('already reserved')) {
+          setError(t.reservations.errorSpaceReserved);
+        } else {
+          // Mostrar detalles específicos si están disponibles
+          const errorDetails = (response as any).details || [];
+          const fullErrorMsg = errorDetails.length > 0 
+            ? `${response.error}: ${errorDetails.map((d: any) => d.message || d).join(', ')}`
+            : response.error;
+          setError(fullErrorMsg || 'Error al crear reserva');
+        }
+        return;
       }
+
+      console.log('✅ Reserva creada exitosamente', response.data);
 
       setSuccess(t.reservations.reservationCreated);
       setShowCreateModal(false);
@@ -211,7 +298,28 @@ export default function ReservasPage() {
         equipamientoSolicitado: [],
         notasAdicionales: ''
       });
-      refetch();
+      
+      // Scroll to top para ver el mensaje de éxito
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Refrescar la lista de reservas con múltiples intentos
+      // para dar tiempo a DynamoDB de propagar los cambios (eventual consistency)
+      console.log('🔄 Refrescando lista de reservas...');
+      const refreshWithRetry = async (attempt = 1, maxAttempts = 3) => {
+        await refetch();
+        const currentCount = reservas.length;
+        console.log(`📊 Intento ${attempt}: ${currentCount} reservas encontradas`);
+        
+        // Si aún no aparece la reserva y quedan intentos, reintentar
+        if (currentCount === 0 && attempt < maxAttempts) {
+          console.log(`⏳ Reintentando en ${attempt * 500}ms...`);
+          setTimeout(() => refreshWithRetry(attempt + 1, maxAttempts), attempt * 500);
+        } else {
+          console.log('✅ Lista de reservas actualizada');
+        }
+      };
+      
+      setTimeout(() => refreshWithRetry(), 500);
     } catch (err: any) {
       setError(err.message || 'Error al crear la reserva');
     }

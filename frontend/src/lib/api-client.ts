@@ -413,6 +413,9 @@ const serializeReservaInput = (data: Partial<Reserva>) => {
   if (data.usuarioId !== undefined) payload.usuario_id = data.usuarioId;
   if ((data as any).usuario_id !== undefined) payload.usuario_id = (data as any).usuario_id;
   
+  if ((data as any).empresaId !== undefined) payload.empresa_id = (data as any).empresaId;
+  if ((data as any).empresa_id !== undefined) payload.empresa_id = (data as any).empresa_id;
+  
   if (data.fechaInicio !== undefined) payload.fecha_inicio = data.fechaInicio;
   if ((data as any).fecha_inicio !== undefined) payload.fecha_inicio = (data as any).fecha_inicio;
   

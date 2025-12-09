@@ -282,6 +282,12 @@ const withPermissions = (handler, requiredPermissions = []) => {
             requireMinimumPermissions(requiredPermissions)(user);
         }
         
+        // MULTITENANCY: Asignar empresa_id por defecto si no existe (usuarios legacy)
+        if (!user.empresa_id) {
+            user.empresa_id = 'default-empresa';
+            console.log('⚠️ Usuario sin empresa_id, asignando default-empresa:', user.id);
+        }
+        
         event.user = user;
         
         return await handler(event, context);
