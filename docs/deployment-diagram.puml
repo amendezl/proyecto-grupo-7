@@ -1,0 +1,547 @@
+@startuml Diagrama de Despliegue - Sistema de Gestión de Espacios
+' Arquitectura de Despliegue AWS Serverless
+' Generado: 2025-12-08
+' Proyecto: Sistema de Gestión de Espacios Multi-tenant
+
+!define AWSPuml https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/dist
+!include AWSPuml/AWSCommon.puml
+!include AWSPuml/Compute/Lambda.puml
+!include AWSPuml/Database/DynamoDB.puml
+!include AWSPuml/NetworkingContentDelivery/CloudFront.puml
+!include AWSPuml/Storage/SimpleStorageService.puml
+!include AWSPuml/SecurityIdentityCompliance/Cognito.puml
+!include AWSPuml/ApplicationIntegration/APIGateway.puml
+!include AWSPuml/ApplicationIntegration/SimpleNotificationService.puml
+!include AWSPuml/ApplicationIntegration/SimpleQueueService.puml
+!include AWSPuml/ManagementGovernance/CloudWatch.puml
+!include AWSPuml/SecurityIdentityCompliance/WAF.puml
+
+skinparam backgroundColor #FFFFFF
+skinparam nodeBackgroundColor<<device>> LightYellow
+skinparam nodeBackgroundColor<<cdn>> LightBlue
+skinparam nodeBackgroundColor<<compute>> LightGreen
+skinparam nodeBackgroundColor<<database>> LightCoral
+skinparam nodeBackgroundColor<<network>> LightCyan
+skinparam componentBackgroundColor #E8F5E9
+
+title Diagrama de Despliegue - Sistema de Gestión de Espacios AWS Serverless
+
+'==============================================================================
+' CAPA DE CLIENTE
+'==============================================================================
+node "Dispositivos de Usuario" <<device>> {
+    component "Navegador Web" as Browser
+    component "Aplicación Móvil" as MobileApp
+    note right of Browser
+        Dispositivos compatibles:
+        - Desktop (Chrome, Firefox, Safari, Edge)
+        - Tablet
+        - Mobile Web
+    end note
+}
+
+'==============================================================================
+' CAPA DE SEGURIDAD Y CDN
+'==============================================================================
+node "AWS Edge Locations" <<cdn>> {
+    CloudFront(CloudFront, "CloudFront Distribution", "CDN Global") {
+        component "Cache de Contenido" as Cache
+        component "Compresión Gzip/Brotli" as Compression
+        component "SSL/TLS Termination" as SSL
+    }
+    
+    WAF(WAF, "AWS WAF", "Web Application Firewall") {
+        component "Reglas Anti-SQL Injection" as SQLiProtection
+        component "Reglas Anti-XSS" as XSSProtection
+        component "Rate Limiting" as RateLimit
+        component "Geo-Blocking" as GeoBlock
+    }
+    
+    note right of CloudFront
+        **Configuración:**
+        - Price Class: 100 (Optimizado)
+        - Compresión: Automática
+        - HTTPS Only
+        - HTTP/2 y HTTP/3 habilitado
+        
+        **Security Headers:**
+        - HSTS: 2 años
+        - X-Frame-Options: DENY
+        - CSP: strict
+        - X-Content-Type-Options: nosniff
+    end note
+}
+
+'==============================================================================
+' CAPA DE RED (VPC)
+'==============================================================================
+rectangle "AWS Region (us-east-1)" {
+    node "VPC - 10.0.0.0/16" <<network>> {
+        rectangle "Public Subnets" as PublicSubnets {
+            component "Public Subnet A\n10.0.1.0/24\nAZ: us-east-1a" as PubSubA
+            component "Public Subnet B\n10.0.2.0/24\nAZ: us-east-1b" as PubSubB
+            component "NAT Gateway" as NatGW
+            component "Internet Gateway" as IGW
+        }
+        
+        rectangle "Private Subnets" as PrivateSubnets {
+            component "Private Subnet A\n10.0.10.0/24\nAZ: us-east-1a" as PrivSubA
+            component "Private Subnet B\n10.0.11.0/24\nAZ: us-east-1b" as PrivSubB
+        }
+        
+        note bottom of PrivateSubnets
+            **Configuración:**
+            - Lambda Functions desplegadas aquí
+            - Sin acceso directo a Internet
+            - Salida vía NAT Gateway
+            - Security Group: LambdaSecurityGroup
+        end note
+    }
+
+'==============================================================================
+' CAPA DE ALMACENAMIENTO ESTÁTICO
+'==============================================================================
+    node "Almacenamiento S3" <<database>> {
+        SimpleStorageService(FrontendBucket, "Frontend Bucket", "S3") {
+            component "index.html" as IndexHTML
+            component "static/js/*" as JSFiles
+            component "static/css/*" as CSSFiles
+            component "static/assets/*" as Assets
+        }
+        
+        SimpleStorageService(LogBucket, "CloudFront Logs", "S3") {
+            component "cloudfront-logs/" as CFLogs
+        }
+        
+        note right of FrontendBucket
+            **Configuración:**
+            - Acceso: Solo CloudFront (OAI)
+            - Encriptación: AES256
+            - Versionado: Deshabilitado
+            - Public Access: Bloqueado
+            - CORS: Habilitado
+        end note
+    }
+
+'==============================================================================
+' CAPA DE API GATEWAY
+'==============================================================================
+    node "API Gateway" <<network>> {
+        APIGateway(HttpApi, "HTTP API Gateway", "RESTful API") {
+            component "GET /api/espacios" as GetEspacios
+            component "POST /api/reservas" as PostReservas
+            component "PUT /api/usuarios" as PutUsuarios
+            component "DELETE /api/zonas" as DeleteZonas
+        }
+        
+        APIGateway(WebSocketApi, "WebSocket API", "Real-time Communication") {
+            component "$connect" as WSConnect
+            component "$disconnect" as WSDisconnect
+            component "$default" as WSDefault
+            component "Custom Routes" as WSCustom
+        }
+        
+        note right of HttpApi
+            **Configuración:**
+            - Protocolo: HTTP/2
+            - CORS: Habilitado
+            - Autorización: Cognito JWT
+            - Throttling: 10,000 req/s
+            - Stage: dev/prod
+        end note
+        
+        note right of WebSocketApi
+            **Configuración:**
+            - Protocolo: WSS (WebSocket Secure)
+            - Autorización: JWT Token
+            - Connection Timeout: 10 min
+            - Idle Timeout: 2 horas
+        end note
+    }
+
+'==============================================================================
+' CAPA DE AUTENTICACIÓN
+'==============================================================================
+    node "Autenticación" <<compute>> {
+        Cognito(CognitoUserPool, "Cognito User Pool", "Gestión de Usuarios") {
+            component "User Registration" as UserReg
+            component "User Login" as UserLogin
+            component "JWT Token Generation" as JWTGen
+            component "MFA (opcional)" as MFA
+        }
+        
+        Cognito(CognitoClient, "App Client", "Frontend Client") {
+            component "Client ID" as ClientID
+            component "Client Secret" as ClientSecret
+        }
+        
+        note right of CognitoUserPool
+            **Atributos Personalizados:**
+            - empresa_id (inmutable)
+            - empresa_nombre (mutable)
+            
+            **Políticas:**
+            - Contraseña: 8+ caracteres
+            - MFA: Opcional
+            - Verificación: Email
+            
+            **Grupos:**
+            - admin
+            - usuario
+            - responsable
+        end note
+    }
+
+'==============================================================================
+' CAPA DE COMPUTACIÓN (LAMBDA)
+'==============================================================================
+    node "Lambda Functions" <<compute>> {
+        rectangle "Autenticación (7)" as AuthLambdas {
+            Lambda(LoginLambda, "login", "POST /api/login")
+            Lambda(RegisterLambda, "register", "POST /api/register")
+            Lambda(RefreshLambda, "refresh", "POST /api/refresh")
+            Lambda(LogoutLambda, "logout", "POST /api/logout")
+            Lambda(VerifyLambda, "verify", "POST /api/verify")
+            Lambda(ForgotPasswordLambda, "forgot", "POST /api/forgot-password")
+            Lambda(ResetPasswordLambda, "reset", "POST /api/reset-password")
+        }
+        
+        rectangle "Usuarios (5)" as UserLambdas {
+            Lambda(GetUserLambda, "getUser", "GET /api/usuarios/:id")
+            Lambda(UpdateUserLambda, "updateUser", "PUT /api/usuarios/:id")
+            Lambda(DeleteUserLambda, "deleteUser", "DELETE /api/usuarios/:id")
+            Lambda(ListUsersLambda, "listUsers", "GET /api/usuarios")
+            Lambda(MigrateLambda, "migrateUser", "POST /api/usuarios/migrate")
+        }
+        
+        rectangle "Espacios (6)" as SpaceLambdas {
+            Lambda(CreateSpaceLambda, "createEspacio", "POST /api/espacios")
+            Lambda(GetSpaceLambda, "getEspacio", "GET /api/espacios/:id")
+            Lambda(UpdateSpaceLambda, "updateEspacio", "PUT /api/espacios/:id")
+            Lambda(DeleteSpaceLambda, "deleteEspacio", "DELETE /api/espacios/:id")
+            Lambda(ListSpacesLambda, "listEspacios", "GET /api/espacios")
+            Lambda(SearchSpacesLambda, "searchEspacios", "GET /api/espacios/search")
+        }
+        
+        rectangle "Reservas (7)" as BookingLambdas {
+            Lambda(CreateBookingLambda, "createReserva", "POST /api/reservas")
+            Lambda(GetBookingLambda, "getReserva", "GET /api/reservas/:id")
+            Lambda(UpdateBookingLambda, "updateReserva", "PUT /api/reservas/:id")
+            Lambda(CancelBookingLambda, "cancelReserva", "DELETE /api/reservas/:id")
+            Lambda(ListBookingsLambda, "listReservas", "GET /api/reservas")
+            Lambda(ApproveBookingLambda, "approveReserva", "POST /api/reservas/:id/approve")
+            Lambda(CheckInLambda, "checkIn", "POST /api/reservas/:id/checkin")
+        }
+        
+        rectangle "WebSocket (4)" as WebSocketLambdas {
+            Lambda(WSConnectLambda, "websocketConnect", "$connect")
+            Lambda(WSDisconnectLambda, "websocketDisconnect", "$disconnect")
+            Lambda(WSDefaultLambda, "websocketDefault", "$default")
+            Lambda(WSBroadcastLambda, "websocket", "Broadcast Handler")
+        }
+        
+        rectangle "Admin/Theme (1)" as AdminLambdas {
+            Lambda(ThemeManagerLambda, "adminThemeManager", "POST/GET /api/admin/themes")
+        }
+        
+        rectangle "Procesamiento Asíncrono (3)" as AsyncLambdas {
+            Lambda(StreamHandlerLambda, "streamHandler", "DynamoDB Stream Trigger")
+            Lambda(PersonalizationLambda, "personalizationForwarder", "SNS Trigger")
+            Lambda(DevOpsLambda, "devops", "Automation Tasks")
+        }
+        
+        note bottom of AuthLambdas
+            **Configuración Lambda:**
+            - Runtime: Node.js 18.x
+            - Memory: 512 MB
+            - Timeout: 30 segundos
+            - VPC: Private Subnets
+            - Reserved Concurrency: 100
+            
+            **Variables de Entorno:**
+            - TABLE_NAME
+            - COGNITO_USER_POOL_ID
+            - JWT_SECRET
+            - STAGE
+        end note
+    }
+
+'==============================================================================
+' CAPA DE BASE DE DATOS
+'==============================================================================
+    node "DynamoDB Tables" <<database>> {
+        DynamoDB(MainTable, "MainDynamoDBTable", "Tabla Principal Single-Table Design") {
+            component "PK: EntityType#ID" as MainPK
+            component "SK: Metadata" as MainSK
+            component "GSI1: Query Patterns" as MainGSI
+            component "Streams: Enabled" as MainStream
+        }
+        
+        DynamoDB(ConnectionsTable, "WebSocketConnectionsTable", "Conexiones WebSocket") {
+            component "PK: connectionId" as ConnPK
+            component "GSI: ClientIdIndex" as ClientIndex
+            component "GSI: StatusIndex" as StatusIndex
+            component "TTL: Enabled" as ConnTTL
+        }
+        
+        DynamoDB(CircuitTable, "CircuitStateTable", "Estado Circuit Breaker") {
+            component "PK: serviceName" as CircuitPK
+            component "state: OPEN|CLOSED|HALF_OPEN" as CircuitState
+            component "failureCount" as FailureCount
+        }
+        
+        DynamoDB(IdempotencyTable, "IdempotencyTable", "Prevención Duplicados") {
+            component "PK: idempotencyKey" as IdempPK
+            component "status: SUCCESS|FAILED" as IdempStatus
+            component "TTL: 24 horas" as IdempTTL
+        }
+        
+        DynamoDB(ThemesTable, "WebsiteThemesTable", "Temas Personalizados") {
+            component "PK: themeId" as ThemePK
+            component "GSI: CreatedByIndex" as CreatedByIdx
+            component "GSI: ActiveThemesIndex" as ActiveIdx
+            component "config: JSON" as ThemeConfig
+        }
+        
+        note right of MainTable
+            **Configuración:**
+            - Billing: PAY_PER_REQUEST
+            - PITR: Habilitado
+            - Streams: NEW_AND_OLD_IMAGES
+            - Encriptación: AWS Managed
+            
+            **Entidades:**
+            - EMPRESA#, USER#, ESPACIO#
+            - RESERVA#, ZONA#, RESPONSABLE#
+            - ORG#, DASHBOARD#
+        end note
+    }
+
+'==============================================================================
+' CAPA DE MENSAJERÍA
+'==============================================================================
+    node "Messaging Services" <<compute>> {
+        SimpleQueueService(MainQueue, "MainQueue", "Cola Principal") {
+            component "Visibility Timeout: 6 min" as QVisibility
+            component "Message Retention: 14 días" as QRetention
+            component "DLQ: Enabled" as QDLQ
+        }
+        
+        SimpleQueueService(DevOpsQueue, "DevOpsQueue", "Automatización DevOps") {
+            component "Visibility Timeout: 6 min" as DevVisibility
+            component "Max Receive Count: 3" as DevMaxReceive
+        }
+        
+        SimpleQueueService(DeadLetterQueue, "DeadLetterQueue", "DLQ Principal") {
+            component "Retention: 14 días" as DLQRetention
+        }
+        
+        SimpleNotificationService(SpaceNotifications, "SpaceNotificationsTopic", "Notificaciones de Espacios") {
+            component "Subscriptions" as SpaceSubs
+        }
+        
+        SimpleNotificationService(SystemAlerts, "SystemAlertsTopic", "Alertas del Sistema") {
+            component "Circuit Breaker Alerts" as CBAlerts
+            component "DLQ Alarms" as DLQAlerts
+        }
+        
+        SimpleNotificationService(AdminNotifications, "AdminNotificationsTopic", "Notificaciones Admin") {
+            component "Theme Changes" as ThemeNotif
+        }
+        
+        note right of MainQueue
+            **Patrón de Uso:**
+            - Procesamiento asíncrono
+            - Desacoplamiento de servicios
+            - Retry automático
+            - Dead Letter Queue para fallos
+        end note
+    }
+
+'==============================================================================
+' CAPA DE MONITOREO
+'==============================================================================
+    node "Monitoring & Observability" <<compute>> {
+        CloudWatch(CloudWatchLogs, "CloudWatch Logs", "Agregación de Logs") {
+            component "Lambda Logs" as LambdaLogs
+            component "API Gateway Logs" as APILogs
+            component "VPC Flow Logs" as VPCLogs
+        }
+        
+        CloudWatch(CloudWatchMetrics, "CloudWatch Metrics", "Métricas") {
+            component "Lambda Duration" as LambdaDuration
+            component "Lambda Errors" as LambdaErrors
+            component "API Latency" as APILatency
+            component "DynamoDB Throttles" as DBThrottles
+        }
+        
+        CloudWatch(CloudWatchAlarms, "CloudWatch Alarms", "Alertas") {
+            component "DLQ Alarm" as DLQAlarm
+            component "DevOps DLQ Alarm" as DevOpsDLQAlarm
+            component "Error Rate Alarm" as ErrorAlarm
+            component "WAF Block Alarm" as WAFAlarm
+        }
+        
+        CloudWatch(CloudWatchDashboard, "CloudWatch Dashboard", "Visualización") {
+            component "Lambda Performance" as LambdaPerf
+            component "API Performance" as APIPerf
+            component "Database Performance" as DBPerf
+        }
+        
+        note right of CloudWatchAlarms
+            **Configuración de Alertas:**
+            - Período: 5 minutos
+            - Evaluaciones: 1
+            - Acciones: SNS Topic
+            - Tratamiento de datos faltantes: notBreaching
+        end note
+    }
+}
+
+'==============================================================================
+' RELACIONES Y FLUJOS DE DATOS
+'==============================================================================
+
+' Capa de Usuario a CDN
+Browser --> CloudFront : HTTPS Request
+MobileApp --> CloudFront : HTTPS Request
+
+' CDN a WAF
+CloudFront --> WAF : Security Check
+WAF --> CloudFront : Allow/Block
+
+' CDN a S3
+CloudFront --> FrontendBucket : Fetch Static Assets
+CloudFront --> LogBucket : Write Access Logs
+
+' CDN a API Gateway
+CloudFront --> HttpApi : Proxy API Requests
+CloudFront --> WebSocketApi : WebSocket Upgrade
+
+' API Gateway a Cognito
+HttpApi --> CognitoUserPool : Validate JWT
+WebSocketApi --> CognitoUserPool : Validate JWT Token
+
+' API Gateway a Lambda
+HttpApi --> LoginLambda : Route /api/login
+HttpApi --> GetUserLambda : Route /api/usuarios/:id
+HttpApi --> CreateSpaceLambda : Route /api/espacios
+HttpApi --> CreateBookingLambda : Route /api/reservas
+HttpApi --> ThemeManagerLambda : Route /api/admin/themes
+
+WebSocketApi --> WSConnectLambda : Route $connect
+WebSocketApi --> WSDisconnectLambda : Route $disconnect
+WebSocketApi --> WSDefaultLambda : Route $default
+
+' Lambda a DynamoDB
+LoginLambda --> MainTable : Query User
+GetUserLambda --> MainTable : Get Item
+CreateSpaceLambda --> MainTable : Put Item
+CreateBookingLambda --> MainTable : Put Item
+CreateBookingLambda --> IdempotencyTable : Check Idempotency
+
+WSConnectLambda --> ConnectionsTable : Put Connection
+WSDisconnectLambda --> ConnectionsTable : Delete Connection
+WSBroadcastLambda --> ConnectionsTable : Query Connections
+
+ThemeManagerLambda --> ThemesTable : CRUD Operations
+
+LoginLambda --> CircuitTable : Check Circuit State
+GetUserLambda --> CircuitTable : Update Circuit Metrics
+
+' DynamoDB Streams
+MainTable --> StreamHandlerLambda : Stream Events
+StreamHandlerLambda --> SpaceNotifications : Publish Event
+
+' SNS a Lambda
+SpaceNotifications --> PersonalizationLambda : Trigger
+SystemAlerts --> DevOpsLambda : Trigger
+AdminNotifications --> ThemeManagerLambda : Subscribe
+
+' Lambda a SQS
+CreateBookingLambda --> MainQueue : Send Message
+DevOpsLambda --> DevOpsQueue : Send Message
+MainQueue --> DeadLetterQueue : Failed Messages (after 3 retries)
+
+' Lambda a CloudWatch
+LoginLambda --> CloudWatchLogs : Write Logs
+GetUserLambda --> CloudWatchMetrics : Publish Metrics
+CreateSpaceLambda --> CloudWatchLogs : Error Logs
+
+' CloudWatch Alarms
+DeadLetterQueue --> DLQAlarm : Message Visible
+DLQAlarm --> SystemAlerts : Trigger Alert
+
+' VPC Connectivity
+IGW --> PubSubA : Internet Access
+IGW --> PubSubB : Internet Access
+NatGW --> PrivSubA : Outbound Internet
+NatGW --> PrivSubB : Outbound Internet
+
+' Lambda in VPC
+LoginLambda -[hidden]-> PrivSubA
+GetUserLambda -[hidden]-> PrivSubA
+CreateSpaceLambda -[hidden]-> PrivSubB
+
+'==============================================================================
+' LEYENDA
+'==============================================================================
+legend right
+    **Componentes AWS:**
+    - CloudFront: CDN Global
+    - WAF: Web Application Firewall
+    - S3: Almacenamiento de objetos
+    - API Gateway: HTTP API & WebSocket API
+    - Cognito: Autenticación y autorización
+    - Lambda: Computación serverless (43 funciones)
+    - DynamoDB: Base de datos NoSQL (5 tablas)
+    - SQS: Colas de mensajes
+    - SNS: Notificaciones pub/sub
+    - CloudWatch: Monitoreo y observabilidad
+    - VPC: Red privada virtual
+    
+    **Patrones de Arquitectura:**
+    - Serverless
+    - Event-Driven
+    - Microservicios
+    - Single-Table Design (DynamoDB)
+    - Circuit Breaker
+    - Idempotency
+    - Multi-Tenancy
+    
+    **Regiones y Disponibilidad:**
+    - Región: us-east-1
+    - Multi-AZ: us-east-1a, us-east-1b
+    - CloudFront: Edge Locations Globales
+endlegend
+
+'==============================================================================
+' NOTAS DE SEGURIDAD
+'==============================================================================
+note top of WAF
+    **Seguridad en Capas:**
+    1. WAF (Edge) - Bloquea tráfico malicioso
+    2. CloudFront - HTTPS Only, Security Headers
+    3. API Gateway - JWT Validation, Throttling
+    4. Lambda - IAM Roles, VPC Isolation
+    5. DynamoDB - Encriptación at rest
+    6. S3 - Private, OAI Only Access
+    7. Cognito - MFA, Password Policies
+end note
+
+note bottom of MainTable
+    **Alta Disponibilidad:**
+    - DynamoDB: Multi-AZ automático
+    - Lambda: Auto-scaling
+    - API Gateway: 99.95% SLA
+    - CloudFront: 99.9% SLA
+    - S3: 99.999999999% durabilidad
+    
+    **Disaster Recovery:**
+    - DynamoDB: PITR habilitado
+    - S3: Versionado (opcional)
+    - CloudWatch: Logs retention 7 días
+    - Lambda: Code versioning
+end note
+
+@enduml
